@@ -1,0 +1,13 @@
+VideoForgeNative bundled fonts
+
+The project bundles fonts intended for free redistribution under their respective licenses.
+
+- Noto Sans Arabic / Noto Kufi Arabic / Noto Naskh Arabic: SIL Open Font License 1.1
+- Lato: SIL Open Font License 1.1
+- DejaVu Sans: Bitstream Vera / DejaVu Fonts license
+- Amiri: SIL Open Font License 1.1
+- Inter: SIL Open Font License 1.1
+- Cabin: SIL Open Font License 1.1
+- Comic Neue: SIL Open Font License 1.1
+
+Keep this notice and the original license texts/attribution requirements when distributing the app.
