@@ -221,7 +221,7 @@ class ExportEngine(private val context: Context, private val resolver: ContentRe
                     "noir" -> { videoEffects += RgbFilter.createGrayscaleFilter(); videoEffects += Contrast(0.22f) }
                     "faded" -> { videoEffects += Brightness(0.03f); videoEffects += Contrast(-0.12f); videoEffects += HslAdjustment.Builder().adjustSaturation(-18f).build() }
                     "tealOrange" -> { videoEffects += HslAdjustment.Builder().adjustHue(8f).adjustSaturation(18f).build(); videoEffects += Contrast(0.08f) }
-                    "vintage" -> { videoEffects += RgbFilter.createSepiaFilter(); videoEffects += HslAdjustment.Builder().adjustSaturation(-12f).build() }
+                    "vintage" -> { videoEffects += HslAdjustment.Builder().adjustHue(28f).adjustSaturation(-12f).build() }
                     "sunset" -> { videoEffects += HslAdjustment.Builder().adjustHue(22f).adjustSaturation(20f).build(); videoEffects += Brightness(0.04f) }
                     "ice" -> { videoEffects += HslAdjustment.Builder().adjustHue(-24f).adjustSaturation(10f).build(); videoEffects += Brightness(0.04f) }
                     "dramatic" -> { videoEffects += Contrast(0.28f); videoEffects += HslAdjustment.Builder().adjustSaturation(12f).build() }
@@ -230,7 +230,7 @@ class ExportEngine(private val context: Context, private val resolver: ContentRe
                 if (editor.rotation % 360 != 0 || kotlin.math.abs(editor.cropZoom - 1f) > 0.001f) {
                     videoEffects += ScaleAndRotateTransformation.Builder()
                         .setScale(editor.cropZoom.coerceIn(1f, 6f), editor.cropZoom.coerceIn(1f, 6f))
-                        .setRotationDegrees((editor.rotation % 360 + 360) % 360).build()
+                        .setRotationDegrees(((editor.rotation % 360 + 360) % 360).toFloat()).build()
                 }
                 if (editor.flipHorizontal || editor.flipVertical) {
                     videoEffects += MatrixTransformation {
@@ -293,8 +293,8 @@ class ExportEngine(private val context: Context, private val resolver: ContentRe
                     if (effectiveFadeIn > 0f || effectiveFadeOut > 0f) {
                         audioProcessors += VolumeEnvelopeProcessor(
                             clipDurationUs(clip),
-                            effectiveFadeIn * 1_000_000L,
-                            effectiveFadeOut * 1_000_000L
+                            (effectiveFadeIn * 1_000_000f).toLong(),
+                            (effectiveFadeOut * 1_000_000f).toLong()
                         )
                     }
                 }
