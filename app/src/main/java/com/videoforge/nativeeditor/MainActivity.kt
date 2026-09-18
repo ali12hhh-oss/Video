@@ -1767,7 +1767,7 @@ private fun EditorScreen(
                 }
             }
             Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 3.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.Keyframe, null, Modifier.size(18.dp), tint = Color(0xFFD09CFF))
+                Icon(Icons.Default.Tune, null, Modifier.size(18.dp), tint = Color(0xFFD09CFF))
                 Spacer(Modifier.width(5.dp))
                 Text(if (language == AppLanguage.ARABIC) "الحركة الزمنية" else "Keyframe timeline", fontSize = 11.sp, modifier = Modifier.weight(1f))
                 Text(formatTimelineTime(playheadMs), fontSize = 10.sp, color = Color.Gray)
