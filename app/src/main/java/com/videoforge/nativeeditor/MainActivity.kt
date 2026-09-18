@@ -1297,6 +1297,7 @@ private fun timelineClipAt(clips: List<Clip>, positionMs: Long): Pair<Clip, Long
     return null
 }
 
+@Composable
 private fun EditorScreen(
     projectId: String,
     projectName: String,
