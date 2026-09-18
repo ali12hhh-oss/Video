@@ -49,11 +49,13 @@ private class MosaicShaderProgram(
 
     init {
         try {
-            program = GlProgram(
-                context,
-                R.raw.mosaic_vertex_es2,
-                R.raw.mosaic_fragment_es2
-            )
+            val vertexShader = context.resources.openRawResource(R.raw.mosaic_vertex_es2)
+                .bufferedReader()
+                .use { it.readText() }
+            val fragmentShader = context.resources.openRawResource(R.raw.mosaic_fragment_es2)
+                .bufferedReader()
+                .use { it.readText() }
+            program = GlProgram(vertexShader, fragmentShader)
         } catch (e: IOException) {
             throw VideoFrameProcessingException(e)
         } catch (e: GlUtil.GlException) {
