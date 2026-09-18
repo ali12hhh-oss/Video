@@ -157,6 +157,12 @@ data class EditorSettings(
     val temperature: Float = 0f,
     val tint: Float = 0f,
     val blurRadius: Float = 0f,
+    val mosaicEnabled: Boolean = false,
+    val mosaicBlockSize: Float = 0.08f,
+    val mosaicX: Float = 0.18f,
+    val mosaicY: Float = 0.18f,
+    val mosaicWidth: Float = 0.64f,
+    val mosaicHeight: Float = 0.64f,
     val aspect: String = "16:9",
     val cropZoom: Float = 1f,
     val cropX: Float = 0f,
@@ -419,7 +425,7 @@ object EditorSettingsRepository {
             .put("musicKeyframes", JSONArray().apply { s.musicKeyframes.sortedBy { it.timeMs }.forEach { k -> put(JSONObject().put("timeMs", k.timeMs).put("volume", k.volume)) } })
             .put("audioKeyframes", JSONArray().apply { s.audioKeyframes.sortedBy { it.timeMs }.forEach { k -> put(JSONObject().put("timeMs", k.timeMs).put("volume", k.volume)) } })
             .put("filter", s.filter).put("brightness", s.brightness).put("contrast", s.contrast)
-            .put("saturation", s.saturation).put("hue", s.hue).put("temperature", s.temperature).put("tint", s.tint).put("blurRadius", s.blurRadius).put("aspect", s.aspect)
+            .put("saturation", s.saturation).put("hue", s.hue).put("temperature", s.temperature).put("tint", s.tint).put("blurRadius", s.blurRadius)\n            .put("mosaicEnabled", s.mosaicEnabled).put("mosaicBlockSize", s.mosaicBlockSize).put("mosaicX", s.mosaicX).put("mosaicY", s.mosaicY).put("mosaicWidth", s.mosaicWidth).put("mosaicHeight", s.mosaicHeight).put("aspect", s.aspect)
             .put("cropZoom", s.cropZoom).put("cropX", s.cropX).put("cropY", s.cropY)
             .put("rotation", s.rotation).put("flipHorizontal", s.flipHorizontal).put("flipVertical", s.flipVertical).put("overlayOpacity", s.overlayOpacity)
             .put("overlayImageUri", s.overlayImageUri).put("overlayImageX", s.overlayImageX).put("overlayImageY", s.overlayImageY).put("overlayImageScale", s.overlayImageScale).put("overlayImageRotation", s.overlayImageRotation).put("overlayImageAlpha", s.overlayImageAlpha)
