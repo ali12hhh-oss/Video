@@ -100,3 +100,8 @@ After the video pass, continue with the remaining editor areas such as advanced 
 - Added calligraphic/display choices alongside the existing Noto, Amiri, Cairo, Tajawal, IBM Plex Sans Arabic, and Readex Pro families.
 - Bundled the font binaries under `app/src/main/res/font/` and wired every family into the editor preview and export font resolver.
 - Variable-weight families use the existing runtime Typeface weight handling; regular-only decorative families can still render synthesized bold when Bold is enabled.
+
+## More Arabic script styles — 2026-09-18
+- Added six further OFL-licensed families: Lateef, Harmattan, Mada, Scheherazade New, Reem Kufi, and Rubik.
+- The library now includes additional Naskh-style, flowing calligraphic, Kufi, modern sans, and display-oriented options for Arabic/English captions.
+- Each new family is bundled locally and connected to both the Compose preview picker and export resolver.

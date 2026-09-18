@@ -598,6 +598,12 @@ class ExportEngine(private val context: Context, private val resolver: ContentRe
         "katibeh" -> R.font.katibeh
         "lemonada" -> R.font.lemonada
         "markazi_text" -> R.font.markazi_text
+        "lateef" -> if (bold) R.font.lateef_bold else R.font.lateef
+        "harmattan" -> if (bold) R.font.harmattan_bold else R.font.harmattan
+        "mada" -> R.font.mada
+        "scheherazade_new" -> if (bold) R.font.scheherazade_new_bold else R.font.scheherazade_new
+        "reem_kufi" -> R.font.reem_kufi
+        "rubik" -> R.font.rubik
         "lato" -> if (bold) R.font.lato_bold else R.font.lato
         "inter" -> if (bold) R.font.inter_bold else R.font.inter
         "cabin" -> if (bold) R.font.cabin_bold else R.font.cabin

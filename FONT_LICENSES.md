@@ -14,6 +14,12 @@ The following additional font families are bundled from the official Google Font
 - Katibeh — https://github.com/google/fonts/tree/main/ofl/katibeh
 - Lemonada — https://github.com/google/fonts/tree/main/ofl/lemonada
 - Markazi Text — https://github.com/google/fonts/tree/main/ofl/markazitext
+- Lateef — https://github.com/google/fonts/tree/main/ofl/lateef
+- Harmattan — https://github.com/google/fonts/tree/main/ofl/harmattan
+- Mada — https://github.com/google/fonts/tree/main/ofl/mada
+- Scheherazade New — https://github.com/google/fonts/tree/main/ofl/scheherazadenew
+- Reem Kufi — https://github.com/google/fonts/tree/main/ofl/reemkufi
+- Rubik — https://github.com/google/fonts/tree/main/ofl/rubik
 
 The font files remain subject to their original copyright and license notices. This project does not claim ownership of the typefaces. The OFL permits embedding and redistribution of the font software subject to its terms.
 
