@@ -193,6 +193,15 @@ class ExportEngine(private val context: Context, private val resolver: ContentRe
                 val videoEffects = mutableListOf<androidx.media3.common.Effect>()
                 if (editor.brightness != 0f) videoEffects += Brightness(editor.brightness.coerceIn(-1f, 1f))
                 if (editor.blurRadius > 0.01f) videoEffects += GaussianBlur(editor.blurRadius.coerceIn(0.1f, 20f))
+                if (editor.mosaicEnabled) {
+                    videoEffects += MosaicEffect(
+                        editor.mosaicX.coerceIn(0f, 1f),
+                        editor.mosaicY.coerceIn(0f, 1f),
+                        editor.mosaicWidth.coerceIn(0.01f, 1f),
+                        editor.mosaicHeight.coerceIn(0.01f, 1f),
+                        editor.mosaicBlockSize.coerceIn(0.005f, 0.25f)
+                    )
+                }
                 if (editor.contrast != 1f) videoEffects += Contrast(((editor.contrast - 1f) * 0.5f).coerceIn(-1f, 1f))
                 if (editor.saturation != 1f || editor.hue != 0f || editor.temperature != 0f || editor.tint != 0f) {
                     videoEffects += HslAdjustment.Builder()
