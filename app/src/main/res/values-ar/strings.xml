@@ -53,8 +53,8 @@
     <string name="turn_ideas">حوّل أفكارك إلى فيديوهات مذهلة</string>
     <string name="professional_tools">أدوات احترافية بين يديك لصناعة محتوى مميز</string>
     <string name="new_project">مشروع جديد</string>
-    <string name="import_media">استيراد وسائط</string>
-    <string name="videos_photos_audio">فيديوهات / صور / صوتيات</string>
+    <string name="import_media">إضافة فيديو</string>
+    <string name="videos_photos_audio">ابدأ التحرير مباشرة</string>
     <string name="ready_templates">قوالب جاهزة</string>
     <string name="start_quickly">ابدأ بسرعة</string>
     <string name="capture_video">التقاط فيديو</string>
