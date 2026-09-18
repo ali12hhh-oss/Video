@@ -153,7 +153,8 @@ class ExportEngine(private val context: Context, private val resolver: ContentRe
         settings: ExportSettings,
         editor: EditorSettings = EditorSettings(),
         output: Uri,
-        onProgress: (ExportProgress) -> Unit
+        onProgress: (ExportProgress) -> Unit,
+        includeWatermark: Boolean = true
     ): Result<Unit> = withContext(Dispatchers.Main.immediate) {
         var tempFileToDelete: File? = null
         try {
@@ -275,7 +276,7 @@ class ExportEngine(private val context: Context, private val resolver: ContentRe
                 // timestamped GPU transforms (zoom/slide/spin/blur/flash) at clip boundaries.
                 addMotionTransitionEffects(videoEffects, editor.transition, clipDurationUs(clip), editor.motionIntensity)
 
-                val overlays = buildOverlayEffect(editor)
+                val overlays = buildOverlayEffect(editor, includeWatermark)
                 if (overlays != null) videoEffects += overlays
                 presentationFor(settings.resolution, editor.aspect)?.let { videoEffects += it }
 
@@ -514,7 +515,7 @@ class ExportEngine(private val context: Context, private val resolver: ContentRe
     }
 
     @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
-    private fun buildOverlayEffect(editor: EditorSettings): OverlayEffect? {
+    private fun buildOverlayEffect(editor: EditorSettings, includeWatermark: Boolean): OverlayEffect? {
         val overlays = mutableListOf<androidx.media3.effect.TextureOverlay>()
         editor.subtitles.filter { it.text.isNotBlank() && it.endMs > it.startMs }.forEach { subtitle ->
             val span = SpannableString(subtitle.text)
@@ -580,6 +581,18 @@ class ExportEngine(private val context: Context, private val resolver: ContentRe
                     .setAlphaScale(pip.alpha.coerceIn(0f, 1f))
                     .build()
                 overlays += BitmapOverlay.createStaticBitmapOverlay(context, Uri.parse(pip.uri), overlaySettings)
+            }
+        }
+        if (includeWatermark) {
+            runCatching {
+                val resourceUri = Uri.parse("android.resource://${context.packageName}/drawable/videoforge_logo")
+                val watermarkSettings = StaticOverlaySettings.Builder()
+                    .setBackgroundFrameAnchor(0.72f, -0.78f)
+                    .setOverlayFrameAnchor(0f, 0f)
+                    .setScale(0.20f, 0.20f)
+                    .setAlphaScale(0.82f)
+                    .build()
+                overlays += BitmapOverlay.createStaticBitmapOverlay(context, resourceUri, watermarkSettings)
             }
         }
         if (editor.sticker.isNotBlank()) {
