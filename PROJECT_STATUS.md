@@ -49,3 +49,11 @@ After the video pass, continue with the remaining editor areas such as advanced 
 - Export music automation now generates attack/release transition points and supports overlapping audible clips.
 - Static Kotlin delimiter scan passed.
 - Gradle/Lint runtime build remains intentionally deferred to final GitHub stage.
+
+
+## Multi-layer PIP pass — 2026-09-18
+- Replaced the single-image PIP export path with a persistent multi-layer PIP model while keeping backward compatibility with existing projects.
+- Multiple image/PIP layers can now be added from the existing image picker; each layer stores its own position, scale, rotation, opacity and visibility.
+- PIP layers are persisted with the project and restored after reopening.
+- All visible PIP layers are included in Media3 Transformer export, instead of only one image overlay.
+- PIP layers are also rendered in the editor preview.
