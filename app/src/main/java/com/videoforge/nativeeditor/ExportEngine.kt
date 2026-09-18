@@ -799,6 +799,10 @@ class ExportEngine(private val context: Context, private val resolver: ContentRe
             "9:16" -> short to (short * 16 / 9).toInt()
             "1:1" -> short to short
             "4:5" -> short to (short * 5 / 4).toInt()
+            "2:3" -> short to (short * 3 / 2).toInt()
+            "3:4" -> short to (short * 4 / 3).toInt()
+            "3:2" -> short to (short * 2 / 3).toInt()
+            "21:9" -> short to (short * 9 / 21).toInt()
             else -> resolution.width to resolution.height
         }
         return Presentation.createForWidthAndHeight(width, height, Presentation.LAYOUT_SCALE_TO_FIT_WITH_CROP)
