@@ -101,6 +101,13 @@ data class TextLayer(
     val strokeEnabled: Boolean = false,
     val strokeColor: Long = 0xFF000000,
     val strokeWidth: Float = 0f,
+    val letterSpacing: Float = 0f,
+    val lineHeightMultiplier: Float = 1f,
+    val textAlign: String = "center",
+    val backgroundPadding: Float = 6f,
+    val glowEnabled: Boolean = false,
+    val glowColor: Long = 0xFFFFFFFF,
+    val glowRadius: Float = 10f,
     val keyframes: List<TextKeyframe> = emptyList()
 )
 
@@ -212,6 +219,13 @@ object EditorSettingsRepository {
                 strokeEnabled = j.optBoolean("strokeEnabled", false),
                 strokeColor = j.optString("strokeColor", "4278190080").toLongOrNull() ?: 0xFF000000,
                 strokeWidth = j.optDouble("strokeWidth", 0.0).toFloat(),
+                letterSpacing = j.optDouble("letterSpacing", 0.0).toFloat(),
+                lineHeightMultiplier = j.optDouble("lineHeightMultiplier", 1.0).toFloat(),
+                textAlign = j.optString("textAlign", "center"),
+                backgroundPadding = j.optDouble("backgroundPadding", 6.0).toFloat(),
+                glowEnabled = j.optBoolean("glowEnabled", false),
+                glowColor = j.optString("glowColor", "4294967295").toLongOrNull() ?: 0xFFFFFFFF,
+                glowRadius = j.optDouble("glowRadius", 10.0).toFloat(),
                 keyframes = buildList {
                     val k = j.optJSONArray("keyframes") ?: JSONArray()
                     for (n in 0 until k.length()) {
@@ -383,6 +397,8 @@ object EditorSettingsRepository {
                 .put("animation", layer.animation).put("backgroundColor", layer.backgroundColor.toString()).put("backgroundAlpha", layer.backgroundAlpha)
                 .put("shadowEnabled", layer.shadowEnabled).put("shadowColor", layer.shadowColor.toString()).put("shadowRadius", layer.shadowRadius).put("shadowDx", layer.shadowDx).put("shadowDy", layer.shadowDy)
                 .put("strokeEnabled", layer.strokeEnabled).put("strokeColor", layer.strokeColor.toString()).put("strokeWidth", layer.strokeWidth)
+                .put("letterSpacing", layer.letterSpacing).put("lineHeightMultiplier", layer.lineHeightMultiplier).put("textAlign", layer.textAlign)
+                .put("backgroundPadding", layer.backgroundPadding).put("glowEnabled", layer.glowEnabled).put("glowColor", layer.glowColor.toString()).put("glowRadius", layer.glowRadius)
                 .put("keyframes", JSONArray().apply { layer.keyframes.sortedBy { it.timeMs }.forEach { k -> put(JSONObject().put("timeMs", k.timeMs).put("x", k.x).put("y", k.y).put("scale", k.scale).put("rotation", k.rotation).put("easing", k.easing).put("alpha", k.alpha)) } }))
         }
         val j = JSONObject()

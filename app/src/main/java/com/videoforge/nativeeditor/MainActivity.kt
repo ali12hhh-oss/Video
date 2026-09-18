@@ -2257,7 +2257,7 @@ private fun EditorPreview(clip: Clip?, settings: EditorSettings, playheadMs: Lon
                         .clip(RoundedCornerShape(6.dp))
                         .then(if (layer.backgroundAlpha > 0f) Modifier.background(Color(layer.backgroundColor).copy(alpha=layer.backgroundAlpha.coerceIn(0f,1f)), RoundedCornerShape(6.dp)) else Modifier)
                         .then(if (selected) Modifier.border(1.dp, Color(0xFFB88CFF), RoundedCornerShape(6.dp)) else Modifier)
-                        .padding(horizontal=18.dp, vertical=6.dp),
+                        .padding(horizontal=layer.backgroundPadding.dp, vertical=(layer.backgroundPadding * 0.55f).dp),
                     contentAlignment = Alignment.Center
                 ) {
                     val displayText = if(layer.animation=="typewriter") layer.text.take((layer.text.length*textAnimProgress).toInt().coerceIn(0,layer.text.length)) else layer.text
@@ -2265,9 +2265,9 @@ private fun EditorPreview(clip: Clip?, settings: EditorSettings, playheadMs: Lon
                     val commonWeight = if(layer.bold) FontWeight.Bold else FontWeight.Normal
                     val commonFont = fontFamilyFor(layer.font, layer.bold)
                     if (layer.strokeEnabled && layer.strokeWidth > 0f) {
-                        Text(displayText, color=Color(layer.strokeColor).copy(alpha=layer.alpha*animAlpha), fontSize=commonSize, fontWeight=commonWeight, fontFamily=commonFont, textAlign=TextAlign.Center, style=androidx.compose.ui.text.TextStyle(drawStyle=androidx.compose.ui.graphics.drawscope.Stroke(width=layer.strokeWidth)))
+                        Text(displayText, color=Color(layer.strokeColor).copy(alpha=layer.alpha*animAlpha), fontSize=commonSize, fontWeight=commonWeight, fontFamily=commonFont, textAlign=when(layer.textAlign){"start"->TextAlign.Start;"end"->TextAlign.End;else->TextAlign.Center}, lineHeight=(layer.size*layer.lineHeightMultiplier).sp, letterSpacing=layer.letterSpacing.sp, style=androidx.compose.ui.text.TextStyle(drawStyle=androidx.compose.ui.graphics.drawscope.Stroke(width=layer.strokeWidth)))
                     }
-                    Text(displayText, color=Color(layer.color).copy(alpha=layer.alpha*animAlpha), fontSize=commonSize, fontWeight=commonWeight, fontFamily=commonFont, textAlign=TextAlign.Center, style=androidx.compose.ui.text.TextStyle(shadow=if(layer.shadowEnabled) androidx.compose.ui.graphics.Shadow(Color(layer.shadowColor), Offset(layer.shadowDx, layer.shadowDy), layer.shadowRadius) else null))
+                    Text(displayText, color=Color(layer.color).copy(alpha=layer.alpha*animAlpha), fontSize=commonSize, fontWeight=commonWeight, fontFamily=commonFont, textAlign=TextAlign.Center, style=androidx.compose.ui.text.TextStyle(lineHeight=(layer.size*layer.lineHeightMultiplier).sp, letterSpacing=layer.letterSpacing.sp, textAlign=when(layer.textAlign){"start"->TextAlign.Start;"end"->TextAlign.End;else->TextAlign.Center}, shadow=if(layer.glowEnabled) androidx.compose.ui.graphics.Shadow(Color(layer.glowColor), Offset.Zero, layer.glowRadius) else if(layer.shadowEnabled) androidx.compose.ui.graphics.Shadow(Color(layer.shadowColor), Offset(layer.shadowDx, layer.shadowDy), layer.shadowRadius) else null))
                 }
             }
             if (previewLayers.isNotEmpty()) {
@@ -2740,11 +2740,16 @@ private fun fontFamilyFor(key: String, bold: Boolean = false): FontFamily {
                 }
             }
             Text(if(language==AppLanguage.ARABIC) "شفافية ${(layer.alpha*100).toInt()}%" else "Opacity ${(layer.alpha*100).toInt()}%"); Slider(layer.alpha,{edit(layer.copy(alpha=it))},0.1f..1f)
+            Text(if(language==AppLanguage.ARABIC) "تباعد الحروف" else "Letter spacing"); Slider(layer.letterSpacing,{edit(layer.copy(letterSpacing=it))},-2f..8f)
+            Text(if(language==AppLanguage.ARABIC) "ارتفاع الأسطر" else "Line height"); Slider(layer.lineHeightMultiplier,{edit(layer.copy(lineHeightMultiplier=it))},0.8f..2f)
+            Text(if(language==AppLanguage.ARABIC) "محاذاة النص" else "Text alignment", fontWeight=FontWeight.Bold)
+            Row(horizontalArrangement=Arrangement.spacedBy(5.dp)) { listOf("start" to "يمين","center" to "وسط","end" to "يسار").forEach { (v,l) -> FilterChip(selected=layer.textAlign==v,onClick={edit(layer.copy(textAlign=v))},label={Text(if(language==AppLanguage.ARABIC) l else v)}) } }
             Text(if(language==AppLanguage.ARABIC) "حركة النص" else "Text animation", fontWeight=FontWeight.Bold)
             val anims=listOf("none" to if(language==AppLanguage.ARABIC) "بدون" else "None", "fade" to if(language==AppLanguage.ARABIC) "ظهور" else "Fade", "pop" to if(language==AppLanguage.ARABIC) "انبثاق" else "Pop", "slide" to if(language==AppLanguage.ARABIC) "انزلاق" else "Slide", "zoom" to if(language==AppLanguage.ARABIC) "تكبير" else "Zoom", "typewriter" to if(language==AppLanguage.ARABIC) "كتابة" else "Typewriter")
             LazyRow(horizontalArrangement=Arrangement.spacedBy(5.dp),contentPadding=PaddingValues(vertical=3.dp)){items(anims){(v,l)->FilterChip(selected=layer.animation==v,onClick={edit(layer.copy(animation=v))},label={Text(l,fontSize=9.sp)})}}
             Text(if(language==AppLanguage.ARABIC) "خلفية النص ${(layer.backgroundAlpha*100).toInt()}%" else "Text background ${(layer.backgroundAlpha*100).toInt()}%")
             Slider(layer.backgroundAlpha,{edit(layer.copy(backgroundAlpha=it))},0f..0.9f)
+            Text(if(language==AppLanguage.ARABIC) "حشوة الخلفية" else "Background padding"); Slider(layer.backgroundPadding,{edit(layer.copy(backgroundPadding=it))},0f..30f)
             Row(verticalAlignment=Alignment.CenterVertically) {
                 Text(if(language==AppLanguage.ARABIC) "ظل النص" else "Text shadow", Modifier.weight(1f))
                 Switch(checked=layer.shadowEnabled, onCheckedChange={edit(layer.copy(shadowEnabled=it))})
@@ -2761,6 +2766,8 @@ private fun fontFamilyFor(key: String, bold: Boolean = false): FontFamily {
                 Text(if(language==AppLanguage.ARABIC) "حدود النص" else "Text outline", Modifier.weight(1f))
                 Switch(checked=layer.strokeEnabled, onCheckedChange={edit(layer.copy(strokeEnabled=it))})
             }
+            Row(verticalAlignment=Alignment.CenterVertically) { Text(if(language==AppLanguage.ARABIC) "توهج Glow" else "Glow", Modifier.weight(1f)); Switch(checked=layer.glowEnabled,onCheckedChange={edit(layer.copy(glowEnabled=it))}) }
+            if (layer.glowEnabled) { Text(if(language==AppLanguage.ARABIC) "قوة التوهج" else "Glow radius"); Slider(layer.glowRadius,{edit(layer.copy(glowRadius=it))},1f..30f) }
             if (layer.strokeEnabled) {
                 Text(if(language==AppLanguage.ARABIC) "سماكة الحدود ${"%.1f".format(layer.strokeWidth)}" else "Outline width ${"%.1f".format(layer.strokeWidth)}")
                 Slider(layer.strokeWidth,{edit(layer.copy(strokeWidth=it))},0.5f..12f)

@@ -526,12 +526,14 @@ class ExportEngine(private val context: Context, private val resolver: ContentRe
                 ((layer.color shr 16) and 0xFF).toInt(), ((layer.color shr 8) and 0xFF).toInt(), (layer.color and 0xFF).toInt())
             span.setSpan(ForegroundColorSpan(color), 0, span.length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
             val loadedTypeface = ResourcesCompat.getFont(context, fontRes(layer.font, layer.bold))
+            if (layer.letterSpacing != 0f) { val spacing = layer.letterSpacing.coerceIn(-2f, 8f) / 10f; span.setSpan(object : android.text.style.MetricAffectingSpan() { override fun updateDrawState(tp: TextPaint) { tp.letterSpacing = spacing }; override fun updateMeasureState(tp: TextPaint) { tp.letterSpacing = spacing } }, 0, span.length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE) }
             val typeface = loadedTypeface?.let { Typeface.create(it, if (layer.bold) Typeface.BOLD else Typeface.NORMAL) } ?: if (layer.bold) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
             span.setSpan(TypefaceSpanCompat(typeface), 0, span.length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
             if (layer.backgroundAlpha > 0f) {
                 val bg = android.graphics.Color.argb((layer.backgroundAlpha.coerceIn(0f,1f) * 255).toInt(), ((layer.backgroundColor shr 16) and 0xFF).toInt(), ((layer.backgroundColor shr 8) and 0xFF).toInt(), (layer.backgroundColor and 0xFF).toInt())
                 span.setSpan(android.text.style.BackgroundColorSpan(bg), 0, span.length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
             }
+            if (layer.glowEnabled) { val glow = android.graphics.Color.argb(((layer.glowColor shr 24) and 0xFF).toInt(), ((layer.glowColor shr 16) and 0xFF).toInt(), ((layer.glowColor shr 8) and 0xFF).toInt(), (layer.glowColor and 0xFF).toInt()); span.setSpan(ShadowSpan(glow, layer.glowRadius.coerceIn(0f,30f),0f,0f),0,span.length,Spannable.SPAN_EXCLUSIVE_EXCLUSIVE) }
             if (layer.shadowEnabled) {
                 val sh = android.graphics.Color.argb(((layer.shadowColor shr 24) and 0xFF).toInt(), ((layer.shadowColor shr 16) and 0xFF).toInt(), ((layer.shadowColor shr 8) and 0xFF).toInt(), (layer.shadowColor and 0xFF).toInt())
                 span.setSpan(ShadowSpan(sh, layer.shadowRadius.coerceIn(0f, 24f), layer.shadowDx.coerceIn(-20f,20f), layer.shadowDy.coerceIn(-20f,20f)), 0, span.length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
