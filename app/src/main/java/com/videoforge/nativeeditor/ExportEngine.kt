@@ -33,6 +33,7 @@ import androidx.media3.effect.RgbFilter
 import androidx.media3.effect.ScaleAndRotateTransformation
 import androidx.media3.effect.StaticOverlaySettings
 import androidx.media3.effect.TextOverlay
+import androidx.media3.effect.OverlaySettings
 import androidx.media3.transformer.EditedMediaItem
 import androidx.media3.transformer.EditedMediaItemSequence
 import androidx.media3.transformer.Effects
@@ -76,7 +77,7 @@ private class AnimatedTextOverlay(
         return SpannableString(baseText.subSequence(0, count))
     }
 
-    override fun getOverlaySettings(presentationTimeUs: Long) {
+    override fun getOverlaySettings(presentationTimeUs: Long): OverlaySettings {
         val progress = (presentationTimeUs.toFloat() / durationUs.coerceAtLeast(1L)).coerceIn(0f, 1f)
         val eased = 1f - (1f - progress) * (1f - progress)
         var x = x0
