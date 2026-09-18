@@ -1348,7 +1348,7 @@ private fun EditorScreen(
         if (uri != null) {
             runCatching {
                 val imported = context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { parseSrt(it.readText()) } ?: emptyList()
-                if (imported.isNotEmpty()) updateSettings(settings.copy(subtitles = imported))
+                if (imported.isNotEmpty()) { settings = settings.copy(subtitles = imported); EditorSettingsRepository.save(context, projectId, settings) }
                 status = if (imported.isNotEmpty()) (if (language == AppLanguage.ARABIC) "تم استيراد ${imported.size} ترجمة" else "Imported ${imported.size} subtitles") else (if (language == AppLanguage.ARABIC) "ملف SRT فارغ أو غير صالح" else "Empty or invalid SRT file")
             }.onFailure { status = if (language == AppLanguage.ARABIC) "تعذر استيراد الترجمة" else "Could not import subtitles" }
         }
