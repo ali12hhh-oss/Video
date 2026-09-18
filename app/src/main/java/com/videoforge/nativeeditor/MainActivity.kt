@@ -271,8 +271,8 @@ private suspend fun aiCutoutImage(context: android.content.Context, uri: Uri): U
                 segmenter.close()
                 if (cont.isActive) cont.resume(out)
             }
-            .addOnFailureListener { e -> segmenter.close(); if (cont.isActive) cont.resume(null) {} }
-    } catch (_: Throwable) { if (cont.isActive) cont.resume(null) {} }
+            .addOnFailureListener { e -> segmenter.close(); if (cont.isActive) cont.resume(null) }
+    } catch (_: Throwable) { if (cont.isActive) cont.resume(null) }
 }
 
 class MainActivity : ComponentActivity() {
@@ -548,7 +548,7 @@ private fun ProjectsScreen(
                     Modifier.fillMaxWidth().height(68.dp).padding(horizontal = 10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    IconButton(onClick = onBackHome) { Icon(Icons.Default.ArrowBack, null, tint = Color.White) }
+                    IconButton(onClick = onBackHome) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = Color.White) }
                     Text(stringResource(R.string.projects), Modifier.weight(1f), fontSize = 21.sp, fontWeight = FontWeight.Bold)
                     FilledIconButton(
                         onClick = onNewProject,
@@ -1591,8 +1591,8 @@ private fun EditorScreen(
                 },
                 navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, null) } },
                 actions = {
-                    IconButton(onClick = { undo() }, enabled = undoStack.isNotEmpty()) { Icon(Icons.Default.Undo, null) }
-                    IconButton(onClick = { redo() }, enabled = redoStack.isNotEmpty()) { Icon(Icons.Default.Redo, null) }
+                    IconButton(onClick = { undo() }, enabled = undoStack.isNotEmpty()) { Icon(Icons.AutoMirrored.Filled.Undo, null) }
+                    IconButton(onClick = { redo() }, enabled = redoStack.isNotEmpty()) { Icon(Icons.AutoMirrored.Filled.Redo, null) }
                     IconButton(onClick = { tool = "history" }) { Icon(Icons.Default.History, null) }
                     IconButton(onClick = { tool = "language" }) { Icon(Icons.Default.Language, null) }
                     FilledTonalButton(onClick = { showExport = true }) { Icon(Icons.Default.FileUpload, null, Modifier.size(17.dp)); Spacer(Modifier.width(4.dp)); Text(stringResource(R.string.export)) }
@@ -1766,7 +1766,7 @@ private fun EditorScreen(
                     Triple("transition", Icons.Default.SwapHoriz, if (language == AppLanguage.ARABIC) "انتقال" else "Transition"),
                     Triple("sticker", Icons.Default.EmojiEmotions, if (language == AppLanguage.ARABIC) "ملصق" else "Sticker"),
                     Triple("overlay", Icons.Default.Layers, if (language == AppLanguage.ARABIC) "طبقة" else "Overlay"),
-                    Triple("rotate", Icons.Default.RotateRight, if (language == AppLanguage.ARABIC) "تدوير" else "Rotate"),
+                    Triple("rotate", Icons.AutoMirrored.Filled.RotateRight, if (language == AppLanguage.ARABIC) "تدوير" else "Rotate"),
                     Triple("flip", Icons.Default.Flip, if (language == AppLanguage.ARABIC) "قلب" else "Flip"),
                     Triple("crop", Icons.Default.Crop, if (language == AppLanguage.ARABIC) "اقتصاص" else "Crop"),
                     Triple("filters", Icons.Default.FilterVintage, if (language == AppLanguage.ARABIC) "فلاتر" else "Filters"),
