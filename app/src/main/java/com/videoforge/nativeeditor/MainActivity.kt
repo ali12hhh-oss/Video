@@ -1297,6 +1297,7 @@ private fun timelineClipAt(clips: List<Clip>, positionMs: Long): Pair<Clip, Long
     return null
 }
 
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 private fun EditorScreen(
     projectId: String,
