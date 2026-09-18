@@ -14,6 +14,7 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -2056,12 +2057,39 @@ private fun EditorPreview(clip: Clip?, settings: EditorSettings, playheadMs: Lon
                     }
                 }
                 if (bitmap != null) Box(
-                    Modifier.align(Alignment.Center).offset(x=(pip.x*120).dp, y=(pip.y*90).dp)
-                        .rotate(pip.rotation).scale(pip.scale)
+                    Modifier
+                        .align(Alignment.Center)
+                        .offset(x=(pip.x*120).dp, y=(pip.y*90).dp)
+                        .rotate(pip.rotation)
+                        .scale(pip.scale)
                         .graphicsLayer { alpha = pip.alpha.coerceIn(0f,1f) }
+                        .border(
+                            width = if (pip.locked) 1.dp else 0.dp,
+                            color = if (pip.locked) Color(0xFF7C4DFF) else Color.Transparent,
+                            shape = RoundedCornerShape(6.dp)
+                        )
+                        .pointerInput(pip.id, pip.locked) {
+                            detectTransformGestures { _, pan, zoom, rotation ->
+                                if (!pip.locked && settings.pipLayers.isNotEmpty()) {
+                                    val next = settings.pipLayers.map { item ->
+                                        if (item.id != pip.id) item else item.copy(
+                                            x = (item.x + pan.x / 120f).coerceIn(-1.2f, 1.2f),
+                                            y = (item.y + pan.y / 90f).coerceIn(-1.2f, 1.2f),
+                                            scale = (item.scale * zoom).coerceIn(0.08f, 2.5f),
+                                            rotation = item.rotation + rotation
+                                        )
+                                    }
+                                    onSettingsChange(settings.copy(pipLayers = next))
+                                }
+                            }
+                        }
                 ) {
-                    androidx.compose.foundation.Image(bitmap=bitmap!!.asImageBitmap(), contentDescription=null,
-                        contentScale=androidx.compose.ui.layout.ContentScale.Fit, modifier=Modifier.size(150.dp))
+                    androidx.compose.foundation.Image(
+                        bitmap=bitmap!!.asImageBitmap(),
+                        contentDescription=null,
+                        contentScale=androidx.compose.ui.layout.ContentScale.Fit,
+                        modifier=Modifier.size(150.dp)
+                    )
                 }
             }
             val previewLayers = settings.textLayers.ifEmpty { if (settings.textVisible && settings.text.isNotBlank()) listOf(TextLayer(text=settings.text, size=settings.textSize, color=settings.textColor, font=settings.textFont)) else emptyList() }
@@ -2789,18 +2817,19 @@ private fun OverlayDialog(
                     Text(if(language==AppLanguage.ARABIC) "الطبقة المحددة" else "Selected layer", fontWeight=FontWeight.Bold)
                     Row(Modifier.fillMaxWidth(), horizontalArrangement=Arrangement.spacedBy(5.dp)) {
                         FilterChip(selected=layer.visible, onClick={editSelected{it.copy(visible=!it.visible)}}, label={Text(if(language==AppLanguage.ARABIC) if(layer.visible) "مرئية" else "مخفية" else if(layer.visible) "Visible" else "Hidden")}, leadingIcon={Icon(if(layer.visible) Icons.Default.Visibility else Icons.Default.VisibilityOff,null,Modifier.size(16.dp))})
+                        FilterChip(selected=layer.locked, onClick={editSelected{it.copy(locked=!it.locked)}}, label={Text(if(language==AppLanguage.ARABIC) if(layer.locked) "مقفلة" else "قفل" else if(layer.locked) "Locked" else "Lock")}, leadingIcon={Icon(if(layer.locked) Icons.Default.Lock else Icons.Default.LockOpen,null,Modifier.size(16.dp))})
                         AssistChip(onClick={ val copy=layer.copy(id=System.nanoTime().toString(), x=(layer.x+0.08f).coerceIn(-1f,1f), y=(layer.y+0.08f).coerceIn(-1f,1f)); layers=layers+copy; selected=layers.lastIndex }, label={Text(if(language==AppLanguage.ARABIC) "تكرار" else "Duplicate")}, leadingIcon={Icon(Icons.Default.ContentCopy,null,Modifier.size(16.dp))})
                     }
                     Text(if(language==AppLanguage.ARABIC) "الموضع الأفقي " + (layer.x*100).toInt() + "%" else "Horizontal " + (layer.x*100).toInt() + "%")
-                    Slider(layer.x,{v->editSelected{it.copy(x=v)}},-1f..1f)
+                    Slider(layer.x,{v->editSelected{it.copy(x=v)}},-1f..1f, enabled=!layer.locked)
                     Text(if(language==AppLanguage.ARABIC) "الموضع العمودي " + (layer.y*100).toInt() + "%" else "Vertical " + (layer.y*100).toInt() + "%")
-                    Slider(layer.y,{v->editSelected{it.copy(y=v)}},-1f..1f)
+                    Slider(layer.y,{v->editSelected{it.copy(y=v)}},-1f..1f, enabled=!layer.locked)
                     Text(if(language==AppLanguage.ARABIC) "الحجم " + (layer.scale*100).toInt() + "%" else "Scale " + (layer.scale*100).toInt() + "%")
-                    Slider(layer.scale,{v->editSelected{it.copy(scale=v)}},0.08f..2f)
+                    Slider(layer.scale,{v->editSelected{it.copy(scale=v)}},0.08f..2f, enabled=!layer.locked)
                     Text(if(language==AppLanguage.ARABIC) "الدوران " + layer.rotation.toInt() + "°" else "Rotation " + layer.rotation.toInt() + "°")
-                    Slider(layer.rotation,{v->editSelected{it.copy(rotation=v)}},-180f..180f)
+                    Slider(layer.rotation,{v->editSelected{it.copy(rotation=v)}},-180f..180f, enabled=!layer.locked)
                     Text(if(language==AppLanguage.ARABIC) "الشفافية " + (layer.alpha*100).toInt() + "%" else "Opacity " + (layer.alpha*100).toInt() + "%")
-                    Slider(layer.alpha,{v->editSelected{it.copy(alpha=v)}},0.05f..1f)
+                    Slider(layer.alpha,{v->editSelected{it.copy(alpha=v)}},0.05f..1f, enabled=!layer.locked)
                 }
             }
             Text(if(language==AppLanguage.ARABIC) "طبقة لونية " + (s.overlayOpacity*100).toInt() + "%" else "Color overlay " + (s.overlayOpacity*100).toInt() + "%", fontSize=11.sp)
