@@ -1845,7 +1845,7 @@ onDuplicate = {
 @Composable
 private fun EditorPreview(clip: Clip?, settings: EditorSettings, playheadMs: Long, clipOffsetMs: Long = 0L, onSettingsChange: (EditorSettings) -> Unit) {
     val context = LocalContext.current
-    val ratio = when (settings.aspect) { "9:16" -> 9f/16f; "1:1" -> 1f; "4:5" -> 4f/5f; else -> 16f/9f }
+    val ratio = when (settings.aspect) { "9:16" -> 9f/16f; "1:1" -> 1f; "4:5" -> 4f/5f; "2:3" -> 2f/3f; "3:4" -> 3f/4f; "3:2" -> 3f/2f; "21:9" -> 21f/9f; else -> 16f/9f }
     BoxWithConstraints(Modifier.fillMaxWidth().padding(horizontal = 10.dp)) {
         val previewWidth = maxWidth
         val calculatedHeight = (previewWidth.value / ratio).coerceAtMost(285f).dp
@@ -2666,7 +2666,11 @@ private fun VideoPresetDialog(s: EditorSettings, language: AppLanguage, onChange
         Preset("landscape", "سينمائي 16:9", "Cinematic 16:9") { it.copy(aspect = "16:9", cropZoom = 1f, cropX = 0f, cropY = 0f, rotation = 0, flipHorizontal = false, flipVertical = false) },
         Preset("portrait", "عمودي 9:16", "Portrait 9:16") { it.copy(aspect = "9:16", cropZoom = maxOf(it.cropZoom, 1.15f), cropX = 0f, cropY = 0f, rotation = 0) },
         Preset("square", "مربع 1:1", "Square 1:1") { it.copy(aspect = "1:1", cropZoom = maxOf(it.cropZoom, 1.08f), cropX = 0f, cropY = 0f, rotation = 0) },
-        Preset("social", "اجتماعي 4:5", "Social 4:5") { it.copy(aspect = "4:5", cropZoom = maxOf(it.cropZoom, 1.12f), cropX = 0f, cropY = 0f, rotation = 0) }
+        Preset("social", "اجتماعي 4:5", "Social 4:5") { it.copy(aspect = "4:5", cropZoom = maxOf(it.cropZoom, 1.12f), cropX = 0f, cropY = 0f, rotation = 0) },
+        Preset("portrait2x3", "صورة 2:3", "Photo 2:3") { it.copy(aspect = "2:3", cropZoom = maxOf(it.cropZoom, 1.08f), cropX = 0f, cropY = 0f, rotation = 0) },
+        Preset("portrait3x4", "عمودي 3:4", "Portrait 3:4") { it.copy(aspect = "3:4", cropZoom = maxOf(it.cropZoom, 1.08f), cropX = 0f, cropY = 0f, rotation = 0) },
+        Preset("landscape3x2", "صورة 3:2", "Photo 3:2") { it.copy(aspect = "3:2", cropZoom = maxOf(it.cropZoom, 1.08f), cropX = 0f, cropY = 0f, rotation = 0) },
+        Preset("cinema21x9", "سينمائي عريض 21:9", "Ultra-wide 21:9") { it.copy(aspect = "21:9", cropZoom = maxOf(it.cropZoom, 1.02f), cropX = 0f, cropY = 0f, rotation = 0) }
     )
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -2717,8 +2721,8 @@ private fun VideoPresetDialog(s: EditorSettings, language: AppLanguage, onChange
 }
 
 @Composable private fun CanvasDialog(s:EditorSettings,language:AppLanguage,onChange:(EditorSettings)->Unit,onDismiss:()->Unit){
-    val vals=listOf("16:9","9:16","1:1","4:5");
-    val labels=if(language==AppLanguage.ARABIC) listOf("أفقي 16:9","عمودي 9:16","مربع 1:1","عمودي 4:5") else listOf("Landscape 16:9","Portrait 9:16","Square 1:1","Portrait 4:5")
+    val vals=listOf("16:9","9:16","1:1","4:5","2:3","3:4","3:2","21:9");
+    val labels=if(language==AppLanguage.ARABIC) listOf("أفقي 16:9","عمودي 9:16","مربع 1:1","عمودي 4:5","صورة 2:3","عمودي 3:4","صورة 3:2","سينمائي عريض 21:9") else listOf("Landscape 16:9","Portrait 9:16","Square 1:1","Portrait 4:5","Photo 2:3","Portrait 3:4","Photo 3:2","Ultra-wide 21:9")
     SimpleChoiceDialog(if(language==AppLanguage.ARABIC)"مقاس الفيديو"else"Canvas / Aspect ratio",labels,null,onDismiss){onChange(s.copy(aspect=vals[it]));onDismiss()}
 }
 
