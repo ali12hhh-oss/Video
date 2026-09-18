@@ -20,6 +20,7 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.foundation.background
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.border
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
@@ -2163,6 +2164,7 @@ private fun EditorScreen(
                 settings = settings,
                 playheadMs = playheadMs,
                 clipOffsetMs = current?.let { timelinePositionOf(clips, it) } ?: 0L,
+                showWatermark = !watermarkRemovedForExport,
                 onSettingsChange = { next ->
                     settings = next
                     EditorSettingsRepository.save(context, projectId, next)
@@ -2631,6 +2633,7 @@ private fun EditorPreview(
     settings: EditorSettings,
     playheadMs: Long,
     clipOffsetMs: Long = 0L,
+    showWatermark: Boolean = true,
     onSettingsChange: (EditorSettings) -> Unit,
     onPlaybackPosition: (Long) -> Unit = {},
     onPlaybackStateChanged: (Boolean) -> Unit = {},
@@ -2920,7 +2923,7 @@ private fun EditorPreview(
             val tint = when (settings.filter) { "warm" -> Color(0x44FF9E5E); "cool" -> Color(0x443A8DFF); "mono" -> Color(0x66333333); "vivid" -> Color(0x2200FFAA); else -> Color.Transparent }
             if (tint.alpha > 0f) Box(Modifier.fillMaxSize().background(tint))
             if (settings.overlayOpacity > 0f) Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = settings.overlayOpacity)))
-            if (!watermarkRemovedForExport) {
+            if (showWatermark) {
                 Image(
                     painter = painterResource(R.drawable.videoforge_logo),
                     contentDescription = if (language == AppLanguage.ARABIC) "العلامة المائية" else "VideoForge watermark",
