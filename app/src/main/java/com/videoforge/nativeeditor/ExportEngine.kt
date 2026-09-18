@@ -525,7 +525,8 @@ class ExportEngine(private val context: Context, private val resolver: ContentRe
             val color = android.graphics.Color.argb((layer.alpha.coerceIn(0f, 1f) * 255).toInt(),
                 ((layer.color shr 16) and 0xFF).toInt(), ((layer.color shr 8) and 0xFF).toInt(), (layer.color and 0xFF).toInt())
             span.setSpan(ForegroundColorSpan(color), 0, span.length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
-            val typeface = ResourcesCompat.getFont(context, fontRes(layer.font, layer.bold)) ?: Typeface.DEFAULT_BOLD
+            val loadedTypeface = ResourcesCompat.getFont(context, fontRes(layer.font, layer.bold))
+            val typeface = loadedTypeface?.let { Typeface.create(it, if (layer.bold) Typeface.BOLD else Typeface.NORMAL) } ?: if (layer.bold) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
             span.setSpan(TypefaceSpanCompat(typeface), 0, span.length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
             if (layer.backgroundAlpha > 0f) {
                 val bg = android.graphics.Color.argb((layer.backgroundAlpha.coerceIn(0f,1f) * 255).toInt(), ((layer.backgroundColor shr 16) and 0xFF).toInt(), ((layer.backgroundColor shr 8) and 0xFF).toInt(), (layer.backgroundColor and 0xFF).toInt())
