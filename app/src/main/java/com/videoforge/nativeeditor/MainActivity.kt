@@ -1619,7 +1619,7 @@ private fun EditorScreen(
             }
         }
     ) { pad ->
-        Column(Modifier.fillMaxSize().padding(pad)) {
+        Column(Modifier.fillMaxSize().padding(pad).verticalScroll(rememberScrollState())) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 7.dp), verticalAlignment = Alignment.CenterVertically) {
                 OutlinedTextField(
                     value = editingName,
@@ -1636,6 +1636,24 @@ private fun EditorScreen(
                 EditorSettingsRepository.save(context, projectId, next)
             })
 
+            Text(if (language == AppLanguage.ARABIC) "أدوات التحرير" else "Editing tools", fontWeight = FontWeight.Bold, fontSize = 14.sp, modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp))
+            LazyRow(Modifier.fillMaxWidth().padding(horizontal = 10.dp), horizontalArrangement = Arrangement.spacedBy(7.dp), contentPadding = PaddingValues(bottom = 5.dp)) {
+                val tools = listOf(
+                    Triple("edit", Icons.Default.Edit, if(language==AppLanguage.ARABIC)"تحرير" else "Edit"),
+                    Triple("text", Icons.Default.TextFields, if(language==AppLanguage.ARABIC)"النص" else "Text"),
+                    Triple("audio", Icons.Default.MusicNote, if(language==AppLanguage.ARABIC)"الصوت" else "Audio"),
+                    Triple("effects", Icons.Default.AutoAwesome, if(language==AppLanguage.ARABIC)"المؤثرات" else "Effects"),
+                    Triple("filters", Icons.Default.FilterVintage, if(language==AppLanguage.ARABIC)"الفلاتر" else "Filters"),
+                    Triple("adjust", Icons.Default.Tune, if(language==AppLanguage.ARABIC)"الضبط" else "Adjust"),
+                    Triple("canvas", Icons.Default.CropFree, if(language==AppLanguage.ARABIC)"المقاس" else "Canvas"),
+                    Triple("transition", Icons.Default.SwapHoriz, if(language==AppLanguage.ARABIC)"الانتقال" else "Transition"),
+                    Triple("subtitles", Icons.Default.Subtitles, if(language==AppLanguage.ARABIC)"الترجمة" else "Subtitles"),
+                    Triple("layers", Icons.Default.Layers, if(language==AppLanguage.ARABIC)"الطبقات" else "Layers"),
+                    Triple("videoKeyframes", Icons.Default.Timeline, if(language==AppLanguage.ARABIC)"الحركة" else "Motion"),
+                    Triple("more", Icons.Default.MoreHoriz, if(language==AppLanguage.ARABIC)"المزيد" else "More")
+                )
+                items(tools,key={it.first}){(id,icon,label)->Column(Modifier.width(76.dp).clip(RoundedCornerShape(13.dp)).background(Color(0xFF0D1724)).clickable{tool=id}.padding(vertical=9.dp),horizontalAlignment=Alignment.CenterHorizontally){Icon(icon,null,tint=Color(0xFFD09CFF),modifier=Modifier.size(24.dp));Spacer(Modifier.height(4.dp));Text(label,fontSize=9.sp,maxLines=1)}}
+            }
             Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(if (language == AppLanguage.ARABIC) "المخطط الزمني" else "Timeline", fontSize = 15.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
                 Text("${clips.size} ${if (language == AppLanguage.ARABIC) "مقطع" else "clips"}", color = Color.Gray, fontSize = 10.sp)
@@ -1756,33 +1774,6 @@ private fun EditorScreen(
                     Text(if (language == AppLanguage.ARABIC) "إطار ثابت" else "Freeze frame", fontSize = 10.sp)
                 }
             }
-            LazyRow(Modifier.fillMaxWidth().padding(horizontal = 10.dp), horizontalArrangement = Arrangement.spacedBy(7.dp), contentPadding = PaddingValues(bottom = 12.dp)) {
-                val tools = listOf(
-                    Triple("speed", Icons.Default.Speed, if (language == AppLanguage.ARABIC) "السرعة" else "Speed"),
-                    Triple("audio", Icons.Default.MusicNote, if (language == AppLanguage.ARABIC) "الموسيقى" else "Music"),
-                    Triple("text", Icons.Default.TextFields, if (language == AppLanguage.ARABIC) "النص" else "Text"),
-                    Triple("textAnimation", Icons.Default.Animation, if (language == AppLanguage.ARABIC) "حركة النص" else "Text Motion"),
-                    Triple("layers", Icons.Default.Layers, if (language == AppLanguage.ARABIC) "الطبقات" else "Layers"),
-                    Triple("subtitles", Icons.Default.Subtitles, if (language == AppLanguage.ARABIC) "ترجمة" else "Subtitles"),
-                    Triple("effects", Icons.Default.AutoAwesome, if (language == AppLanguage.ARABIC) "التأثيرات" else "Effects"),
-                    Triple("adjust", Icons.Default.Tune, if (language == AppLanguage.ARABIC) "ضبط" else "Adjust"),
-                    Triple("canvas", Icons.Default.CropFree, if (language == AppLanguage.ARABIC) "المقاس" else "Canvas"),
-                    Triple("transition", Icons.Default.SwapHoriz, if (language == AppLanguage.ARABIC) "انتقال" else "Transition"),
-                    Triple("sticker", Icons.Default.EmojiEmotions, if (language == AppLanguage.ARABIC) "ملصق" else "Sticker"),
-                    Triple("overlay", Icons.Default.Layers, if (language == AppLanguage.ARABIC) "طبقة" else "Overlay"),
-                    Triple("rotate", Icons.AutoMirrored.Filled.RotateRight, if (language == AppLanguage.ARABIC) "تدوير" else "Rotate"),
-                    Triple("flip", Icons.Default.Flip, if (language == AppLanguage.ARABIC) "قلب" else "Flip"),
-                    Triple("crop", Icons.Default.Crop, if (language == AppLanguage.ARABIC) "اقتصاص" else "Crop"),
-                    Triple("filters", Icons.Default.FilterVintage, if (language == AppLanguage.ARABIC) "فلاتر" else "Filters"),
-                    Triple("videoPreset", Icons.Default.Tune, if (language == AppLanguage.ARABIC) "إعدادات الفيديو" else "Video Presets")
-                )
-                items(tools, key = { it.first }) { t ->
-                    Column(Modifier.width(72.dp).clip(RoundedCornerShape(13.dp)).background(Color(0xFF0D1724)).clickable { tool = t.first }.padding(vertical = 9.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(t.second, null, tint = Color(0xFFD09CFF), modifier = Modifier.size(24.dp))
-                        Spacer(Modifier.height(4.dp)); Text(t.third, fontSize = 9.sp, maxLines = 1)
-                    }
-                }
-            }
             Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 3.dp), verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Default.Tune, null, Modifier.size(18.dp), tint = Color(0xFFD09CFF))
                 Spacer(Modifier.width(5.dp))
@@ -1881,7 +1872,8 @@ private fun EditorScreen(
             "textAnimation" -> TextAnimationDialog(settings, language, { updateSettings(it) }, { tool = null })
             "layers" -> LayerManagerDialog(settings, language, { updateSettings(it) }, { tool = null })
             "subtitles" -> SubtitleDialog(settings, playheadMs, language, { updateSettings(it) }, { subtitleImportLauncher.launch(arrayOf("text/plain", "application/x-subrip", "application/octet-stream")) }, { subtitleExportLauncher.launch("${editingName.ifBlank { "VideoForge" }}.srt") }, { tool = null })
-            "effects", "filters" -> EffectsDialog(settings, language, { updateSettings(it) }, { tool = null })
+            "effects" -> EffectsDialog(settings, language, { updateSettings(it) }, { tool = null })
+            "filters" -> FilterDialog(settings, language, { updateSettings(it) }, { tool = null })
             "adjust" -> AdjustDialog(settings, language, { updateSettings(it) }, { tool = null })
             "canvas" -> CanvasDialog(settings, language, { updateSettings(it) }, { tool = null })
             "transition" -> TransitionDialog(settings, language, { updateSettings(it) }, { tool = null })
@@ -2859,47 +2851,42 @@ private fun VideoPresetDialog(s: EditorSettings, language: AppLanguage, onChange
     )
 }
 
-@Composable private fun EffectsDialog(s: EditorSettings, language: AppLanguage, onChange: (EditorSettings)->Unit, onDismiss: ()->Unit){
+@Composable
+private fun FilterDialog(s: EditorSettings, language: AppLanguage, onChange: (EditorSettings)->Unit, onDismiss:()->Unit) {
     val vals=listOf("none","warm","cool","mono","sepia","invert","vivid","dream","noir","faded","tealOrange","vintage","sunset","ice","dramatic","soft")
     val labels=if(language==AppLanguage.ARABIC) listOf("بدون","سينمائي دافئ","سينمائي بارد","أبيض وأسود","سيبيا","معكوس","حيوي","حالم","نوير","باهت","Teal & Orange","فنتج","غروب","جليدي","درامي","ناعم") else listOf("None","Warm Cinema","Cool Cinema","Grayscale","Sepia","Inverted","Vivid","Dream","Noir","Faded","Teal & Orange","Vintage","Sunset","Ice","Dramatic","Soft")
-    var blur by remember(s.blurRadius){ mutableFloatStateOf(s.blurRadius) }
-    var mosaicEnabled by remember(s.mosaicEnabled){ mutableStateOf(s.mosaicEnabled) }
-    var blockSize by remember(s.mosaicBlockSize){ mutableFloatStateOf(s.mosaicBlockSize) }
-    var mx by remember(s.mosaicX){ mutableFloatStateOf(s.mosaicX) }
-    var my by remember(s.mosaicY){ mutableFloatStateOf(s.mosaicY) }
-    var mw by remember(s.mosaicWidth){ mutableFloatStateOf(s.mosaicWidth) }
-    var mh by remember(s.mosaicHeight){ mutableFloatStateOf(s.mosaicHeight) }
-    AlertDialog(onDismissRequest=onDismiss,title={Text(if(language==AppLanguage.ARABIC) "الفلاتر والمؤثرات الاحترافية" else "Professional Filters & Effects")},text={
+    AlertDialog(onDismissRequest=onDismiss,title={Text(if(language==AppLanguage.ARABIC)"الفلاتر" else "Filters")},text={
         Column(Modifier.verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(7.dp)){
-            Text(if(language==AppLanguage.ARABIC) "فلاتر جاهزة" else "Ready filters",fontWeight=FontWeight.Bold)
+            Text(if(language==AppLanguage.ARABIC)"اختر فلترًا جاهزًا" else "Choose a ready filter",fontWeight=FontWeight.Bold)
             labels.forEachIndexed{i,label->FilterChip(selected=s.filter==vals[i],onClick={onChange(s.copy(filter=vals[i]));onDismiss()},label={Text(label)},modifier=Modifier.fillMaxWidth())}
-            Spacer(Modifier.height(5.dp))
-            Text(if(language==AppLanguage.ARABIC) "ضبابية احترافية " + blur.toInt() else "Professional blur " + blur.toInt())
-            Slider(value = blur, onValueChange = { v -> blur = v }, valueRange = 0f..20f)
-            Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(6.dp)){
-                OutlinedButton(onClick={blur=0f;onChange(s.copy(blurRadius=0f))},modifier=Modifier.weight(1f)){Text(if(language==AppLanguage.ARABIC) "بدون ضباب" else "No blur")}
-                Button(onClick={onChange(s.copy(blurRadius=blur));onDismiss()},modifier=Modifier.weight(1f)){Text(if(language==AppLanguage.ARABIC) "تطبيق" else "Apply")}
-            }
-            Spacer(Modifier.height(8.dp)); HorizontalDivider()
-            Text(if(language==AppLanguage.ARABIC) "Mosaic / بكسلة منطقة" else "Mosaic / Region Pixelate",fontWeight=FontWeight.Bold)
-            Text(if(language==AppLanguage.ARABIC) "يعمل على منطقة محددة من الإطار أثناء المعاينة والتصدير." else "Pixelates only a selected region in both preview and export.",color=Color.Gray,fontSize=10.sp)
-            Row(verticalAlignment=Alignment.CenterVertically){ Text(if(language==AppLanguage.ARABIC) "تفعيل البكسلة" else "Enable mosaic",Modifier.weight(1f)); Switch(checked=mosaicEnabled,onCheckedChange={mosaicEnabled=it;onChange(s.copy(mosaicEnabled=it))}) }
-            Text(if(language==AppLanguage.ARABIC) "حجم البكسل " + (blockSize*100).toInt() + "%" else "Block size " + (blockSize*100).toInt() + "%")
-            Slider(value = blockSize, onValueChange = { v -> blockSize = v }, valueRange = 0.02f..0.20f)
-            Text("X " + (mx*100).toInt() + "%"); Slider(value = mx, onValueChange = { v -> mx = v }, valueRange = 0f..0.9f)
-            Text("Y " + (my*100).toInt() + "%"); Slider(value = my, onValueChange = { v -> my = v }, valueRange = 0f..0.9f)
-            Text(if(language==AppLanguage.ARABIC) "العرض " + (mw*100).toInt() + "%" else "Width " + (mw*100).toInt() + "%"); Slider(value = mw, onValueChange = { v -> mw = v }, valueRange = 0.05f..1f)
-            Text(if(language==AppLanguage.ARABIC) "الارتفاع " + (mh*100).toInt() + "%" else "Height " + (mh*100).toInt() + "%"); Slider(value = mh, onValueChange = { v -> mh = v }, valueRange = 0.05f..1f)
-            Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(6.dp)){
-                OutlinedButton(onClick={ mosaicEnabled=false;blockSize=0.08f;mx=0.18f;my=0.18f;mw=0.64f;mh=0.64f; onChange(s.copy(mosaicEnabled=false,mosaicBlockSize=0.08f,mosaicX=0.18f,mosaicY=0.18f,mosaicWidth=0.64f,mosaicHeight=0.64f)) },modifier=Modifier.weight(1f)){Text(if(language==AppLanguage.ARABIC) "إزالة البكسلة" else "Remove")}
-                Button(onClick={onChange(s.copy(mosaicEnabled=mosaicEnabled,mosaicBlockSize=blockSize,mosaicX=mx,mosaicY=my,mosaicWidth=mw,mosaicHeight=mh));onDismiss()},modifier=Modifier.weight(1f)){Text(if(language==AppLanguage.ARABIC) "تطبيق" else "Apply")}
-            }
-            Spacer(Modifier.height(5.dp)); Text(if(language==AppLanguage.ARABIC) "معالجات لونية سريعة" else "Quick color grades",fontWeight=FontWeight.Bold)
-            OutlinedButton(onClick={onChange(s.copy(filter="none",brightness=0.06f,contrast=1.08f,saturation=1.12f,temperature=12f,tint=0f));onDismiss()},modifier=Modifier.fillMaxWidth()){Text(if(language==AppLanguage.ARABIC) "تحسين تلقائي" else "Auto Enhance")}
-            OutlinedButton(onClick={onChange(s.copy(filter="none",brightness=0.02f,contrast=1.16f,saturation=1.05f,temperature=8f,tint=2f));onDismiss()},modifier=Modifier.fillMaxWidth()){Text(if(language==AppLanguage.ARABIC) "تدرج سينمائي" else "Cinematic Grade")}
-            OutlinedButton(onClick={onChange(s.copy(filter="none",brightness=0f,contrast=1f,saturation=1f,hue=0f,temperature=0f,tint=0f,blurRadius=0f,mosaicEnabled=false));onDismiss()},modifier=Modifier.fillMaxWidth()){Text(if(language==AppLanguage.ARABIC) "إعادة ضبط الألوان والمؤثرات" else "Reset color & effects")}
+            OutlinedButton(onClick={onDismiss},modifier=Modifier.fillMaxWidth()){Text(if(language==AppLanguage.ARABIC)"إغلاق" else "Close")}
         }
-    },confirmButton={TextButton(onClick=onDismiss){Text(if(language==AppLanguage.ARABIC) "إغلاق" else "Close")}})
+    },confirmButton={})
+}
+@Composable
+private fun EffectsDialog(s: EditorSettings, language: AppLanguage, onChange:(EditorSettings)->Unit,onDismiss:()->Unit){
+    var blur by remember(s.blurRadius){mutableFloatStateOf(s.blurRadius)}
+    var mosaicEnabled by remember(s.mosaicEnabled){mutableStateOf(s.mosaicEnabled)}
+    var blockSize by remember(s.mosaicBlockSize){mutableFloatStateOf(s.mosaicBlockSize)}
+    var mx by remember(s.mosaicX){mutableFloatStateOf(s.mosaicX)}; var my by remember(s.mosaicY){mutableFloatStateOf(s.mosaicY)}
+    var mw by remember(s.mosaicWidth){mutableFloatStateOf(s.mosaicWidth)}; var mh by remember(s.mosaicHeight){mutableFloatStateOf(s.mosaicHeight)}
+    AlertDialog(onDismissRequest=onDismiss,title={Text(if(language==AppLanguage.ARABIC)"المؤثرات" else "Effects")},text={
+        Column(Modifier.verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(7.dp)){
+            Text(if(language==AppLanguage.ARABIC)"المؤثرات والمعالجة" else "Effects & processing",fontWeight=FontWeight.Bold)
+            Text(if(language==AppLanguage.ARABIC)"ضبابية ${blur.toInt()}" else "Blur ${blur.toInt()}"); Slider(value=blur,onValueChange={blur=it},valueRange=0f..20f)
+            Button(onClick={onChange(s.copy(blurRadius=blur));onDismiss()},modifier=Modifier.fillMaxWidth()){Text(if(language==AppLanguage.ARABIC)"تطبيق الضبابية" else "Apply blur")}
+            HorizontalDivider()
+            Text(if(language==AppLanguage.ARABIC)"بكسلة منطقة (Mosaic)" else "Region Mosaic",fontWeight=FontWeight.Bold)
+            Row(verticalAlignment=Alignment.CenterVertically){Text(if(language==AppLanguage.ARABIC)"تفعيل البكسلة" else "Enable mosaic",Modifier.weight(1f));Switch(checked=mosaicEnabled,onCheckedChange={mosaicEnabled=it})}
+            Text("X ${(mx*100).toInt()}%");Slider(value=mx,onValueChange={mx=it},valueRange=0f..0.9f)
+            Text("Y ${(my*100).toInt()}%");Slider(value=my,onValueChange={my=it},valueRange=0f..0.9f)
+            Text(if(language==AppLanguage.ARABIC)"العرض ${(mw*100).toInt()}%" else "Width ${(mw*100).toInt()}%");Slider(value=mw,onValueChange={mw=it},valueRange=0.05f..1f)
+            Text(if(language==AppLanguage.ARABIC)"الارتفاع ${(mh*100).toInt()}%" else "Height ${(mh*100).toInt()}%");Slider(value=mh,onValueChange={mh=it},valueRange=0.05f..1f)
+            Text(if(language==AppLanguage.ARABIC)"حجم البكسل ${(blockSize*100).toInt()}%" else "Block size ${(blockSize*100).toInt()}%");Slider(value=blockSize,onValueChange={blockSize=it},valueRange=0.02f..0.20f)
+            Button(onClick={onChange(s.copy(blurRadius=blur,mosaicEnabled=mosaicEnabled,mosaicBlockSize=blockSize,mosaicX=mx,mosaicY=my,mosaicWidth=mw,mosaicHeight=mh));onDismiss()},modifier=Modifier.fillMaxWidth()){Text(if(language==AppLanguage.ARABIC)"تطبيق المؤثرات" else "Apply effects")}
+            OutlinedButton(onClick={onDismiss},modifier=Modifier.fillMaxWidth()){Text(if(language==AppLanguage.ARABIC)"إغلاق" else "Close")}
+        }
+    },confirmButton={})
 }
 @Composable private fun AdjustDialog(s: EditorSettings, language: AppLanguage, onChange:(EditorSettings)->Unit,onDismiss:()->Unit){
     var b by remember{mutableFloatStateOf(s.brightness)};var c by remember{mutableFloatStateOf(s.contrast)};var sat by remember{mutableFloatStateOf(s.saturation)};var hue by remember{mutableFloatStateOf(s.hue)};var temp by remember{mutableFloatStateOf(s.temperature)};var tintValue by remember{mutableFloatStateOf(s.tint)}
