@@ -2122,23 +2122,40 @@ private fun EditorPreview(clip: Clip?, settings: EditorSettings, playheadMs: Lon
                     modifier = Modifier.align(Alignment.BottomCenter).padding(bottom=7.dp)
                 )
             }
-            if (settings.overlayImageUri.isNotBlank()) {
-                var overlayBitmap by remember(settings.overlayImageUri) { mutableStateOf<android.graphics.Bitmap?>(null) }
-                LaunchedEffect(settings.overlayImageUri) {
-                    overlayBitmap = runCatching { context.contentResolver.openInputStream(Uri.parse(settings.overlayImageUri))?.use { android.graphics.BitmapFactory.decodeStream(it) } }.getOrNull()
+            val pipPreviewLayers = settings.pipLayers.ifEmpty {
+                if (settings.overlayImageUri.isNotBlank()) listOf(PipLayer(uri=settings.overlayImageUri, x=settings.overlayImageX, y=settings.overlayImageY, scale=settings.overlayImageScale, rotation=settings.overlayImageRotation, alpha=settings.overlayImageAlpha)) else emptyList()
+            }
+            pipPreviewLayers.filter { it.visible && it.uri.isNotBlank() }.forEach { layer ->
+                var bitmap by remember(layer.id, layer.uri) { mutableStateOf<android.graphics.Bitmap?>(null) }
+                LaunchedEffect(layer.id, layer.uri) {
+                    bitmap = runCatching { context.contentResolver.openInputStream(Uri.parse(layer.uri))?.use { android.graphics.BitmapFactory.decodeStream(it) } }.getOrNull()
                 }
-                overlayBitmap?.let { bmp ->
+                bitmap?.let { bmp ->
                     androidx.compose.foundation.Image(
-                        bitmap = bmp.asImageBitmap(), contentDescription = null,
-                        contentScale = androidx.compose.ui.layout.ContentScale.Fit,
-                        modifier = Modifier.fillMaxSize().graphicsLayer(
-                            translationX = settings.overlayImageX * 150f, translationY = settings.overlayImageY * 110f,
-                            scaleX = settings.overlayImageScale, scaleY = settings.overlayImageScale, rotationZ = settings.overlayImageRotation, alpha = settings.overlayImageAlpha
-                        )
+                        bitmap=bmp.asImageBitmap(), contentDescription=null,
+                        contentScale=androidx.compose.ui.layout.ContentScale.Fit,
+                        modifier=Modifier
+                            .fillMaxSize()
+                            .graphicsLayer(
+                                translationX=layer.x*150f, translationY=layer.y*110f,
+                                scaleX=layer.scale, scaleY=layer.scale, rotationZ=layer.rotation, alpha=layer.alpha
+                            )
+                            .pointerInput(layer.id, layer.x, layer.y, layer.scale, layer.rotation) {
+                                detectTransformGestures { _, pan, zoom, rotation ->
+                                    val next= settings.pipLayers.map { item ->
+                                        if(item.id!=layer.id) item else item.copy(
+                                            x=(item.x+pan.x/150f).coerceIn(-1.2f,1.2f),
+                                            y=(item.y+pan.y/110f).coerceIn(-1.2f,1.2f),
+                                            scale=(item.scale*zoom).coerceIn(0.08f,2f),
+                                            rotation=item.rotation+rotation
+                                        )
+                                    }
+                                    onSettingsChange(settings.copy(pipLayers=next))
+                                }
+                            }
                     )
                 }
-            }
-            if (settings.sticker.isNotBlank()) {
+            }            if (settings.sticker.isNotBlank()) {
                 Text(
                     settings.sticker,
                     fontSize = 38.sp,
