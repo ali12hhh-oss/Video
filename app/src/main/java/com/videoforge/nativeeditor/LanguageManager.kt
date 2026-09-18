@@ -37,6 +37,7 @@ object LanguageManager {
             @Suppress("DEPRECATION")
             config.locale = Locale(language.tag)
         }
+        @Suppress("DEPRECATION")
         context.resources.updateConfiguration(config, context.resources.displayMetrics)
     }
 }
