@@ -796,11 +796,11 @@ class ExportEngine(private val context: Context, private val resolver: ContentRe
         if (resolution == ExportResolution.ORIGINAL) return null
         val short = minOf(resolution.width, resolution.height)
         val (width, height) = when (aspect) {
-            "9:16" -> short to (short * 16 / 9).toInt()
+            "9:16" -> (short * 9 / 16).toInt() to short
             "1:1" -> short to short
-            "4:5" -> short to (short * 5 / 4).toInt()
-            "2:3" -> short to (short * 3 / 2).toInt()
-            "3:4" -> short to (short * 4 / 3).toInt()
+            "4:5" -> (short * 4 / 5).toInt() to short
+            "2:3" -> (short * 2 / 3).toInt() to short
+            "3:4" -> (short * 3 / 4).toInt() to short
             "3:2" -> short to (short * 2 / 3).toInt()
             "21:9" -> short to (short * 9 / 21).toInt()
             else -> resolution.width to resolution.height
