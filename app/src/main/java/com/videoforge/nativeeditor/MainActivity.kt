@@ -1449,8 +1449,12 @@ private fun EditorScreen(
     val overlayImageLauncher = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) {
             persistUriAccess(context, uri)
-            commitSettings(settings.copy(overlayImageUri = uri.toString()))
-            status = if (language == AppLanguage.ARABIC) "تمت إضافة الصورة كطبقة / صورة داخل صورة" else "Image overlay / picture-in-picture added"
+            val newLayer = PipLayer(uri = uri.toString())
+            val nextLayers = settings.pipLayers + newLayer
+            commitSettings(settings.copy(pipLayers = nextLayers, overlayImageUri = newLayer.uri,
+                overlayImageX = newLayer.x, overlayImageY = newLayer.y, overlayImageScale = newLayer.scale,
+                overlayImageRotation = newLayer.rotation, overlayImageAlpha = newLayer.alpha))
+            status = if (language == AppLanguage.ARABIC) "تمت إضافة طبقة PIP جديدة (" + nextLayers.size + ")" else "New PIP layer added (" + nextLayers.size + ")"
         }
     }
 
@@ -1461,8 +1465,12 @@ private fun EditorScreen(
                 status = if (language == AppLanguage.ARABIC) "جاري قص العنصر بالذكاء الاصطناعي…" else "AI subject cutout in progress…"
                 val cut = aiCutoutImage(context, uri)
                 if (cut != null) {
-                    commitSettings(settings.copy(overlayImageUri = cut.toString()))
-                    status = if (language == AppLanguage.ARABIC) "تم قص العنصر وإضافته كطبقة" else "Subject cutout added as overlay"
+                    val newLayer = PipLayer(uri = cut.toString())
+                    val nextLayers = settings.pipLayers + newLayer
+                    commitSettings(settings.copy(pipLayers = nextLayers, overlayImageUri = newLayer.uri,
+                        overlayImageX = newLayer.x, overlayImageY = newLayer.y, overlayImageScale = newLayer.scale,
+                        overlayImageRotation = newLayer.rotation, overlayImageAlpha = newLayer.alpha))
+                    status = if (language == AppLanguage.ARABIC) "تم قص العنصر وإضافته كطبقة PIP (" + nextLayers.size + ")" else "Subject cutout added as PIP layer (" + nextLayers.size + ")"
                 } else status = if (language == AppLanguage.ARABIC) "تعذر قص الصورة — تحقق من توفر نموذج ML Kit" else "AI cutout failed — check ML Kit model availability"
             }
         }
@@ -2037,6 +2045,25 @@ private fun EditorPreview(clip: Clip?, settings: EditorSettings, playheadMs: Lon
             val tint = when (settings.filter) { "warm" -> Color(0x44FF9E5E); "cool" -> Color(0x443A8DFF); "mono" -> Color(0x66333333); "vivid" -> Color(0x2200FFAA); else -> Color.Transparent }
             if (tint.alpha > 0f) Box(Modifier.fillMaxSize().background(tint))
             if (settings.overlayOpacity > 0f) Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = settings.overlayOpacity)))
+            val pipPreviewLayers = settings.pipLayers.ifEmpty {
+                if (settings.overlayImageUri.isNotBlank()) listOf(PipLayer(uri=settings.overlayImageUri, x=settings.overlayImageX, y=settings.overlayImageY, scale=settings.overlayImageScale, rotation=settings.overlayImageRotation, alpha=settings.overlayImageAlpha)) else emptyList()
+            }
+            pipPreviewLayers.filter { it.visible && it.uri.isNotBlank() }.forEach { pip ->
+                var bitmap by remember(pip.uri) { mutableStateOf<android.graphics.Bitmap?>(null) }
+                LaunchedEffect(pip.uri) {
+                    bitmap = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                        runCatching { context.contentResolver.openInputStream(Uri.parse(pip.uri))?.use { android.graphics.BitmapFactory.decodeStream(it) } }.getOrNull()
+                    }
+                }
+                if (bitmap != null) Box(
+                    Modifier.align(Alignment.Center).offset(x=(pip.x*120).dp, y=(pip.y*90).dp)
+                        .rotate(pip.rotation).scale(pip.scale)
+                        .graphicsLayer { alpha = pip.alpha.coerceIn(0f,1f) }
+                ) {
+                    androidx.compose.foundation.Image(bitmap=bitmap!!.asImageBitmap(), contentDescription=null,
+                        contentScale=androidx.compose.ui.layout.ContentScale.Fit, modifier=Modifier.size(150.dp))
+                }
+            }
             val previewLayers = settings.textLayers.ifEmpty { if (settings.textVisible && settings.text.isNotBlank()) listOf(TextLayer(text=settings.text, size=settings.textSize, color=settings.textColor, font=settings.textFont)) else emptyList() }
             var selectedLayerId by remember { mutableStateOf(previewLayers.firstOrNull()?.id) }
             LaunchedEffect(previewLayers) {
