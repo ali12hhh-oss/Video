@@ -152,7 +152,7 @@ private object RecentProjectsRepository {
 
 private fun persistUriAccess(context: android.content.Context, uri: Uri) {
     try {
-        val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION
+        val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION
         context.contentResolver.takePersistableUriPermission(uri, flags)
     } catch (_: Exception) {
         // Some picker/providers do not expose persistable permissions; the project still stores the URI.
