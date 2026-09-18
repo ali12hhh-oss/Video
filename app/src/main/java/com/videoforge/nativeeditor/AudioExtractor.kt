@@ -75,7 +75,11 @@ object AudioExtractor {
                 info.offset = 0
                 info.size = size
                 info.presentationTimeUs = extractor.sampleTime.coerceAtLeast(0L)
-                info.flags = extractor.sampleFlags
+                info.flags = extractor.sampleFlags and (
+                    MediaExtractor.SAMPLE_FLAG_SYNC or
+                    MediaExtractor.SAMPLE_FLAG_ENCRYPTED or
+                    MediaExtractor.SAMPLE_FLAG_PARTIAL_FRAME
+                )
                 muxer!!.writeSampleData(track, buffer, info)
                 onProgress((info.presentationTimeUs.toFloat() / durationUs).coerceIn(0f, 1f))
                 if (!extractor.advance()) break
