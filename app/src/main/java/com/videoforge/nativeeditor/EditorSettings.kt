@@ -105,6 +105,17 @@ data class TextLayer(
 )
 
 /** Persistent non-destructive editor controls for each local project. */
+data class PipLayer(
+    val id: String = System.nanoTime().toString(),
+    val uri: String = "",
+    val x: Float = 0.72f,
+    val y: Float = -0.72f,
+    val scale: Float = 0.32f,
+    val rotation: Float = 0f,
+    val alpha: Float = 1f,
+    val visible: Boolean = true
+)
+
 data class EditorSettings(
     val volume: Float = 1f,
     val muted: Boolean = false,
@@ -152,6 +163,7 @@ data class EditorSettings(
     val overlayImageScale: Float = 0.32f,
     val overlayImageRotation: Float = 0f,
     val overlayImageAlpha: Float = 1f,
+    val pipLayers: List<PipLayer> = emptyList(),
     val sticker: String = "",
     val stickerX: Float = 0.78f,
     val stickerY: Float = 0.72f,
@@ -307,6 +319,35 @@ object EditorSettingsRepository {
                 overlayImageScale = j.optDouble("overlayImageScale", 0.32).toFloat(),
                 overlayImageRotation = j.optDouble("overlayImageRotation", 0.0).toFloat(),
                 overlayImageAlpha = j.optDouble("overlayImageAlpha", 1.0).toFloat(),
+                pipLayers = buildList {
+                    val a = j.optJSONArray("pipLayers") ?: JSONArray()
+                    for (n in 0 until a.length()) {
+                        val q = a.optJSONObject(n) ?: continue
+                        val uri = q.optString("uri", "")
+                        if (uri.isBlank()) continue
+                        add(PipLayer(
+                            id = q.optString("id", System.nanoTime().toString()),
+                            uri = uri,
+                            x = q.optDouble("x", 0.72).toFloat(),
+                            y = q.optDouble("y", -0.72).toFloat(),
+                            scale = q.optDouble("scale", 0.32).toFloat(),
+                            rotation = q.optDouble("rotation", 0.0).toFloat(),
+                            alpha = q.optDouble("alpha", 1.0).toFloat(),
+                            visible = q.optBoolean("visible", true)
+                        ))
+                    }
+                }.ifEmpty {
+                    if (j.optString("overlayImageUri", "").isNotBlank()) listOf(
+                        PipLayer(
+                            uri = j.optString("overlayImageUri", ""),
+                            x = j.optDouble("overlayImageX", 0.72).toFloat(),
+                            y = j.optDouble("overlayImageY", -0.72).toFloat(),
+                            scale = j.optDouble("overlayImageScale", 0.32).toFloat(),
+                            rotation = j.optDouble("overlayImageRotation", 0.0).toFloat(),
+                            alpha = j.optDouble("overlayImageAlpha", 1.0).toFloat()
+                        )
+                    ) else emptyList()
+                },
                 sticker = j.optString("sticker", ""),
                 stickerX = j.optDouble("stickerX", 0.78).toFloat(),
                 stickerY = j.optDouble("stickerY", 0.72).toFloat(),
@@ -364,6 +405,7 @@ object EditorSettingsRepository {
             .put("cropZoom", s.cropZoom).put("cropX", s.cropX).put("cropY", s.cropY)
             .put("rotation", s.rotation).put("flipHorizontal", s.flipHorizontal).put("flipVertical", s.flipVertical).put("overlayOpacity", s.overlayOpacity)
             .put("overlayImageUri", s.overlayImageUri).put("overlayImageX", s.overlayImageX).put("overlayImageY", s.overlayImageY).put("overlayImageScale", s.overlayImageScale).put("overlayImageRotation", s.overlayImageRotation).put("overlayImageAlpha", s.overlayImageAlpha)
+            .put("pipLayers", JSONArray().apply { s.pipLayers.forEach { p -> put(JSONObject().put("id", p.id).put("uri", p.uri).put("x", p.x).put("y", p.y).put("scale", p.scale).put("rotation", p.rotation).put("alpha", p.alpha).put("visible", p.visible)) })
             .put("sticker", s.sticker).put("stickerX", s.stickerX).put("stickerY", s.stickerY)
             .put("stickerScale", s.stickerScale).put("stickerRotation", s.stickerRotation).put("stickerAlpha", s.stickerAlpha)
             .put("transition", s.transition)
