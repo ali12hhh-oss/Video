@@ -20,6 +20,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -2890,7 +2891,7 @@ private fun VideoPresetDialog(s: EditorSettings, language: AppLanguage, onChange
             labels.forEachIndexed{i,label->FilterChip(selected=s.filter==vals[i],onClick={onChange(s.copy(filter=vals[i]));onDismiss()},label={Text(label)},modifier=Modifier.fillMaxWidth())}
             Spacer(Modifier.height(5.dp))
             Text(if(language==AppLanguage.ARABIC) "ضبابية احترافية " + blur.toInt() else "Professional blur " + blur.toInt())
-            Slider(blur,{blur=it},0f..20f)
+            Slider(value = blur, onValueChange = { v -> blur = v }, valueRange = 0f..20f)
             Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(6.dp)){
                 OutlinedButton(onClick={blur=0f;onChange(s.copy(blurRadius=0f))},modifier=Modifier.weight(1f)){Text(if(language==AppLanguage.ARABIC) "بدون ضباب" else "No blur")}
                 Button(onClick={onChange(s.copy(blurRadius=blur));onDismiss()},modifier=Modifier.weight(1f)){Text(if(language==AppLanguage.ARABIC) "تطبيق" else "Apply")}
@@ -2900,11 +2901,11 @@ private fun VideoPresetDialog(s: EditorSettings, language: AppLanguage, onChange
             Text(if(language==AppLanguage.ARABIC) "يعمل على منطقة محددة من الإطار أثناء المعاينة والتصدير." else "Pixelates only a selected region in both preview and export.",color=Color.Gray,fontSize=10.sp)
             Row(verticalAlignment=Alignment.CenterVertically){ Text(if(language==AppLanguage.ARABIC) "تفعيل البكسلة" else "Enable mosaic",Modifier.weight(1f)); Switch(checked=mosaicEnabled,onCheckedChange={mosaicEnabled=it;onChange(s.copy(mosaicEnabled=it))}) }
             Text(if(language==AppLanguage.ARABIC) "حجم البكسل " + (blockSize*100).toInt() + "%" else "Block size " + (blockSize*100).toInt() + "%")
-            Slider(blockSize,{blockSize=it},0.02f..0.20f)
-            Text("X " + (mx*100).toInt() + "%"); Slider(mx,{mx=it},0f..0.9f)
-            Text("Y " + (my*100).toInt() + "%"); Slider(my,{my=it},0f..0.9f)
-            Text(if(language==AppLanguage.ARABIC) "العرض " + (mw*100).toInt() + "%" else "Width " + (mw*100).toInt() + "%"); Slider(mw,{mw=it},0.05f..1f)
-            Text(if(language==AppLanguage.ARABIC) "الارتفاع " + (mh*100).toInt() + "%" else "Height " + (mh*100).toInt() + "%"); Slider(mh,{mh=it},0.05f..1f)
+            Slider(value = blockSize, onValueChange = { v -> blockSize = v }, valueRange = 0.02f..0.20f)
+            Text("X " + (mx*100).toInt() + "%"); Slider(value = mx, onValueChange = { v -> mx = v }, valueRange = 0f..0.9f)
+            Text("Y " + (my*100).toInt() + "%"); Slider(value = my, onValueChange = { v -> my = v }, valueRange = 0f..0.9f)
+            Text(if(language==AppLanguage.ARABIC) "العرض " + (mw*100).toInt() + "%" else "Width " + (mw*100).toInt() + "%"); Slider(value = mw, onValueChange = { v -> mw = v }, valueRange = 0.05f..1f)
+            Text(if(language==AppLanguage.ARABIC) "الارتفاع " + (mh*100).toInt() + "%" else "Height " + (mh*100).toInt() + "%"); Slider(value = mh, onValueChange = { v -> mh = v }, valueRange = 0.05f..1f)
             Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(6.dp)){
                 OutlinedButton(onClick={ mosaicEnabled=false;blockSize=0.08f;mx=0.18f;my=0.18f;mw=0.64f;mh=0.64f; onChange(s.copy(mosaicEnabled=false,mosaicBlockSize=0.08f,mosaicX=0.18f,mosaicY=0.18f,mosaicWidth=0.64f,mosaicHeight=0.64f)) },modifier=Modifier.weight(1f)){Text(if(language==AppLanguage.ARABIC) "إزالة البكسلة" else "Remove")}
                 Button(onClick={onChange(s.copy(mosaicEnabled=mosaicEnabled,mosaicBlockSize=blockSize,mosaicX=mx,mosaicY=my,mosaicWidth=mw,mosaicHeight=mh));onDismiss()},modifier=Modifier.weight(1f)){Text(if(language==AppLanguage.ARABIC) "تطبيق" else "Apply")}
@@ -2918,7 +2919,7 @@ private fun VideoPresetDialog(s: EditorSettings, language: AppLanguage, onChange
 }
 @Composable private fun AdjustDialog(s: EditorSettings, language: AppLanguage, onChange:(EditorSettings)->Unit,onDismiss:()->Unit){
     var b by remember{mutableFloatStateOf(s.brightness)};var c by remember{mutableFloatStateOf(s.contrast)};var sat by remember{mutableFloatStateOf(s.saturation)};var hue by remember{mutableFloatStateOf(s.hue)};var temp by remember{mutableFloatStateOf(s.temperature)};var tintValue by remember{mutableFloatStateOf(s.tint)}
-    AlertDialog(onDismissRequest=onDismiss,title={Text(if(language==AppLanguage.ARABIC)"ضبط متقدم" else "Advanced Adjust")},text={Column{Text(if(language==AppLanguage.ARABIC)"السطوع ${(b*100).toInt()}" else "Brightness ${(b*100).toInt()}");Slider(b,{b=it},-1f..1f);Text(if(language==AppLanguage.ARABIC)"التباين ${(c*100).toInt()}%" else "Contrast ${(c*100).toInt()}%");Slider(c,{c=it},0f..2f);Text(if(language==AppLanguage.ARABIC)"التشبع ${(sat*100).toInt()}%" else "Saturation ${(sat*100).toInt()}%");Slider(sat,{sat=it},0f..2f);Text(if(language==AppLanguage.ARABIC)"درجة اللون ${hue.toInt()}°" else "Hue ${hue.toInt()}°");Slider(hue,{hue=it},-180f..180f);Text(if(language==AppLanguage.ARABIC)"حرارة اللون ${temp.toInt()}" else "Temperature ${temp.toInt()}");Slider(temp,{temp=it},-100f..100f);Text(if(language==AppLanguage.ARABIC)"الصبغة ${tintValue.toInt()}" else "Tint ${tintValue.toInt()}");Slider(tintValue,{tintValue=it},-100f..100f)}},confirmButton={TextButton(onClick={onChange(s.copy(brightness=b,contrast=c,saturation=sat,hue=hue,temperature=temp,tint=tintValue));onDismiss()}){Text(if(language==AppLanguage.ARABIC)"تطبيق" else "Apply")}},dismissButton={TextButton(onClick=onDismiss){Text(if(language==AppLanguage.ARABIC)"إلغاء" else "Cancel")}})
+    AlertDialog(onDismissRequest=onDismiss,title={Text(if(language==AppLanguage.ARABIC)"ضبط متقدم" else "Advanced Adjust")},text={Column{Text(if(language==AppLanguage.ARABIC)"السطوع ${(b*100).toInt()}" else "Brightness ${(b*100).toInt()}");Slider(value = b, onValueChange = { v -> b = v }, valueRange = -1f..1f);Text(if(language==AppLanguage.ARABIC)"التباين ${(c*100).toInt()}%" else "Contrast ${(c*100).toInt()}%");Slider(value = c, onValueChange = { v -> c = v }, valueRange = 0f..2f);Text(if(language==AppLanguage.ARABIC)"التشبع ${(sat*100).toInt()}%" else "Saturation ${(sat*100).toInt()}%");Slider(value = sat, onValueChange = { v -> sat = v }, valueRange = 0f..2f);Text(if(language==AppLanguage.ARABIC)"درجة اللون ${hue.toInt()}°" else "Hue ${hue.toInt()}°");Slider(value = hue, onValueChange = { v -> hue = v }, valueRange = -180f..180f);Text(if(language==AppLanguage.ARABIC)"حرارة اللون ${temp.toInt()}" else "Temperature ${temp.toInt()}");Slider(value = temp, onValueChange = { v -> temp = v }, valueRange = -100f..100f);Text(if(language==AppLanguage.ARABIC)"الصبغة ${tintValue.toInt()}" else "Tint ${tintValue.toInt()}");Slider(value = tintValue, onValueChange = { v -> tintValue = v }, valueRange = -100f..100f)}},confirmButton={TextButton(onClick={onChange(s.copy(brightness=b,contrast=c,saturation=sat,hue=hue,temperature=temp,tint=tintValue));onDismiss()}){Text(if(language==AppLanguage.ARABIC)"تطبيق" else "Apply")}},dismissButton={TextButton(onClick=onDismiss){Text(if(language==AppLanguage.ARABIC)"إلغاء" else "Cancel")}})
 }
 
 @Composable private fun CanvasDialog(s:EditorSettings,language:AppLanguage,onChange:(EditorSettings)->Unit,onDismiss:()->Unit){
@@ -2938,9 +2939,9 @@ private fun VideoPresetDialog(s: EditorSettings, language: AppLanguage, onChange
             labels.forEachIndexed{i,label->FilterChip(selected=selected.value==vals[i],onClick={selected.value=vals[i]},label={Text(label)},modifier=Modifier.fillMaxWidth().padding(vertical=2.dp))}
             Spacer(Modifier.height(8.dp))
             Text(if(language==AppLanguage.ARABIC)"مدة الحركة ${(duration*1000).toInt()} مللي ثانية"else"Motion duration ${(duration*1000).toInt()} ms")
-            Slider(duration,{duration=it},0.2f..1.2f)
+            Slider(value = duration, onValueChange = { v -> duration = v }, valueRange = 0.2f..1.2f)
             Text(if(language==AppLanguage.ARABIC)"شدة الحركة ${(intensity*100).toInt()}%"else"Motion intensity ${(intensity*100).toInt()}%")
-            Slider(intensity,{intensity=it},0.35f..1.8f)
+            Slider(value = intensity, onValueChange = { v -> intensity = v }, valueRange = 0.35f..1.8f)
             Text(if(language==AppLanguage.ARABIC)"إعدادات سريعة" else "Quick presets", fontWeight=FontWeight.SemiBold, fontSize=12.sp)
             LazyRow(horizontalArrangement=Arrangement.spacedBy(5.dp)){
                 item{AssistChip(onClick={selected.value="fade";duration=0.45f;intensity=0.85f},label={Text(if(language==AppLanguage.ARABIC)"سينمائي" else "Cinematic",fontSize=9.sp)})}
@@ -2964,15 +2965,15 @@ private fun VideoPresetDialog(s: EditorSettings, language: AppLanguage, onChange
         Column(Modifier.verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(6.dp)){
             LazyRow(horizontalArrangement=Arrangement.spacedBy(5.dp),contentPadding=PaddingValues(vertical=4.dp)){items(vals){v->FilterChip(selected=sticker==v,onClick={sticker=v},label={Text(v,fontSize=20.sp)})}}
             Text(if(language==AppLanguage.ARABIC)"الموضع الأفقي ${(x*100).toInt()}%"else"Horizontal ${(x*100).toInt()}%")
-            Slider(x,{x=it},-1f..1f)
+            Slider(value = x, onValueChange = { v -> x = v }, valueRange = -1f..1f)
             Text(if(language==AppLanguage.ARABIC)"الموضع العمودي ${(y*100).toInt()}%"else"Vertical ${(y*100).toInt()}%")
-            Slider(y,{y=it},-1f..1f)
+            Slider(value = y, onValueChange = { v -> y = v }, valueRange = -1f..1f)
             Text(if(language==AppLanguage.ARABIC)"الحجم ${"%.2f".format(scale)}×"else"Scale ${"%.2f".format(scale)}×")
-            Slider(scale,{scale=it},0.15f..1.2f)
+            Slider(value = scale, onValueChange = { v -> scale = v }, valueRange = 0.15f..1.2f)
             Text(if(language==AppLanguage.ARABIC)"الدوران ${rotation.toInt()}°"else"Rotation ${rotation.toInt()}°")
-            Slider(rotation,{rotation=it},-180f..180f)
+            Slider(value = rotation, onValueChange = { v -> rotation = v }, valueRange = -180f..180f)
             Text(if(language==AppLanguage.ARABIC)"الشفافية ${(alpha*100).toInt()}%"else"Opacity ${(alpha*100).toInt()}%")
-            Slider(alpha,{alpha=it},0.1f..1f)
+            Slider(value = alpha, onValueChange = { v -> alpha = v }, valueRange = 0.1f..1f)
             OutlinedButton(onClick={sticker=""},modifier=Modifier.fillMaxWidth()){Text(if(language==AppLanguage.ARABIC)"إزالة الملصق"else"Remove sticker")}
         }
     },confirmButton={TextButton(onClick={onChange(s.copy(sticker=sticker,stickerX=x,stickerY=y,stickerScale=scale,stickerRotation=rotation,stickerAlpha=alpha));onDismiss()}){Text(if(language==AppLanguage.ARABIC)"تطبيق"else"Apply")}},dismissButton={TextButton(onClick=onDismiss){Text(if(language==AppLanguage.ARABIC)"إلغاء"else"Cancel")}})
