@@ -560,7 +560,7 @@ private fun HomeScreen(
             HeroCard(language = language, onNewProject = onNewProject)
             Spacer(Modifier.height(16.dp))
 
-            ActionCards(onImport = onNewProject, onTemplates = onOpenTemplates, onCapture = {
+            ActionCards(onImport = onImport, onTemplates = onOpenTemplates, onCapture = {
                 val intent = Intent(MediaStore.ACTION_VIDEO_CAPTURE)
                 try { context.startActivity(intent) } catch (_: Exception) { }
             })
@@ -1192,7 +1192,7 @@ private fun HomeBottomBar(selected: Int, onSelected: (Int) -> Unit, onNewProject
             label = { Text(stringResource(R.string.drafts), fontSize = 10.sp) }
         )
         NavigationBarItem(
-            selected = false, onClick = onNewProject,
+            selected = false, onClick = onImport,
             icon = {
                 Box(Modifier.size(56.dp).offset(y = (-2).dp).clip(androidx.compose.foundation.shape.CircleShape)
                     .background(Brush.linearGradient(listOf(Color(0xFF8A45FF), Color(0xFF216DFF)))),
