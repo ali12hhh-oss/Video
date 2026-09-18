@@ -1478,9 +1478,12 @@ private fun EditorScreen(
         exportScope.launch {
             status = if (language == AppLanguage.ARABIC) "جاري إنشاء الإطار الثابت…" else "Creating freeze frame…"
             val file = runCatching {
-                val bitmap = MediaMetadataRetriever().use { retriever ->
+                val retriever = MediaMetadataRetriever()
+                val bitmap = try {
                     retriever.setDataSource(context, clip.uri)
                     retriever.getFrameAtTime(sourceTimeMs * 1000L, MediaMetadataRetriever.OPTION_CLOSEST)
+                } finally {
+                    retriever.release()
                 } ?: error("Unable to capture frame")
                 val out = java.io.File(context.cacheDir, "freeze_${System.currentTimeMillis()}.jpg")
                 out.outputStream().use { stream ->
