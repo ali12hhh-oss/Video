@@ -795,14 +795,15 @@ class ExportEngine(private val context: Context, private val resolver: ContentRe
     private fun presentationFor(resolution: ExportResolution, aspect: String): Presentation? {
         if (resolution == ExportResolution.ORIGINAL) return null
         val short = minOf(resolution.width, resolution.height)
+        val long = maxOf(resolution.width, resolution.height)
         val (width, height) = when (aspect) {
-            "9:16" -> (short * 9 / 16).toInt() to short
+            "9:16" -> short to long
             "1:1" -> short to short
             "4:5" -> (short * 4 / 5).toInt() to short
             "2:3" -> (short * 2 / 3).toInt() to short
             "3:4" -> (short * 3 / 4).toInt() to short
-            "3:2" -> (short * 3 / 2).toInt() to short
-            "21:9" -> (short * 21 / 9).toInt() to short
+            "3:2" -> long to (long * 2 / 3).toInt()
+            "21:9" -> long to (long * 9 / 21).toInt()
             else -> resolution.width to resolution.height
         }
         return Presentation.createForWidthAndHeight(width, height, Presentation.LAYOUT_SCALE_TO_FIT_WITH_CROP)
