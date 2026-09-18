@@ -1351,6 +1351,250 @@ private fun timelineClipAt(clips: List<Clip>, positionMs: Long): Pair<Clip, Long
     return null
 }
 
+
+@Composable
+private fun EditorFeaturePanel(
+    activeTool: String?, settings: EditorSettings, current: Clip?, clips: List<Clip>, language: AppLanguage,
+    onSettingsLiveChange: (EditorSettings) -> Unit, onTrim: () -> Unit, onSplit: () -> Unit,
+    onDelete: () -> Unit, onDuplicate: () -> Unit, onReplace: () -> Unit,
+    onMoveLeft: () -> Unit, onMoveRight: () -> Unit, onFreeze: () -> Unit,
+    onExtractAudio: () -> Unit, onAudioKeyframes: () -> Unit, onMusicKeyframes: () -> Unit,
+    onTextDialog: () -> Unit, onTextAnimation: () -> Unit, onSubtitles: () -> Unit,
+    onLayersDialog: () -> Unit, onVideoKeyframes: () -> Unit, onMarkers: () -> Unit
+) {
+    if (activeTool == null) return
+    var adjustFeature by remember(activeTool) { mutableStateOf("brightness") }
+    var effectFeature by remember(activeTool) { mutableStateOf("blur") }
+    var audioFeature by remember(activeTool) { mutableStateOf("volume") }
+
+    val mainTitle = when (activeTool) {
+        "edit" -> if (language == AppLanguage.ARABIC) "تحرير المقطع" else "Edit clip"
+        "audio" -> if (language == AppLanguage.ARABIC) "الصوت" else "Audio"
+        "text" -> if (language == AppLanguage.ARABIC) "النص" else "Text"
+        "effects" -> if (language == AppLanguage.ARABIC) "المؤثرات" else "Effects"
+        "filters" -> if (language == AppLanguage.ARABIC) "الفلاتر" else "Filters"
+        "adjust" -> if (language == AppLanguage.ARABIC) "تعديل الصورة" else "Adjust"
+        "canvas" -> if (language == AppLanguage.ARABIC) "المقاس والقص" else "Canvas & Crop"
+        "transition" -> if (language == AppLanguage.ARABIC) "الانتقالات" else "Transitions"
+        "subtitles" -> if (language == AppLanguage.ARABIC) "الترجمة" else "Subtitles"
+        "layers" -> if (language == AppLanguage.ARABIC) "الطبقات" else "Layers"
+        "videoKeyframes" -> if (language == AppLanguage.ARABIC) "الحركة" else "Motion"
+        else -> if (language == AppLanguage.ARABIC) "المزيد" else "More"
+    }
+
+    val featureItems = when (activeTool) {
+        "edit" -> listOf(
+            Triple("trim", Icons.Default.ContentCut, if(language==AppLanguage.ARABIC)"قص" else "Trim"),
+            Triple("split", Icons.Default.CallSplit, if(language==AppLanguage.ARABIC)"تقسيم" else "Split"),
+            Triple("duplicate", Icons.Default.ContentCopy, if(language==AppLanguage.ARABIC)"تكرار" else "Duplicate"),
+            Triple("replace", Icons.Default.SwapHoriz, if(language==AppLanguage.ARABIC)"استبدال" else "Replace"),
+            Triple("delete", Icons.Default.Delete, if(language==AppLanguage.ARABIC)"حذف" else "Delete"),
+            Triple("left", Icons.Default.KeyboardArrowLeft, if(language==AppLanguage.ARABIC)"يسار" else "Left"),
+            Triple("right", Icons.Default.KeyboardArrowRight, if(language==AppLanguage.ARABIC)"يمين" else "Right"),
+            Triple("freeze", Icons.Default.AcUnit, if(language==AppLanguage.ARABIC)"تجميد" else "Freeze")
+        )
+        "audio" -> listOf(
+            Triple("volume", Icons.Default.VolumeUp, if(language==AppLanguage.ARABIC)"مستوى الصوت" else "Volume"),
+            Triple("mute", Icons.Default.VolumeOff, if(language==AppLanguage.ARABIC)"كتم" else "Mute"),
+            Triple("fadeIn", Icons.Default.TrendingUp, if(language==AppLanguage.ARABIC)"تلاشي دخول" else "Fade in"),
+            Triple("fadeOut", Icons.Default.TrendingDown, if(language==AppLanguage.ARABIC)"تلاشي خروج" else "Fade out"),
+            Triple("keys", Icons.Default.Timeline, if(language==AppLanguage.ARABIC)"مفاتيح الصوت" else "Keyframes"),
+            Triple("music", Icons.Default.MusicNote, if(language==AppLanguage.ARABIC)"الموسيقى" else "Music")
+        )
+        "text" -> listOf(
+            Triple("text", Icons.Default.TextFields, if(language==AppLanguage.ARABIC)"إضافة/تعديل النص" else "Text"),
+            Triple("animation", Icons.Default.Animation, if(language==AppLanguage.ARABIC)"الحركة" else "Animation"),
+            Triple("textLayers", Icons.Default.Layers, if(language==AppLanguage.ARABIC)"طبقات النص" else "Text layers")
+        )
+        "effects" -> listOf(
+            Triple("blur", Icons.Default.BlurOn, if(language==AppLanguage.ARABIC)"ضبابية" else "Blur"),
+            Triple("mosaic", Icons.Default.GridOn, if(language==AppLanguage.ARABIC)"بكسلة" else "Mosaic")
+        )
+        "filters" -> listOf(
+            Triple("none", Icons.Default.FilterNone, if(language==AppLanguage.ARABIC)"بدون" else "None"),
+            Triple("warm", Icons.Default.WbSunny, if(language==AppLanguage.ARABIC)"دافئ" else "Warm"),
+            Triple("cool", Icons.Default.AcUnit, if(language==AppLanguage.ARABIC)"بارد" else "Cool"),
+            Triple("mono", Icons.Default.Contrast, if(language==AppLanguage.ARABIC)"أبيض وأسود" else "Mono"),
+            Triple("vintage", Icons.Default.PhotoFilter, if(language==AppLanguage.ARABIC)"فنتج" else "Vintage"),
+            Triple("dramatic", Icons.Default.TheaterComedy, if(language==AppLanguage.ARABIC)"درامي" else "Dramatic"),
+            Triple("soft", Icons.Default.FilterVintage, if(language==AppLanguage.ARABIC)"ناعم" else "Soft")
+        )
+        "adjust" -> listOf(
+            Triple("brightness", Icons.Default.Brightness6, if(language==AppLanguage.ARABIC)"السطوع" else "Brightness"),
+            Triple("contrast", Icons.Default.Contrast, if(language==AppLanguage.ARABIC)"التباين" else "Contrast"),
+            Triple("saturation", Icons.Default.Colorize, if(language==AppLanguage.ARABIC)"التشبع" else "Saturation"),
+            Triple("hue", Icons.Default.Palette, if(language==AppLanguage.ARABIC)"درجة اللون" else "Hue"),
+            Triple("temperature", Icons.Default.Thermostat, if(language==AppLanguage.ARABIC)"الحرارة" else "Temperature"),
+            Triple("tint", Icons.Default.ColorLens, if(language==AppLanguage.ARABIC)"الصبغة" else "Tint")
+        )
+        "canvas" -> listOf(
+            Triple("16:9", Icons.Default.Screenshot, "16:9"),
+            Triple("9:16", Icons.Default.StayCurrentPortrait, "9:16"),
+            Triple("1:1", Icons.Default.CropSquare, "1:1"),
+            Triple("4:5", Icons.Default.CropPortrait, "4:5"),
+            Triple("crop", Icons.Default.Crop, if(language==AppLanguage.ARABIC)"قص حر" else "Crop"),
+            Triple("rotate", Icons.AutoMirrored.Filled.RotateRight, if(language==AppLanguage.ARABIC)"تدوير" else "Rotate"),
+            Triple("flip", Icons.Default.Flip, if(language==AppLanguage.ARABIC)"قلب" else "Flip")
+        )
+        "transition" -> listOf(
+            Triple("none", Icons.Default.Block, if(language==AppLanguage.ARABIC)"بدون" else "None"),
+            Triple("fade", Icons.Default.BlurOn, if(language==AppLanguage.ARABIC)"تلاشي" else "Fade"),
+            Triple("slide", Icons.Default.Swipe, if(language==AppLanguage.ARABIC)"انزلاق" else "Slide"),
+            Triple("zoom", Icons.Default.ZoomIn, if(language==AppLanguage.ARABIC)"تكبير" else "Zoom"),
+            Triple("wipe", Icons.Default.Swipe, if(language==AppLanguage.ARABIC)"مسح" else "Wipe"),
+            Triple("flash", Icons.Default.FlashOn, if(language==AppLanguage.ARABIC)"فلاش" else "Flash")
+        )
+        "subtitles" -> listOf(
+            Triple("open", Icons.Default.Subtitles, if(language==AppLanguage.ARABIC)"إدارة الترجمة" else "Manage"),
+            Triple("markers", Icons.Default.Bookmark, if(language==AppLanguage.ARABIC)"العلامات" else "Markers")
+        )
+        "layers" -> listOf(
+            Triple("text", Icons.Default.TextFields, if(language==AppLanguage.ARABIC)"النصوص" else "Text"),
+            Triple("pip", Icons.Default.PictureInPicture, if(language==AppLanguage.ARABIC)"PIP" else "PIP"),
+            Triple("manage", Icons.Default.Layers, if(language==AppLanguage.ARABIC)"إدارة الطبقات" else "Manage layers")
+        )
+        "videoKeyframes" -> listOf(
+            Triple("video", Icons.Default.MovieFilter, if(language==AppLanguage.ARABIC)"حركة الفيديو" else "Video motion"),
+            Triple("markers", Icons.Default.Bookmark, if(language==AppLanguage.ARABIC)"العلامات" else "Markers")
+        )
+        else -> listOf(
+            Triple("freeze", Icons.Default.AcUnit, if(language==AppLanguage.ARABIC)"تجميد" else "Freeze"),
+            Triple("markers", Icons.Default.Bookmark, if(language==AppLanguage.ARABIC)"علامة" else "Marker"),
+            Triple("extract", Icons.Default.AudioFile, if(language==AppLanguage.ARABIC)"استخراج الصوت" else "Extract audio")
+        )
+    }
+
+    Surface(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 5.dp),
+        color = Color(0xFF0C1420), shape = RoundedCornerShape(14.dp)
+    ) {
+        Column(Modifier.padding(vertical = 7.dp)) {
+            Row(Modifier.fillMaxWidth().padding(horizontal = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(mainTitle, fontWeight = FontWeight.Bold, fontSize = 12.sp, modifier = Modifier.weight(1f))
+                Text(if(language==AppLanguage.ARABIC)"لوحة ثابتة أسفل المخطط" else "Inline panel below timeline", color=Color(0xFF8F9CAF), fontSize=8.sp)
+            }
+            LazyRow(
+                Modifier.fillMaxWidth(),
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 5.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                items(featureItems, key={it.first}) { (id, icon, label) ->
+                    val selected = when(activeTool) {
+                        "adjust" -> adjustFeature == id
+                        "effects" -> effectFeature == id
+                        "filters" -> settings.filter == id
+                        "canvas" -> settings.aspect == id
+                        else -> false
+                    }
+                    FilterChip(
+                        selected=selected,
+                        onClick={
+                            when(activeTool) {
+                                "edit" -> when(id) {
+                                    "trim" -> onTrim(); "split" -> onSplit(); "duplicate" -> onDuplicate(); "replace" -> onReplace()
+                                    "delete" -> onDelete(); "left" -> onMoveLeft(); "right" -> onMoveRight(); "freeze" -> onFreeze()
+                                }
+                                "audio" -> when(id) {
+                                    "volume","fadeIn","fadeOut" -> audioFeature=id
+                                    "mute" -> onSettingsLiveChange(settings.copy(muted=!settings.muted))
+                                    "keys" -> onAudioKeyframes(); "music" -> onMusicKeyframes()
+                                }
+                                "text" -> when(id) { "text" -> onTextDialog(); "animation" -> onTextAnimation(); "textLayers" -> onLayersDialog() }
+                                "effects" -> effectFeature=id
+                                "filters" -> onSettingsLiveChange(settings.copy(filter=id))
+                                "adjust" -> adjustFeature=id
+                                "canvas" -> when(id) {
+                                    "crop" -> onSettingsLiveChange(settings.copy(cropZoom=(settings.cropZoom+0.1f).coerceAtMost(3f)))
+                                    "rotate" -> onSettingsLiveChange(settings.copy(rotation=(settings.rotation+90)%360))
+                                    "flip" -> onSettingsLiveChange(settings.copy(flipHorizontal=!settings.flipHorizontal))
+                                    else -> onSettingsLiveChange(settings.copy(aspect=id))
+                                }
+                                "transition" -> if(id!="none") onSettingsLiveChange(settings.copy(transition=id))
+                                "subtitles" -> when(id) { "open" -> onSubtitles(); "markers" -> onMarkers() }
+                                "layers" -> when(id) { "manage","text","pip" -> onLayersDialog() }
+                                "videoKeyframes" -> when(id) { "video" -> onVideoKeyframes(); "markers" -> onMarkers() }
+                                else -> when(id) { "freeze" -> onFreeze(); "markers" -> onMarkers(); "extract" -> onExtractAudio() }
+                            }
+                        },
+                        leadingIcon={Icon(icon,null,Modifier.size(16.dp))},
+                        label={Text(label,fontSize=9.sp,maxLines=1)}
+                    )
+                }
+            }
+
+            if(activeTool=="adjust") {
+                val value=when(adjustFeature) {
+                    "brightness" -> settings.brightness; "contrast" -> settings.contrast; "saturation" -> settings.saturation
+                    "hue" -> settings.hue; "temperature" -> settings.temperature; else -> settings.tint
+                }
+                val range=when(adjustFeature) {
+                    "brightness" -> -1f..1f; "contrast" -> 0f..2f; "saturation" -> 0f..2f; "hue" -> -180f..180f; else -> -100f..100f
+                }
+                Text(
+                    (featureItems.firstOrNull{it.first==adjustFeature}?.third ?: "") + "  " +
+                        if(adjustFeature=="contrast"||adjustFeature=="saturation") (value*100).toInt().toString() else value.toInt().toString(),
+                    Modifier.padding(horizontal=14.dp), fontSize=10.sp
+                )
+                Slider(
+                    value=value,
+                    onValueChange={v -> onSettingsLiveChange(when(adjustFeature) {
+                        "brightness" -> settings.copy(brightness=v); "contrast" -> settings.copy(contrast=v); "saturation" -> settings.copy(saturation=v)
+                        "hue" -> settings.copy(hue=v); "temperature" -> settings.copy(temperature=v); else -> settings.copy(tint=v)
+                    })},
+                    valueRange=range, modifier=Modifier.padding(horizontal=12.dp)
+                )
+            }
+
+            if(activeTool=="audio" && current!=null) {
+                val audioClip=current
+                Row(Modifier.fillMaxWidth().padding(horizontal=12.dp),verticalAlignment=Alignment.CenterVertically) {
+                    when(audioFeature) {
+                        "volume" -> {
+                            Text((audioClip.audioVolume*100).toInt().toString()+"%",fontSize=10.sp,Modifier.width(42.dp))
+                            Slider(
+                                value=audioClip.audioVolume,
+                                onValueChange={v -> onSettingsLiveChange(settings)},
+                                valueRange=0f..2f, modifier=Modifier.weight(1f)
+                            )
+                        }
+                        "fadeIn" -> {
+                            Text(audioClip.audioFadeIn.toInt().toString()+"s",fontSize=10.sp,Modifier.width(42.dp))
+                            Slider(
+                                value=audioClip.audioFadeIn,
+                                onValueChange={v -> onSettingsLiveChange(settings.copy(fadeIn=v))},
+                                valueRange=0f..10f,modifier=Modifier.weight(1f)
+                            )
+                        }
+                        "fadeOut" -> {
+                            Text(audioClip.audioFadeOut.toInt().toString()+"s",fontSize=10.sp,Modifier.width(42.dp))
+                            Slider(
+                                value=audioClip.audioFadeOut,
+                                onValueChange={v -> onSettingsLiveChange(settings.copy(fadeOut=v))},
+                                valueRange=0f..10f,modifier=Modifier.weight(1f)
+                            )
+                        }
+                    }
+                }
+            }
+
+            if(activeTool=="effects") {
+                if(effectFeature=="blur") {
+                    Text((if(language==AppLanguage.ARABIC)"ضبابية " else "Blur ") + settings.blurRadius.toInt(),Modifier.padding(horizontal=14.dp),fontSize=10.sp)
+                    Slider(value=settings.blurRadius,onValueChange={onSettingsLiveChange(settings.copy(blurRadius=it))},valueRange=0f..20f,modifier=Modifier.padding(horizontal=12.dp))
+                } else {
+                    Row(Modifier.fillMaxWidth().padding(horizontal=12.dp),verticalAlignment=Alignment.CenterVertically){
+                        Text(if(language==AppLanguage.ARABIC)"البكسلة" else "Mosaic",Modifier.weight(1f),fontSize=10.sp)
+                        Switch(checked=settings.mosaicEnabled,onCheckedChange={onSettingsLiveChange(settings.copy(mosaicEnabled=it))})
+                    }
+                    Text((if(language==AppLanguage.ARABIC)"حجم البكسل " else "Block size ")+(settings.mosaicBlockSize*100).toInt()+"%",Modifier.padding(horizontal=14.dp),fontSize=10.sp)
+                    Slider(value=settings.mosaicBlockSize,onValueChange={onSettingsLiveChange(settings.copy(mosaicBlockSize=it))},valueRange=0.02f..0.20f,modifier=Modifier.padding(horizontal=12.dp))
+                }
+            }
+        }
+    }
+}
+
+
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 private fun EditorScreen(
@@ -1418,6 +1662,7 @@ private fun EditorScreen(
         }
     }
     var tool by remember { mutableStateOf<String?>(null) }
+    var activeEditorTool by remember { mutableStateOf<String?>(null) }
     var editingName by remember(projectName) { mutableStateOf(projectName) }
     val undoStack = remember(projectId) { mutableStateListOf<EditorSnapshot>() }
     val redoStack = remember(projectId) { mutableStateListOf<EditorSnapshot>() }
@@ -1443,6 +1688,11 @@ private fun EditorScreen(
     }
 
     fun updateSettings(next: EditorSettings) = commitSettings(next)
+
+    fun updateSettingsLive(next: EditorSettings) {
+        settings = next
+        EditorSettingsRepository.save(context, projectId, next)
+    }
 
 
     fun undo() {
@@ -1672,7 +1922,7 @@ private fun EditorScreen(
                     dockTools.forEach { (id, icon, label) ->
                         Column(
                             Modifier.weight(1f).clip(RoundedCornerShape(10.dp))
-                                .clickable { tool = id }
+                                 .clickable { activeEditorTool = id }
                                 .padding(vertical = 4.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
@@ -1756,7 +2006,7 @@ private fun EditorScreen(
                     enabled = current != null
                 ) { Icon(Icons.Default.Forward5, null) }
 
-                IconButton(onClick = { tool = "canvas" }, enabled = current != null) {
+                IconButton(onClick = { activeEditorTool = "canvas" }, enabled = current != null) {
                     Icon(Icons.Default.CropFree, null)
                 }
             }
@@ -1790,7 +2040,7 @@ private fun EditorScreen(
                 audioBaseVolume = current?.audioVolume ?: settings.volume,
                 audioFadeIn = maxOf(settings.fadeIn, current?.audioFadeIn ?: 0f),
                 audioFadeOut = maxOf(settings.fadeOut, current?.audioFadeOut ?: 0f),
-                onAudioTrackClick = { tool = "audio" },
+                onAudioTrackClick = { activeEditorTool = "audio" },
                 onSelect = { clip -> current = clip; playheadMs = timelinePositionOf(clips, clip) },
                 onPlayheadChange = { position ->
                     playheadMs = position.coerceIn(0L, timelineTotalDuration(clips))
@@ -1884,6 +2134,50 @@ private fun EditorScreen(
                     }
                 }
             }
+
+            EditorFeaturePanel(
+                activeTool = activeEditorTool,
+                settings = settings, current = current, clips = clips, language = language,
+                onSettingsLiveChange = ::updateSettingsLive,
+                onTrim = { if (current != null) showTrim = true },
+                onSplit = {
+                    val clip = current
+                    if (clip != null) {
+                        val offset = timelinePositionOf(clips, clip)
+                        val local = (playheadMs - offset).coerceIn(1L, (clipTimelineDuration(clip)-1L).coerceAtLeast(1L))
+                        val start = clip.trimStartMs
+                        val end = if (clip.trimEndMs == Long.MAX_VALUE) clip.durationMs else clip.trimEndMs
+                        if (end-start > 2L) {
+                            val cut=(start+local).coerceIn(start+1L,end-1L)
+                            val left=clip.copy(trimEndMs=cut); val right=clip.copy(trimStartMs=cut)
+                            val index=clips.indexOf(clip)
+                            commitClips(clips.toMutableList().also{it.removeAt(index);it.add(index,left);it.add(index+1,right)})
+                            current=left
+                        }
+                    }
+                },
+                onDelete = {
+                    val clip=current
+                    if(clip!=null && clips.size>1){val next=clips.filterNot{it==clip};commitClips(next);current=next.firstOrNull();playheadMs=timelinePositionOf(next,current)}
+                },
+                onDuplicate = {
+                    val clip=current
+                    if(clip!=null){val index=clips.indexOf(clip);if(index>=0){val copy=clip.copy(name=clip.name.substringBeforeLast('.').ifBlank{clip.name}+" • copy");commitClips(clips.toMutableList().also{it.add(index+1,copy)});current=copy}}
+                },
+                onReplace = { replaceLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly)) },
+                onMoveLeft = { val clip=current; if(clip!=null){val i=clips.indexOf(clip);if(i>0)commitClips(clips.toMutableList().also{it.add(i-1,it.removeAt(i))})} },
+                onMoveRight = { val clip=current; if(clip!=null){val i=clips.indexOf(clip);if(i in 0 until clips.lastIndex)commitClips(clips.toMutableList().also{it.add(i+1,it.removeAt(i))})} },
+                onFreeze = { createFreezeFrame() },
+                onExtractAudio = { extractAudioFromCurrent() },
+                onAudioKeyframes = { showAudioKeyframes=true },
+                onMusicKeyframes = { showMusicKeyframes=true },
+                onTextDialog = { tool="text" },
+                onTextAnimation = { tool="textAnimation" },
+                onSubtitles = { tool="subtitles" },
+                onLayersDialog = { showLayers=true },
+                onVideoKeyframes = { showVideoKeyframes=true },
+                onMarkers = { showMarkers=true }
+            )
 
             Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 7.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(onClick = { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly)) }, modifier = Modifier.weight(1f)) {
