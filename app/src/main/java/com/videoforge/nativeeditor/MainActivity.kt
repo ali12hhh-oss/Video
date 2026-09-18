@@ -1388,6 +1388,7 @@ private fun EditorScreen(
 
     fun updateSettings(next: EditorSettings) = commitSettings(next)
 
+
     fun undo() {
         val snap = undoStack.removeLastOrNull() ?: return
         redoStack.add(EditorSnapshot(clips, settings, editingName))
@@ -1618,7 +1619,7 @@ private fun EditorScreen(
                 AssistChip(onClick = {}, label = { Text(if (language == AppLanguage.ARABIC) "محفوظ" else "Saved", fontSize = 10.sp) }, leadingIcon = { Icon(Icons.Default.CloudDone, null, Modifier.size(16.dp)) })
             }
 
-            EditorPreview(current, settings, playheadMs, timelinePositionOf(clips, current), onSettingsChange = { next ->
+            EditorPreview(current, settings, playheadMs, current?.let { timelinePositionOf(clips, it) } ?: 0L, onSettingsChange = { next ->
                 settings = next
                 EditorSettingsRepository.save(context, projectId, next)
             })
