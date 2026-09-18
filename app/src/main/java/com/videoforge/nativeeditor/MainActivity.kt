@@ -1386,6 +1386,8 @@ private fun EditorScreen(
         if (clips.isNotEmpty()) ProjectRepository.save(context, projectId, clips, editingName)
     }
 
+    fun updateSettings(next: EditorSettings) = commitSettings(next)
+
     fun undo() {
         val snap = undoStack.removeLastOrNull() ?: return
         redoStack.add(EditorSnapshot(clips, settings, editingName))
@@ -1405,8 +1407,6 @@ private fun EditorScreen(
         onProjectNameChanged(snap.projectName)
         EditorSettingsRepository.save(context, projectId, snap.settings)
     }
-
-    fun updateSettings(next: EditorSettings) = commitSettings(next)
 
     LaunchedEffect(clips, editingName, settings) {
         if (clips.isNotEmpty()) {
@@ -1631,12 +1631,14 @@ private fun EditorScreen(
                 clips = clips, current = current, playheadMs = playheadMs,
                 videoKeyframes = settings.videoKeyframes,
                 textKeyframes = settings.textLayers.flatMap { it.keyframes },
-                audioKeyframes = current?.audioKeyframes?.map { k ->
-                    ClipAudioKeyframe(
-                        timeMs = timelinePositionOf(clips, current) + k.timeMs,
-                        volume = k.volume
-                    )
-                }?.map { AudioKeyframe(it.timeMs, it.volume) } ?: settings.audioKeyframes,
+                audioKeyframes = current?.let { selected ->
+                    selected.audioKeyframes.map { k ->
+                        ClipAudioKeyframe(
+                            timeMs = timelinePositionOf(clips, selected) + k.timeMs,
+                            volume = k.volume
+                        )
+                    }.map { AudioKeyframe(it.timeMs, it.volume) }
+                } ?: settings.audioKeyframes,
                 speedKeyframes = settings.speedKeyframes,
                 musicUri = settings.musicUri,
                 musicStartMs = settings.musicStartMs,
@@ -2084,7 +2086,7 @@ private fun EditorPreview(clip: Clip?, settings: EditorSettings, playheadMs: Lon
                     "cool" -> effects += HslAdjustment.Builder().adjustHue(-18f).adjustSaturation(6f).build()
                     "vivid" -> effects += HslAdjustment.Builder().adjustSaturation(28f).build()
                 }
-                if (settings.rotation % 360 != 0 || kotlin.math.abs(settings.cropZoom - 1f) > 0.001f) effects += ScaleAndRotateTransformation.Builder().setScale(settings.cropZoom.coerceIn(1f, 6f), settings.cropZoom.coerceIn(1f, 6f)).setRotationDegrees(((settings.rotation % 360) + 360) % 360).build()
+                if (settings.rotation % 360 != 0 || kotlin.math.abs(settings.cropZoom - 1f) > 0.001f) effects += ScaleAndRotateTransformation.Builder().setScale(settings.cropZoom.coerceIn(1f, 6f), settings.cropZoom.coerceIn(1f, 6f)).setRotationDegrees(((settings.rotation % 360) + 360) % 360f).build()
                 if (settings.flipHorizontal || settings.flipVertical) effects += MatrixTransformation { android.graphics.Matrix().apply { postScale(if (settings.flipHorizontal) -1f else 1f, if (settings.flipVertical) -1f else 1f) } }
                 if (kotlin.math.abs(settings.cropX) > 0.001f || kotlin.math.abs(settings.cropY) > 0.001f) effects += MatrixTransformation { android.graphics.Matrix().apply { postTranslate(settings.cropX.coerceIn(-1f, 1f) * 500f, settings.cropY.coerceIn(-1f, 1f) * 500f) } }
                 if (settings.videoKeyframes.isNotEmpty()) {
@@ -2287,40 +2289,6 @@ private fun EditorPreview(clip: Clip?, settings: EditorSettings, playheadMs: Lon
                     modifier = Modifier.align(Alignment.BottomCenter).padding(bottom=7.dp)
                 )
             }
-            val pipPreviewLayers = settings.pipLayers.ifEmpty {
-                if (settings.overlayImageUri.isNotBlank()) listOf(PipLayer(uri=settings.overlayImageUri, x=settings.overlayImageX, y=settings.overlayImageY, scale=settings.overlayImageScale, rotation=settings.overlayImageRotation, alpha=settings.overlayImageAlpha)) else emptyList()
-            }
-            pipPreviewLayers.filter { it.visible && it.uri.isNotBlank() }.forEach { layer ->
-                var bitmap by remember(layer.id, layer.uri) { mutableStateOf<android.graphics.Bitmap?>(null) }
-                LaunchedEffect(layer.id, layer.uri) {
-                    bitmap = runCatching { context.contentResolver.openInputStream(Uri.parse(layer.uri))?.use { android.graphics.BitmapFactory.decodeStream(it) } }.getOrNull()
-                }
-                bitmap?.let { bmp ->
-                    androidx.compose.foundation.Image(
-                        bitmap=bmp.asImageBitmap(), contentDescription=null,
-                        contentScale=androidx.compose.ui.layout.ContentScale.Fit,
-                        modifier=Modifier
-                            .fillMaxSize()
-                            .graphicsLayer(
-                                translationX=layer.x*150f, translationY=layer.y*110f,
-                                scaleX=layer.scale, scaleY=layer.scale, rotationZ=layer.rotation, alpha=layer.alpha
-                            )
-                            .pointerInput(layer.id, layer.x, layer.y, layer.scale, layer.rotation) {
-                                detectTransformGestures { _, pan, zoom, rotation ->
-                                    val next= settings.pipLayers.map { item ->
-                                        if(item.id!=layer.id) item else item.copy(
-                                            x=(item.x+pan.x/150f).coerceIn(-1.2f,1.2f),
-                                            y=(item.y+pan.y/110f).coerceIn(-1.2f,1.2f),
-                                            scale=(item.scale*zoom).coerceIn(0.08f,2f),
-                                            rotation=item.rotation+rotation
-                                        )
-                                    }
-                                    onSettingsChange(settings.copy(pipLayers=next))
-                                }
-                            }
-                    )
-                }
-            }
             if (settings.sticker.isNotBlank()) {
                 Text(
                     settings.sticker,
@@ -2358,14 +2326,14 @@ private fun EditorPreview(clip: Clip?, settings: EditorSettings, playheadMs: Lon
 ) {
     var speed by remember(s.speed) { mutableFloatStateOf(s.speed) }
     var easing by remember { mutableStateOf("easeInOut") }
-    val offset = timelinePositionOf(clips, clip)
+    val offset = clip?.let { timelinePositionOf(clips, it) } ?: 0L
     val local = (playheadMs - offset).coerceAtLeast(0L)
     val duration = clip?.let { clipTimelineDuration(it) } ?: 1L
     val keys = s.speedKeyframes.sortedBy { it.timeMs }
     AlertDialog(onDismissRequest = onDismiss, title = { Text(if (language == AppLanguage.ARABIC) "السرعة و Speed Ramping" else "Speed & Speed Ramping") }, text = {
         Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(7.dp)) {
             Text(if (language == AppLanguage.ARABIC) "السرعة الأساسية: %.2fx".format(speed) else "Base speed: %.2fx".format(speed))
-            Slider(speed, { speed = it }, 0.25f..4f)
+            Slider(speed, { speed = it }, valueRange = 0.25f..4f)
             Row(horizontalArrangement = Arrangement.spacedBy(5.dp), modifier = Modifier.fillMaxWidth()) {
                 listOf(.5f, 1f, 1.5f, 2f, 3f).forEach { v -> AssistChip(onClick = { speed = v }, label = { Text("${v}x", fontSize = 10.sp) }) }
             }
@@ -2441,7 +2409,7 @@ private fun EditorPreview(clip: Clip?, settings: EditorSettings, playheadMs: Lon
                         val bars = 72
                         val barWidth = size.width / bars
                         for (i in 0 until bars) {
-                            val amp = (0.18f + 0.72f * kotlin.math.abs(kotlin.math.sin(i * 0.63)) * (0.55f + 0.45f * kotlin.math.abs(kotlin.math.sin(i * 0.17 + 1.2)))).coerceIn(0.08f, 0.95f)
+                            val amp = (0.18 + 0.72 * kotlin.math.abs(kotlin.math.sin(i * 0.63)) * (0.55 + 0.45 * kotlin.math.abs(kotlin.math.sin(i * 0.17 + 1.2)))).toFloat().coerceIn(0.08f, 0.95f)
                             val h = size.height * amp * 0.42f
                             drawRoundRect(Color(0xFF7C5CFF), Offset(i * barWidth + barWidth * 0.2f, size.height / 2f - h), androidx.compose.ui.geometry.Size(barWidth * 0.58f, h * 2f), cornerRadius = androidx.compose.ui.geometry.CornerRadius(3f, 3f))
                         }
@@ -2742,7 +2710,7 @@ private fun fontFamilyFor(key: String, bold: Boolean = false): FontFamily {
             LazyRow(horizontalArrangement=Arrangement.spacedBy(6.dp), contentPadding=PaddingValues(vertical=4.dp)) {
                 items(fontOptions()) { f -> FilterChip(selected=layer.font==f.key, onClick={edit(layer.copy(font=f.key))}, label={Text(if(language==AppLanguage.ARABIC) f.ar else f.en, fontFamily=fontFamilyFor(f.key), maxLines=1)}) }
             }
-            Text(if(language==AppLanguage.ARABIC) "الحجم ${layer.size.toInt()}" else "Size ${layer.size.toInt()}"); Slider(layer.size,{edit(layer.copy(size=it))},16f..96f)
+            Text(if(language==AppLanguage.ARABIC) "الحجم ${layer.size.toInt()}" else "Size ${layer.size.toInt()}"); Slider(layer.size, {edit(layer.copy(size=it))}, valueRange = 16f..96f)
             Row(verticalAlignment=Alignment.CenterVertically) { Text(if(language==AppLanguage.ARABIC) "عريض" else "Bold", Modifier.weight(1f)); Switch(checked=bold, onCheckedChange={bold=it; edit(layer.copy(bold=it))}) }
             Text(if(language==AppLanguage.ARABIC) "أنماط احترافية" else "Professional styles", fontWeight=FontWeight.Bold)
             LazyRow(horizontalArrangement=Arrangement.spacedBy(5.dp), contentPadding=PaddingValues(vertical=3.dp)) {
@@ -2773,38 +2741,38 @@ private fun fontFamilyFor(key: String, bold: Boolean = false): FontFamily {
                     FilterChip(selected=layer.color == c.toArgb().toLong(), onClick={edit(layer.copy(color=c.toArgb().toLong()))}, label={Text(if(language==AppLanguage.ARABIC) when(label){"White"->"أبيض";"Gold"->"ذهبي";"Cyan"->"سماوي";"Pink"->"وردي";else->"بنفسجي"} else label, fontSize=9.sp)})
                 }
             }
-            Text(if(language==AppLanguage.ARABIC) "شفافية ${(layer.alpha*100).toInt()}%" else "Opacity ${(layer.alpha*100).toInt()}%"); Slider(layer.alpha,{edit(layer.copy(alpha=it))},0.1f..1f)
-            Text(if(language==AppLanguage.ARABIC) "تباعد الحروف" else "Letter spacing"); Slider(layer.letterSpacing,{edit(layer.copy(letterSpacing=it))},-2f..8f)
-            Text(if(language==AppLanguage.ARABIC) "ارتفاع الأسطر" else "Line height"); Slider(layer.lineHeightMultiplier,{edit(layer.copy(lineHeightMultiplier=it))},0.8f..2f)
+            Text(if(language==AppLanguage.ARABIC) "شفافية ${(layer.alpha*100).toInt()}%" else "Opacity ${(layer.alpha*100).toInt()}%"); Slider(layer.alpha, {edit(layer.copy(alpha=it))}, valueRange = 0.1f..1f)
+            Text(if(language==AppLanguage.ARABIC) "تباعد الحروف" else "Letter spacing"); Slider(layer.letterSpacing, {edit(layer.copy(letterSpacing=it))}, valueRange = -2f..8f)
+            Text(if(language==AppLanguage.ARABIC) "ارتفاع الأسطر" else "Line height"); Slider(layer.lineHeightMultiplier, {edit(layer.copy(lineHeightMultiplier=it))}, valueRange = 0.8f..2f)
             Text(if(language==AppLanguage.ARABIC) "محاذاة النص" else "Text alignment", fontWeight=FontWeight.Bold)
             Row(horizontalArrangement=Arrangement.spacedBy(5.dp)) { listOf("start" to "يمين","center" to "وسط","end" to "يسار").forEach { (v,l) -> FilterChip(selected=layer.textAlign==v,onClick={edit(layer.copy(textAlign=v))},label={Text(if(language==AppLanguage.ARABIC) l else v)}) } }
             Text(if(language==AppLanguage.ARABIC) "حركة النص" else "Text animation", fontWeight=FontWeight.Bold)
             val anims=listOf("none" to if(language==AppLanguage.ARABIC) "بدون" else "None", "fade" to if(language==AppLanguage.ARABIC) "ظهور" else "Fade", "pop" to if(language==AppLanguage.ARABIC) "انبثاق" else "Pop", "slide" to if(language==AppLanguage.ARABIC) "انزلاق" else "Slide", "zoom" to if(language==AppLanguage.ARABIC) "تكبير" else "Zoom", "typewriter" to if(language==AppLanguage.ARABIC) "كتابة" else "Typewriter")
             LazyRow(horizontalArrangement=Arrangement.spacedBy(5.dp),contentPadding=PaddingValues(vertical=3.dp)){items(anims){(v,l)->FilterChip(selected=layer.animation==v,onClick={edit(layer.copy(animation=v))},label={Text(l,fontSize=9.sp)})}}
             Text(if(language==AppLanguage.ARABIC) "خلفية النص ${(layer.backgroundAlpha*100).toInt()}%" else "Text background ${(layer.backgroundAlpha*100).toInt()}%")
-            Slider(layer.backgroundAlpha,{edit(layer.copy(backgroundAlpha=it))},0f..0.9f)
-            Text(if(language==AppLanguage.ARABIC) "حشوة الخلفية" else "Background padding"); Slider(layer.backgroundPadding,{edit(layer.copy(backgroundPadding=it))},0f..30f)
+            Slider(layer.backgroundAlpha, {edit(layer.copy(backgroundAlpha=it))}, valueRange = 0f..0.9f)
+            Text(if(language==AppLanguage.ARABIC) "حشوة الخلفية" else "Background padding"); Slider(layer.backgroundPadding, {edit(layer.copy(backgroundPadding=it))}, valueRange = 0f..30f)
             Row(verticalAlignment=Alignment.CenterVertically) {
                 Text(if(language==AppLanguage.ARABIC) "ظل النص" else "Text shadow", Modifier.weight(1f))
                 Switch(checked=layer.shadowEnabled, onCheckedChange={edit(layer.copy(shadowEnabled=it))})
             }
             if (layer.shadowEnabled) {
                 Text(if(language==AppLanguage.ARABIC) "قوة الظل ${layer.shadowRadius.toInt()}" else "Shadow strength ${layer.shadowRadius.toInt()}")
-                Slider(layer.shadowRadius,{edit(layer.copy(shadowRadius=it))},0f..20f)
+                Slider(layer.shadowRadius, {edit(layer.copy(shadowRadius=it))}, valueRange = 0f..20f)
                 Text(if(language==AppLanguage.ARABIC) "إزاحة أفقية ${layer.shadowDx.toInt()}" else "Shadow X ${layer.shadowDx.toInt()}")
-                Slider(layer.shadowDx,{edit(layer.copy(shadowDx=it))},-15f..15f)
+                Slider(layer.shadowDx, {edit(layer.copy(shadowDx=it))}, valueRange = -15f..15f)
                 Text(if(language==AppLanguage.ARABIC) "إزاحة رأسية ${layer.shadowDy.toInt()}" else "Shadow Y ${layer.shadowDy.toInt()}")
-                Slider(layer.shadowDy,{edit(layer.copy(shadowDy=it))},-15f..15f)
+                Slider(layer.shadowDy, {edit(layer.copy(shadowDy=it))}, valueRange = -15f..15f)
             }
             Row(verticalAlignment=Alignment.CenterVertically) {
                 Text(if(language==AppLanguage.ARABIC) "حدود النص" else "Text outline", Modifier.weight(1f))
                 Switch(checked=layer.strokeEnabled, onCheckedChange={edit(layer.copy(strokeEnabled=it))})
             }
             Row(verticalAlignment=Alignment.CenterVertically) { Text(if(language==AppLanguage.ARABIC) "توهج Glow" else "Glow", Modifier.weight(1f)); Switch(checked=layer.glowEnabled,onCheckedChange={edit(layer.copy(glowEnabled=it))}) }
-            if (layer.glowEnabled) { Text(if(language==AppLanguage.ARABIC) "قوة التوهج" else "Glow radius"); Slider(layer.glowRadius,{edit(layer.copy(glowRadius=it))},1f..30f) }
+            if (layer.glowEnabled) { Text(if(language==AppLanguage.ARABIC) "قوة التوهج" else "Glow radius"); Slider(layer.glowRadius, {edit(layer.copy(glowRadius=it))}, valueRange = 1f..30f) }
             if (layer.strokeEnabled) {
                 Text(if(language==AppLanguage.ARABIC) "سماكة الحدود ${"%.1f".format(layer.strokeWidth)}" else "Outline width ${"%.1f".format(layer.strokeWidth)}")
-                Slider(layer.strokeWidth,{edit(layer.copy(strokeWidth=it))},0.5f..12f)
+                Slider(layer.strokeWidth, {edit(layer.copy(strokeWidth=it))}, valueRange = 0.5f..12f)
                 Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement=Arrangement.spacedBy(5.dp)) {
                     listOf(Color.Black to "Black", Color.White to "White", Color(0xFFFFD54F) to "Gold", Color(0xFF5E35B1) to "Purple").forEach { (c,l) ->
                         FilterChip(selected=layer.strokeColor==c.toArgb().toLong(), onClick={edit(layer.copy(strokeColor=c.toArgb().toLong()))}, label={Text(if(language==AppLanguage.ARABIC) when(l){"Black"->"أسود";"White"->"أبيض";"Gold"->"ذهبي";else->"بنفسجي"} else l,fontSize=9.sp)})
@@ -2812,10 +2780,10 @@ private fun fontFamilyFor(key: String, bold: Boolean = false): FontFamily {
                 }
             }
             Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(5.dp)){listOf(Color.Transparent to "None",Color.Black to "Black",Color.White to "White",Color(0xFF5E35B1) to "Purple").forEach{(c,l)->FilterChip(selected=layer.backgroundColor==c.toArgb().toLong(),onClick={edit(layer.copy(backgroundColor=c.toArgb().toLong()))},label={Text(if(language==AppLanguage.ARABIC) when(l){"None"->"بدون";"Black"->"أسود";"White"->"أبيض";else->"بنفسجي"}else l,fontSize=9.sp)})}}
-            Text(if(language==AppLanguage.ARABIC) "الموضع الأفقي" else "Horizontal position"); Slider(layer.x,{edit(layer.copy(x=it))},-1f..1f)
-            Text(if(language==AppLanguage.ARABIC) "الموضع الرأسي" else "Vertical position"); Slider(layer.y,{edit(layer.copy(y=it))},-1f..1f)
-            Text(if(language==AppLanguage.ARABIC) "التكبير ${"%.2f".format(layer.scale)}x" else "Scale ${"%.2f".format(layer.scale)}x"); Slider(layer.scale,{edit(layer.copy(scale=it))},0.25f..2.5f)
-            Text(if(language==AppLanguage.ARABIC) "الدوران ${layer.rotation.toInt()}°" else "Rotation ${layer.rotation.toInt()}°"); Slider(layer.rotation,{edit(layer.copy(rotation=it))},-180f..180f)
+            Text(if(language==AppLanguage.ARABIC) "الموضع الأفقي" else "Horizontal position"); Slider(layer.x, {edit(layer.copy(x=it))}, valueRange = -1f..1f)
+            Text(if(language==AppLanguage.ARABIC) "الموضع الرأسي" else "Vertical position"); Slider(layer.y, {edit(layer.copy(y=it))}, valueRange = -1f..1f)
+            Text(if(language==AppLanguage.ARABIC) "التكبير ${"%.2f".format(layer.scale)}x" else "Scale ${"%.2f".format(layer.scale)}x"); Slider(layer.scale, {edit(layer.copy(scale=it))}, valueRange = 0.25f..2.5f)
+            Text(if(language==AppLanguage.ARABIC) "الدوران ${layer.rotation.toInt()}°" else "Rotation ${layer.rotation.toInt()}°"); Slider(layer.rotation, {edit(layer.copy(rotation=it))}, valueRange = -180f..180f)
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 OutlinedButton(onClick = {
                     val copy = layer.copy(id = System.nanoTime().toString(), y = (layer.y + 0.12f).coerceIn(-1f, 1f))
