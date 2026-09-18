@@ -1378,6 +1378,7 @@ private fun EditorScreen(
     var playheadMs by remember { mutableLongStateOf(0L) }
     var previewPlaying by remember { mutableStateOf(false) }
     var previewError by remember { mutableStateOf<String?>(null) }
+    var previewToggleToken by remember { mutableIntStateOf(0) }
     var exportSettings by remember { mutableStateOf(ExportSettings()) }
     var status by remember { mutableStateOf("") }
     var lastExportUri by remember { mutableStateOf<Uri?>(null) }
@@ -1711,7 +1712,8 @@ private fun EditorScreen(
                     }
                 },
                 onPlaybackStateChanged = { previewPlaying = it },
-                onPlaybackError = { previewError = it }
+                onPlaybackError = { previewError = it },
+                playbackToggleToken = previewToggleToken
             )
 
             Row(
@@ -1740,7 +1742,10 @@ private fun EditorScreen(
                 }
 
                 FilledIconButton(
-                    onClick = { previewError = null },
+                    onClick = {
+                        previewError = null
+                        previewToggleToken += 1
+                    },
                     enabled = current != null
                 ) {
                     Icon(if (previewPlaying) Icons.Default.Pause else Icons.Default.PlayArrow, null)
@@ -2120,7 +2125,8 @@ private fun EditorPreview(
     onSettingsChange: (EditorSettings) -> Unit,
     onPlaybackPosition: (Long) -> Unit = {},
     onPlaybackStateChanged: (Boolean) -> Unit = {},
-    onPlaybackError: (String) -> Unit = {}
+    onPlaybackError: (String) -> Unit = {},
+    playbackToggleToken: Int = 0
 ) {
     val context = LocalContext.current
     val ratio = when (settings.aspect) { "9:16" -> 9f/16f; "1:1" -> 1f; "4:5" -> 4f/5f; "2:3" -> 2f/3f; "3:4" -> 3f/4f; "3:2" -> 3f/2f; "21:9" -> 21f/9f; else -> 16f/9f }
@@ -2156,6 +2162,15 @@ private fun EditorPreview(
                     playWhenReady = false
                 }
             }
+            var lastPlaybackToggleToken by remember(player) { mutableIntStateOf(playbackToggleToken) }
+
+            LaunchedEffect(player, playbackToggleToken) {
+                if (playbackToggleToken != lastPlaybackToggleToken) {
+                    if (player.isPlaying) player.pause() else player.play()
+                    lastPlaybackToggleToken = playbackToggleToken
+                }
+            }
+
             DisposableEffect(player) {
                 val listener = object : androidx.media3.common.Player.Listener {
                     override fun onIsPlayingChanged(isPlaying: Boolean) {
