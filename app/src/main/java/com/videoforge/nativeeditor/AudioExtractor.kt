@@ -75,11 +75,13 @@ object AudioExtractor {
                 info.offset = 0
                 info.size = size
                 info.presentationTimeUs = extractor.sampleTime.coerceAtLeast(0L)
-                info.flags = extractor.sampleFlags and (
-                    MediaExtractor.SAMPLE_FLAG_SYNC or
-                    MediaExtractor.SAMPLE_FLAG_ENCRYPTED or
-                    MediaExtractor.SAMPLE_FLAG_PARTIAL_FRAME
-                )
+                info.flags = 0
+                if ((extractor.sampleFlags and MediaExtractor.SAMPLE_FLAG_SYNC) != 0) {
+                    info.flags = info.flags or android.media.MediaCodec.BUFFER_FLAG_SYNC_FRAME
+                }
+                if ((extractor.sampleFlags and MediaExtractor.SAMPLE_FLAG_PARTIAL_FRAME) != 0) {
+                    info.flags = info.flags or android.media.MediaCodec.BUFFER_FLAG_PARTIAL_FRAME
+                }
                 muxer!!.writeSampleData(track, buffer, info)
                 onProgress((info.presentationTimeUs.toFloat() / durationUs).coerceIn(0f, 1f))
                 if (!extractor.advance()) break
