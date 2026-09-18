@@ -590,6 +590,14 @@ class ExportEngine(private val context: Context, private val resolver: ContentRe
         "tajawal" -> if (bold) R.font.tajawal_bold else R.font.tajawal
         "ibm_plex_sans_arabic" -> if (bold) R.font.ibm_plex_sans_arabic_bold else R.font.ibm_plex_sans_arabic
         "readex_pro" -> R.font.readex_pro
+        "aref_ruqaa" -> if (bold) R.font.aref_ruqaa_bold else R.font.aref_ruqaa
+        "el_messiri" -> R.font.el_messiri
+        "changa" -> R.font.changa
+        "jomhuria" -> R.font.jomhuria
+        "lalezar" -> R.font.lalezar
+        "katibeh" -> R.font.katibeh
+        "lemonada" -> R.font.lemonada
+        "markazi_text" -> R.font.markazi_text
         "lato" -> if (bold) R.font.lato_bold else R.font.lato
         "inter" -> if (bold) R.font.inter_bold else R.font.inter
         "cabin" -> if (bold) R.font.cabin_bold else R.font.cabin

@@ -93,3 +93,10 @@ After the video pass, continue with the remaining editor areas such as advanced 
 - Added all four families to the text editor font picker and wired them into Media3 export.
 - Variable-font families are also normalized through Typeface weight handling so Bold remains available in preview/export.
 - Commits: `bd647acf7b5fb39f96cc852bd6b5bcebd90c6d0c`, `7d6cd7ccffbc58ae4b03f48c47edcb74667c4ebe`, `a3af0f411ea52d7e6ed8acd52e4392f1f29f9abc`, `2feff3c9523c0e4b0182bca3265f50cdbdbac9ba`.
+
+
+## Expanded Arabic calligraphic and decorative font library — 2026-09-18
+- Added eight additional SIL OFL-licensed Arabic/Latin families from the official Google Fonts repository: Aref Ruqaa, El Messiri, Changa, Jomhuria, Lalezar, Katibeh, Lemonada, and Markazi Text.
+- Added calligraphic/display choices alongside the existing Noto, Amiri, Cairo, Tajawal, IBM Plex Sans Arabic, and Readex Pro families.
+- Bundled the font binaries under `app/src/main/res/font/` and wired every family into the editor preview and export font resolver.
+- Variable-weight families use the existing runtime Typeface weight handling; regular-only decorative families can still render synthesized bold when Bold is enabled.
