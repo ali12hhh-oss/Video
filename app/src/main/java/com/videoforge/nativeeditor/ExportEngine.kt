@@ -182,7 +182,14 @@ class ExportEngine(private val context: Context, private val resolver: ContentRe
                     .apply {
                         if (clip.trimEndMs != Long.MAX_VALUE && clip.trimEndMs > clip.trimStartMs) setEndPositionMs(clip.trimEndMs)
                     }.build()
-                val mediaItem = MediaItem.Builder().setUri(clip.uri).setClippingConfiguration(clipping).build()
+                val mediaItem = if (clip.isFreezeFrame) {
+                    MediaItem.Builder()
+                        .setUri(clip.uri)
+                        .setImageDurationMs(clip.freezeDurationMs.coerceAtLeast(1L))
+                        .build()
+                } else {
+                    MediaItem.Builder().setUri(clip.uri).setClippingConfiguration(clipping).build()
+                }
                 val videoEffects = mutableListOf<androidx.media3.common.Effect>()
                 if (editor.brightness != 0f) videoEffects += Brightness(editor.brightness.coerceIn(-1f, 1f))
                 if (editor.blurRadius > 0.01f) videoEffects += GaussianBlur(editor.blurRadius.coerceIn(0.1f, 20f))
@@ -312,7 +319,7 @@ class ExportEngine(private val context: Context, private val resolver: ContentRe
                     builder.setSpeed(provider)
                 }
                 if (settings.fps.value > 0) builder.setFrameRate(settings.fps.value)
-                if (editor.muted || clip.audioMuted) builder.setRemoveAudio(true)
+                if (editor.muted || clip.audioMuted || clip.isFreezeFrame) builder.setRemoveAudio(true)
                 onProgress(ExportProgress(0.05f + index.toFloat() / clips.size * 0.15f, "Preparing clip ${index + 1}/${clips.size}…"))
                 builder.build()
             }
