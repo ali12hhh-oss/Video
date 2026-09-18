@@ -287,6 +287,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         LanguageManager.setLanguage(this, LanguageManager.getLanguage(this))
+        WatermarkRewardManager.initialize(this)
         setContent { VideoForgeApp() }
     }
 }
@@ -302,6 +303,12 @@ private fun VideoForgeApp() {
     var selected by remember { mutableIntStateOf(0) }
     var showTemplates by remember { mutableStateOf(false) }
     var showSettings by remember { mutableStateOf(false) }
+    var showBrandSplash by rememberSaveable { mutableStateOf(true) }
+
+    LaunchedEffect(Unit) {
+        delay(1100L)
+        showBrandSplash = false
+    }
 
     val picker = rememberLauncherForActivityResult(
         ActivityResultContracts.PickMultipleVisualMedia(20)
@@ -330,7 +337,9 @@ private fun VideoForgeApp() {
                 secondary = Color(0xFF00D9C6)
             )
         ) {
-            if (showEditor) {
+            if (showBrandSplash) {
+                BrandSplashScreen()
+            } else if (showEditor) {
                 EditorScreen(
                     projectId = projectId,
                     projectName = projectName,
@@ -413,6 +422,72 @@ private fun VideoForgeApp() {
             showTemplates = false
             showEditor = true
         })
+    }
+}
+
+@Composable
+private fun BrandSplashScreen() {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                Brush.linearGradient(
+                    listOf(Color(0xFF02040A), Color(0xFF070B18), Color(0xFF120B2A))
+                )
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.radialGradient(
+                        colors = listOf(Color(0x332C6BFF), Color.Transparent),
+                        radius = 720f
+                    )
+                )
+        )
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Image(
+                painter = painterResource(R.drawable.videoforge_logo),
+                contentDescription = "VideoForge",
+                contentScale = androidx.compose.ui.layout.ContentScale.Fit,
+                modifier = Modifier
+                    .width(260.dp)
+                    .height(230.dp)
+            )
+            Spacer(Modifier.height(24.dp))
+            Box(
+                modifier = Modifier
+                    .width(210.dp)
+                    .height(5.dp)
+                    .clip(RoundedCornerShape(50))
+                    .background(Color(0x332D8CFF))
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .fillMaxWidth(0.72f)
+                        .clip(RoundedCornerShape(50))
+                        .background(
+                            Brush.horizontalGradient(
+                                listOf(Color(0xFF00D9FF), Color(0xFF6D4CFF), Color(0xFFB52CFF))
+                            )
+                        )
+                )
+            }
+            Spacer(Modifier.height(16.dp))
+            Text(
+                "Create Amazing Videos",
+                color = Color.White.copy(alpha = 0.78f),
+                fontSize = 12.sp,
+                letterSpacing = 1.2.sp,
+                fontWeight = FontWeight.Medium
+            )
+        }
     }
 }
 
@@ -1737,17 +1812,42 @@ private fun EditorScreen(
     var exportSettings by remember { mutableStateOf(ExportSettings()) }
     var status by remember { mutableStateOf("") }
     var lastExportUri by remember { mutableStateOf<Uri?>(null) }
+    var watermarkRemovedForExport by rememberSaveable(projectId) { mutableStateOf(false) }
     val exportScope = rememberCoroutineScope()
+
+    LaunchedEffect(Unit) {
+        WatermarkRewardManager.load(context)
+    }
+
+    fun watchRewardedAdForWatermark() {
+        val activity = context as? android.app.Activity
+        if (activity == null) {
+            status = if (language == AppLanguage.ARABIC) "تعذر فتح الإعلان على هذا الجهاز" else "Could not open the ad on this device"
+            return
+        }
+        WatermarkRewardManager.show(
+            activity = activity,
+            onRewarded = {
+                watermarkRemovedForExport = true
+                status = if (language == AppLanguage.ARABIC) "تمت إزالة العلامة المائية لهذا التصدير" else "Watermark removed for this export"
+            },
+            onUnavailable = {
+                status = if (language == AppLanguage.ARABIC) "الإعلان غير متاح الآن، حاول بعد لحظات" else "The rewarded ad is not ready yet. Try again in a moment"
+            }
+        )
+    }
     val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("video/mp4")) { uri ->
         if (uri != null && clips.isNotEmpty()) {
             status = if (language == AppLanguage.ARABIC) "جاري التصدير…" else "Exporting…"
             exportScope.launch {
                 val result = ExportEngine(context, context.contentResolver).export(
                     clips = clips, settings = exportSettings, editor = settings, output = uri,
+                    includeWatermark = !watermarkRemovedForExport,
                     onProgress = { progress -> status = progress.message }
                 )
                 status = if (result.isSuccess) {
                     lastExportUri = uri
+                    watermarkRemovedForExport = false
                     if (language == AppLanguage.ARABIC) "تم تصدير الفيديو بنجاح" else "Video exported successfully"
                 } else {
                     if (language == AppLanguage.ARABIC) "فشل التصدير: ${result.exceptionOrNull()?.message ?: "خطأ"}" else "Export failed: ${result.exceptionOrNull()?.message ?: "Unknown error"}"
@@ -2409,6 +2509,8 @@ private fun EditorScreen(
         ExportDialog(
             language = language,
             settings = exportSettings,
+            watermarkRemoved = watermarkRemovedForExport,
+            onWatchAdToRemoveWatermark = ::watchRewardedAdForWatermark,
             onDismiss = { showExport = false },
             onSettings = { exportSettings = it },
             onExport = { selected ->
@@ -2817,6 +2919,18 @@ private fun EditorPreview(
             val tint = when (settings.filter) { "warm" -> Color(0x44FF9E5E); "cool" -> Color(0x443A8DFF); "mono" -> Color(0x66333333); "vivid" -> Color(0x2200FFAA); else -> Color.Transparent }
             if (tint.alpha > 0f) Box(Modifier.fillMaxSize().background(tint))
             if (settings.overlayOpacity > 0f) Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = settings.overlayOpacity)))
+            if (!watermarkRemovedForExport) {
+                Image(
+                    painter = painterResource(R.drawable.videoforge_logo),
+                    contentDescription = if (language == AppLanguage.ARABIC) "العلامة المائية" else "VideoForge watermark",
+                    contentScale = androidx.compose.ui.layout.ContentScale.Fit,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(top = 10.dp, end = 10.dp)
+                        .width(88.dp)
+                        .alpha(0.82f)
+                )
+            }
             val pipPreviewLayers = settings.pipLayers.ifEmpty {
                 if (settings.overlayImageUri.isNotBlank()) listOf(PipLayer(uri=settings.overlayImageUri, x=settings.overlayImageX, y=settings.overlayImageY, scale=settings.overlayImageScale, rotation=settings.overlayImageRotation, alpha=settings.overlayImageAlpha)) else emptyList()
             }
