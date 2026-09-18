@@ -2077,7 +2077,7 @@ private fun EditorPreview(clip: Clip?, settings: EditorSettings, playheadMs: Lon
                 when (settings.filter) {
                     "mono" -> effects += RgbFilter.createGrayscaleFilter()
                     "invert" -> effects += RgbFilter.createInvertedFilter()
-                    "sepia" -> effects += RgbFilter.createSepiaFilter()
+                    "sepia" -> effects += HslAdjustment.Builder().adjustHue(28f).adjustSaturation(-18f).build()
                     "warm" -> effects += HslAdjustment.Builder().adjustHue(18f).adjustSaturation(10f).build()
                     "cool" -> effects += HslAdjustment.Builder().adjustHue(-18f).adjustSaturation(6f).build()
                     "vivid" -> effects += HslAdjustment.Builder().adjustSaturation(28f).build()
@@ -2318,7 +2318,8 @@ private fun EditorPreview(clip: Clip?, settings: EditorSettings, playheadMs: Lon
                             }
                     )
                 }
-            }            if (settings.sticker.isNotBlank()) {
+            }
+            if (settings.sticker.isNotBlank()) {
                 Text(
                     settings.sticker,
                     fontSize = 38.sp,
