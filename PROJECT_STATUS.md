@@ -65,3 +65,10 @@ After the video pass, continue with the remaining editor areas such as advanced 
 - Selected-layer controls now expose position, scale, rotation, and opacity.
 - Added remove-all-PIP action while preserving the existing legacy single-overlay fields for backward compatibility.
 - PIP ordering remains consistent with the persisted layer list used by preview/export.
+
+
+## Professional crop presets — 2026-09-18
+- Added 2:3, 3:4, 3:2 and ultra-wide 21:9 canvas presets.
+- Preview aspect handling supports the new ratios.
+- Media3 export presentation now maps the new ratios and keeps the selected export quality as the long-edge bound.
+- Existing 16:9, 9:16, 1:1 and 4:5 presets remain supported.
