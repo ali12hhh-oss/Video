@@ -2926,7 +2926,7 @@ private fun EditorPreview(
             if (showWatermark) {
                 Image(
                     painter = painterResource(R.drawable.videoforge_logo),
-                    contentDescription = if (language == AppLanguage.ARABIC) "العلامة المائية" else "VideoForge watermark",
+                    contentDescription = "VideoForge watermark",
                     contentScale = androidx.compose.ui.layout.ContentScale.Fit,
                     modifier = Modifier
                         .align(Alignment.TopEnd)
