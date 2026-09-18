@@ -1,4 +1,7 @@
-@file:OptIn(\n    androidx.media3.common.util.UnstableApi::class,\n    androidx.compose.material3.ExperimentalMaterial3Api::class\n)
+@file:OptIn(
+    androidx.media3.common.util.UnstableApi::class,
+    androidx.compose.material3.ExperimentalMaterial3Api::class
+)
 
 package com.videoforge.nativeeditor
 
