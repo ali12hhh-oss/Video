@@ -125,7 +125,7 @@ private class TimedSubtitleOverlay(
         return if (t in subtitle.startMs until subtitle.endMs) baseText else SpannableString("")
     }
 
-    override fun getOverlaySettings(presentationTimeUs: Long): androidx.media3.effect.OverlaySettings {
+    override fun getOverlaySettings(presentationTimeUs: Long): androidx.media3.common.OverlaySettings {
         val t = presentationTimeUs / 1000L
         val visible = t in subtitle.startMs until subtitle.endMs
         val fadeWindow = 140L
