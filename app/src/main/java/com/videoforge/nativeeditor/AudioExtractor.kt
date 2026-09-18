@@ -62,7 +62,11 @@ object AudioExtractor {
 
             val buffer = ByteBuffer.allocate(1024 * 1024)
             val info = android.media.MediaCodec.BufferInfo()
-            val durationUs = sourceFormat.getLong(MediaFormat.KEY_DURATION, 1L).coerceAtLeast(1L)
+            val durationUs = if (sourceFormat.containsKey(MediaFormat.KEY_DURATION)) {
+                sourceFormat.getLong(MediaFormat.KEY_DURATION)
+            } else {
+                1L
+            }.coerceAtLeast(1L)
 
             while (true) {
                 buffer.clear()
