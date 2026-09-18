@@ -599,7 +599,11 @@ private fun ProjectsScreen(
                             onOpen = { onOpenProject(project) },
                             onRename = { renameTarget = project },
                             onDelete = { deleteTarget = project },
-                            onDuplicate = { duplicateTarget = project }
+                            onFreezeFrame = {
+                    createFreezeFrame()
+                    tool = null
+                },
+                onDuplicate = { duplicateTarget = project }
                         )
                     }
                 }
@@ -1459,6 +1463,70 @@ private fun EditorScreen(
             }
         }
     }
+    fun createFreezeFrame() {
+        val clip = current
+        if (clip == null) {
+            status = if (language == AppLanguage.ARABIC) "اختر مقطعاً أولاً" else "Select a clip first"
+            return
+        }
+        val offset = timelinePositionOf(clips, clip)
+        val local = (playheadMs - offset).coerceIn(0L, clipTimelineDuration(clip))
+        val sourceTimeMs = (clip.trimStartMs + local).coerceAtLeast(0L)
+        exportScope.launch {
+            status = if (language == AppLanguage.ARABIC) "جاري إنشاء الإطار الثابت…" else "Creating freeze frame…"
+            val file = runCatching {
+                val bitmap = MediaMetadataRetriever().use { retriever ->
+                    retriever.setDataSource(context, clip.uri)
+                    retriever.getFrameAtTime(sourceTimeMs * 1000L, MediaMetadataRetriever.OPTION_CLOSEST)
+                } ?: error("Unable to capture frame")
+                val out = java.io.File(context.cacheDir, "freeze_${System.currentTimeMillis()}.jpg")
+                out.outputStream().use { stream ->
+                    if (!bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 95, stream)) error("Unable to save frame")
+                }
+                bitmap.recycle()
+                out
+            }.getOrNull()
+            if (file == null) {
+                status = if (language == AppLanguage.ARABIC) "تعذر إنشاء الإطار الثابت" else "Could not create freeze frame"
+                return@launch
+            }
+            val freeze = Clip(
+                uri = Uri.fromFile(file),
+                name = clip.name.substringBeforeLast('.').ifBlank { clip.name } + " • Freeze",
+                durationMs = 1000L,
+                trimStartMs = 0L,
+                trimEndMs = 1000L,
+                audioMuted = true,
+                isFreezeFrame = true,
+                freezeDurationMs = 1000L
+            )
+            val index = clips.indexOf(clip)
+            if (index < 0) return@launch
+            val start = clip.trimStartMs
+            val end = if (clip.trimEndMs == Long.MAX_VALUE) clip.durationMs else clip.trimEndMs
+            if (end - start <= 2L || local <= 0L || local >= end - start) {
+                val next = clips.toMutableList().also { it.add(index + 1, freeze) }
+                commitClips(next)
+                current = freeze
+                playheadMs = timelinePositionOf(next, freeze)
+            } else {
+                val cut = (start + local).coerceIn(start + 1L, end - 1L)
+                val left = clip.copy(trimEndMs = cut, name = clip.name.substringBeforeLast('.').ifBlank { clip.name } + " • 1")
+                val right = clip.copy(trimStartMs = cut, name = clip.name.substringBeforeLast('.').ifBlank { clip.name } + " • 2")
+                val next = clips.toMutableList().also {
+                    it.removeAt(index)
+                    it.add(index, left)
+                    it.add(index + 1, freeze)
+                    it.add(index + 2, right)
+                }
+                commitClips(next)
+                current = freeze
+                playheadMs = timelinePositionOf(next, freeze)
+            }
+            status = if (language == AppLanguage.ARABIC) "تمت إضافة إطار ثابت لمدة ثانية" else "1-second freeze frame added"
+        }
+    }
+
     val replaceLauncher = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         val selected = current
         if (uri != null && selected != null) {
@@ -1896,7 +1964,18 @@ private fun EditorPreview(clip: Clip?, settings: EditorSettings, playheadMs: Lon
         if (clip == null) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) { Icon(Icons.Default.VideoLibrary, null, Modifier.size(54.dp), tint = Color.Gray); Text("Add media", color = Color.Gray, fontSize = 11.sp) }
         } else {
-            val player = remember(clip.uri) { ExoPlayer.Builder(context).build().apply { setMediaItem(MediaItem.fromUri(clip.uri)); prepare(); playWhenReady = false } }
+            val player = remember(clip.uri, clip.isFreezeFrame, clip.freezeDurationMs) {
+                ExoPlayer.Builder(context).build().apply {
+                    val item = if (clip.isFreezeFrame) {
+                        MediaItem.Builder().setUri(clip.uri).setImageDurationMs(clip.freezeDurationMs.coerceAtLeast(1L)).build()
+                    } else {
+                        MediaItem.fromUri(clip.uri)
+                    }
+                    setMediaItem(item)
+                    prepare()
+                    playWhenReady = false
+                }
+            }
             val musicPlayer = remember(settings.musicUri) {
                 ExoPlayer.Builder(context).build().apply {
                     if (settings.musicUri.isNotBlank()) {
