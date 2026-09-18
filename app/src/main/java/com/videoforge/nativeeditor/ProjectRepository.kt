@@ -47,6 +47,8 @@ object ProjectRepository {
                                     audioMuted = c.optBoolean("audioMuted", false),
                                     audioFadeIn = c.optDouble("audioFadeIn", 0.0).toFloat(),
                                     audioFadeOut = c.optDouble("audioFadeOut", 0.0).toFloat(),
+                                    isFreezeFrame = c.optBoolean("isFreezeFrame", false),
+                                    freezeDurationMs = c.optLong("freezeDurationMs", 1000L),
                                     audioKeyframes = buildList {
                                         val k = c.optJSONArray("audioKeyframes") ?: JSONArray()
                                         for (n in 0 until k.length()) {
@@ -130,6 +132,8 @@ object ProjectRepository {
                         .put("audioMuted", clip.audioMuted)
                         .put("audioFadeIn", clip.audioFadeIn)
                         .put("audioFadeOut", clip.audioFadeOut)
+                        .put("isFreezeFrame", clip.isFreezeFrame)
+                        .put("freezeDurationMs", clip.freezeDurationMs)
                         .put("audioKeyframes", JSONArray().apply {
                             clip.audioKeyframes.sortedBy { it.timeMs }.forEach { k ->
                                 put(JSONObject().put("timeMs", k.timeMs).put("volume", k.volume))
