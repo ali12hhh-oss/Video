@@ -52,9 +52,9 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.compose.ui.input.pointer.detectTransformGestures
-import androidx.compose.ui.input.pointer.detectTapGestures
-import androidx.compose.ui.input.pointer.detectDragGestures
+import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.geometry.Offset
 import androidx.lifecycle.Lifecycle
@@ -1260,7 +1260,6 @@ private fun TemplatesSheet(onDismiss: () -> Unit, onUseTemplate: () -> Unit) {
     }
 }
 
-@Composable
 private data class EditorSnapshot(
     val clips: List<Clip>,
     val settings: EditorSettings,
