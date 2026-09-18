@@ -57,3 +57,11 @@ After the video pass, continue with the remaining editor areas such as advanced 
 - PIP layers are persisted with the project and restored after reopening.
 - All visible PIP layers are included in Media3 Transformer export, instead of only one image overlay.
 - PIP layers are also rendered in the editor preview.
+
+
+## Multi-layer PIP controls — 2026-09-18
+- Added an in-editor PIP layer manager for the multi-layer model.
+- Layers can be selected, reordered up/down, duplicated, hidden/shown, edited, or deleted.
+- Selected-layer controls now expose position, scale, rotation, and opacity.
+- Added remove-all-PIP action while preserving the existing legacy single-overlay fields for backward compatibility.
+- PIP ordering remains consistent with the persisted layer list used by preview/export.
