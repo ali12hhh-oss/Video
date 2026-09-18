@@ -389,7 +389,7 @@ private fun VideoForgeApp() {
                     onImport = {
                         picker.launch(
                             PickVisualMediaRequest(
-                                ActivityResultContracts.PickVisualMedia.VideoOnly
+                                ActivityResultContracts.PickVisualMedia.ImageAndVideo
                             )
                         )
                     },
