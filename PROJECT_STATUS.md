@@ -32,7 +32,6 @@ After the video pass, continue with the remaining editor areas such as advanced 
 - Background music source is validated before export.
 - Content URIs selected through the media/music pickers request persistent read access where supported, reducing broken-project references after restart.
 
-
 ## Latest completed editor work
 - Added persistent text-layer name, visibility, and lock state.
 - Added a layer manager with reorder, hide/show, lock/unlock, rename, duplicate, add, and delete actions.
@@ -40,7 +39,6 @@ After the video pass, continue with the remaining editor areas such as advanced 
 - Added SRT subtitle import and export with timed parsing and bilingual controls.
 - Fixed legacy text export fallback so `plus()` is no longer used without assigning its result.
 - Added static structural checks after these changes. Android Gradle build/Lint still requires an Android SDK/Gradle environment and remains intentionally deferred to the final GitHub build stage.
-
 
 ## Audio enhancement pass — 2026-09-17
 - Added configurable music-ducking attack/release times.
@@ -50,14 +48,12 @@ After the video pass, continue with the remaining editor areas such as advanced 
 - Static Kotlin delimiter scan passed.
 - Gradle/Lint runtime build remains intentionally deferred to final GitHub stage.
 
-
 ## Multi-layer PIP pass — 2026-09-18
 - Replaced the single-image PIP export path with a persistent multi-layer PIP model while keeping backward compatibility with existing projects.
 - Multiple image/PIP layers can now be added from the existing image picker; each layer stores its own position, scale, rotation, opacity and visibility.
 - PIP layers are persisted with the project and restored after reopening.
 - All visible PIP layers are included in Media3 Transformer export, instead of only one image overlay.
 - PIP layers are also rendered in the editor preview.
-
 
 ## Multi-layer PIP controls — 2026-09-18
 - Added an in-editor PIP layer manager for the multi-layer model.
@@ -66,9 +62,15 @@ After the video pass, continue with the remaining editor areas such as advanced 
 - Added remove-all-PIP action while preserving the existing legacy single-overlay fields for backward compatibility.
 - PIP ordering remains consistent with the persisted layer list used by preview/export.
 
-
 ## Professional crop presets — 2026-09-18
 - Added 2:3, 3:4, 3:2 and ultra-wide 21:9 canvas presets.
 - Preview aspect handling supports the new ratios.
 - Media3 export presentation now maps the new ratios and keeps the selected export quality as the long-edge bound.
 - Existing 16:9, 9:16, 1:1 and 4:5 presets remain supported.
+
+## Audio extraction foundation — 2026-09-18
+- Added a non-destructive `AudioExtractor` engine.
+- It detects the first audio track and extracts AAC (`audio/mp4a-latm`) without re-encoding into an M4A file under `Music/VideoForge`.
+- The original video is never modified.
+- The engine reports extraction progress and cleans up partial MediaStore output on failure.
+- UI wiring remains part of the next integration pass; final Gradle/Lint verification is still intentionally deferred.
