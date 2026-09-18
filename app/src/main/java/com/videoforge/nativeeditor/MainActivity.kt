@@ -2733,6 +2733,29 @@ private fun fontFamilyFor(key: String, bold: Boolean = false): FontFamily {
             }
             Text(if(language==AppLanguage.ARABIC) "الحجم ${layer.size.toInt()}" else "Size ${layer.size.toInt()}"); Slider(layer.size,{edit(layer.copy(size=it))},16f..96f)
             Row(verticalAlignment=Alignment.CenterVertically) { Text(if(language==AppLanguage.ARABIC) "عريض" else "Bold", Modifier.weight(1f)); Switch(checked=bold, onCheckedChange={bold=it; edit(layer.copy(bold=it))}) }
+            Text(if(language==AppLanguage.ARABIC) "أنماط احترافية" else "Professional styles", fontWeight=FontWeight.Bold)
+            LazyRow(horizontalArrangement=Arrangement.spacedBy(5.dp), contentPadding=PaddingValues(vertical=3.dp)) {
+                val textPresets = listOf(
+                    Triple("cinematic", "سينمائي", "Cinematic"),
+                    Triple("headline", "عنوان قوي", "Bold Headline"),
+                    Triple("minimal", "بسيط", "Minimal"),
+                    Triple("neon", "نيون", "Neon"),
+                    Triple("subtitle", "ترجمة", "Subtitle")
+                )
+                items(textPresets) { (id, ar, en) ->
+                    AssistChip(onClick = {
+                        val preset = when (id) {
+                            "cinematic" -> layer.copy(size = 48f, bold = true, alpha = 1f, backgroundAlpha = 0.35f, backgroundPadding = 12f, shadowEnabled = true, shadowRadius = 8f, shadowDx = 2f, shadowDy = 3f, strokeEnabled = true, strokeWidth = 2f, strokeColor = 0xFF000000, glowEnabled = false, letterSpacing = 0.5f, lineHeightMultiplier = 1f, textAlign = "center")
+                            "headline" -> layer.copy(size = 56f, bold = true, alpha = 1f, backgroundAlpha = 0f, backgroundPadding = 6f, shadowEnabled = true, shadowRadius = 5f, shadowDx = 2f, shadowDy = 2f, strokeEnabled = true, strokeWidth = 1.5f, glowEnabled = false, letterSpacing = 0f, textAlign = "center")
+                            "minimal" -> layer.copy(size = 34f, bold = false, alpha = 0.96f, backgroundAlpha = 0f, backgroundPadding = 2f, shadowEnabled = false, strokeEnabled = false, glowEnabled = false, letterSpacing = 0.2f, lineHeightMultiplier = 1.1f, textAlign = "center")
+                            "neon" -> layer.copy(size = 46f, bold = true, alpha = 1f, backgroundAlpha = 0f, backgroundPadding = 8f, shadowEnabled = false, strokeEnabled = false, glowEnabled = true, glowColor = 0xFFFFFFFF, glowRadius = 18f, letterSpacing = 1f, textAlign = "center")
+                            else -> layer.copy(size = 30f, bold = true, alpha = 1f, backgroundAlpha = 0.6f, backgroundPadding = 10f, shadowEnabled = true, shadowRadius = 4f, shadowDx = 1f, shadowDy = 2f, strokeEnabled = false, glowEnabled = false, letterSpacing = 0f, lineHeightMultiplier = 1.05f, textAlign = "center")
+                        }
+                        bold = preset.bold
+                        edit(preset)
+                    }, label = { Text(if(language == AppLanguage.ARABIC) ar else en, fontSize = 9.sp) })
+                }
+            }
             Text(if(language==AppLanguage.ARABIC) "لون النص" else "Text color", fontWeight=FontWeight.Bold)
             Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement=Arrangement.spacedBy(6.dp)) {
                 listOf(Color.White to "White", Color(0xFFFFD54F) to "Gold", Color(0xFF80D8FF) to "Cyan", Color(0xFFFF80AB) to "Pink", Color(0xFFB39DDB) to "Purple").forEach { (c,label) ->
