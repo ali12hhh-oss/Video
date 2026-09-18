@@ -1499,7 +1499,7 @@ private fun EditorFeaturePanel(
                                     "mute" -> onSettingsLiveChange(settings.copy(muted=!settings.muted))
                                     "keys" -> onAudioKeyframes(); "music" -> onMusicKeyframes()
                                 }
-                                "text" -> when(id) { "text" -> onTextDialog(); "animation" -> onTextAnimation(); "textLayers" -> onLayersDialog() }
+                                "text" -> when(id) { "text" -> Unit; "animation" -> onTextAnimation(); "textLayers" -> onLayersDialog() }
                                 "effects" -> effectFeature=id
                                 "filters" -> onSettingsLiveChange(settings.copy(filter=id))
                                 "adjust" -> adjustFeature=id
@@ -1520,6 +1520,10 @@ private fun EditorFeaturePanel(
                         label={Text(label,fontSize=9.sp,maxLines=1)}
                     )
                 }
+            }
+
+            if(activeTool=="text") {
+                EditorTextPanel(settings=settings,language=language,onChange=onSettingsLiveChange,onAnimation=onTextAnimation,onLayers=onLayersDialog)
             }
 
             if(activeTool=="adjust") {
@@ -1596,6 +1600,109 @@ private fun EditorFeaturePanel(
 
 
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+
+@Composable
+private fun EditorTextPanel(
+    settings: EditorSettings,
+    language: AppLanguage,
+    onChange: (EditorSettings) -> Unit,
+    onAnimation: () -> Unit,
+    onLayers: () -> Unit
+) {
+    val initial = settings.textLayers.ifEmpty {
+        if (settings.text.isNotBlank()) listOf(TextLayer(text = settings.text, size = settings.textSize, color = settings.textColor, font = settings.textFont))
+        else listOf(TextLayer())
+    }
+    var layers by remember(settings.textLayers, settings.text) { mutableStateOf(initial) }
+    var selected by remember { mutableIntStateOf(0) }
+    val layer = layers.getOrNull(selected) ?: TextLayer()
+    val presets = if (language == AppLanguage.ARABIC)
+        listOf("عنوان الفيديو","رحلتي الجديدة","لحظة لا تُنسى","صباح الخير","مساء الخير","استكشف العالم","ذكريات جميلة","اشترك الآن")
+    else
+        listOf("VIDEO TITLE","MY NEW JOURNEY","A MOMENT TO REMEMBER","GOOD MORNING","GOOD EVENING","EXPLORE THE WORLD","BEAUTIFUL MEMORIES","SUBSCRIBE NOW")
+
+    fun edit(next: TextLayer) {
+        layers = layers.mapIndexed { i, old -> if (i == selected) next else old }
+        val clean = layers
+        val first = clean.firstOrNull()
+        onChange(settings.copy(
+            text = first?.text.orEmpty(),
+            textSize = first?.size ?: settings.textSize,
+            textColor = first?.color ?: settings.textColor,
+            textFont = first?.font ?: settings.textFont,
+            textVisible = clean.any { it.visible && it.text.isNotBlank() },
+            textLayers = clean
+        ))
+    }
+
+    Surface(Modifier.fillMaxWidth().padding(top=4.dp), color=Color(0xFF0B111C), shape=RoundedCornerShape(16.dp)) {
+        Column(Modifier.fillMaxWidth().padding(10.dp)) {
+            Row(verticalAlignment=Alignment.CenterVertically) {
+                Text(if(language==AppLanguage.ARABIC) "استوديو النص" else "Text Studio", fontWeight=FontWeight.Bold, fontSize=13.sp, modifier=Modifier.weight(1f))
+                AssistChip(onClick=onLayers,label={Text(if(language==AppLanguage.ARABIC)"الطبقات" else "Layers",fontSize=9.sp)},leadingIcon={Icon(Icons.Default.Layers,null,Modifier.size(15.dp))})
+            }
+            Spacer(Modifier.height(6.dp))
+            Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
+                LazyRow(Modifier.weight(1f),horizontalArrangement=Arrangement.spacedBy(6.dp),contentPadding=PaddingValues(end=6.dp)) {
+                    items(layers.indices.toList(),key={it}) { i ->
+                        FilterChip(selected=i==selected,onClick={selected=i},label={Text(if(layers[i].name.isBlank()) "T${{i+1}" else layers[i].name.take(10),fontSize=9.sp)},leadingIcon={Icon(if(layers[i].visible) Icons.Default.Visibility else Icons.Default.VisibilityOff,null,Modifier.size(14.dp))})
+                    }
+                }
+                IconButton(onClick={
+                    layers=layers+TextLayer(name="Text ${{layers.size+1}",y=(-0.55f+layers.size.coerceAtMost(4)*0.22f))
+                    selected=layers.lastIndex
+                    val first=layers.firstOrNull()
+                    onChange(settings.copy(textLayers=layers,text=first?.text.orEmpty(),textSize=first?.size?:settings.textSize,textColor=first?.color?:settings.textColor,textFont=first?.font?:settings.textFont,textVisible=true))
+                }) { Icon(Icons.Default.AddCircle,null,tint=Color(0xFFB88CFF)) }
+            }
+
+            Column(Modifier.fillMaxWidth().heightIn(max=310.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(9.dp)) {
+                OutlinedTextField(value=layer.text,onValueChange={edit(layer.copy(text=it))},modifier=Modifier.fillMaxWidth(),minLines=2,maxLines=4,label={Text(if(language==AppLanguage.ARABIC)"النص" else "Text")},placeholder={Text(if(language==AppLanguage.ARABIC)"اكتب النص هنا…" else "Type your text…")})
+                Text(if(language==AppLanguage.ARABIC)"قوالب سريعة" else "Quick templates",fontWeight=FontWeight.SemiBold,fontSize=10.sp)
+                LazyRow(horizontalArrangement=Arrangement.spacedBy(6.dp),contentPadding=PaddingValues(bottom=2.dp)){items(presets){preset->AssistChip(onClick={edit(layer.copy(text=preset))},label={Text(preset,fontSize=9.sp)})}}
+                Text(if(language==AppLanguage.ARABIC)"الخط" else "Font",fontWeight=FontWeight.SemiBold,fontSize=10.sp)
+                LazyRow(horizontalArrangement=Arrangement.spacedBy(6.dp),contentPadding=PaddingValues(bottom=2.dp)){items(fontOptions(),key={it.key}){font->FilterChip(selected=layer.font==font.key,onClick={edit(layer.copy(font=font.key))},label={Text(if(language==AppLanguage.ARABIC)font.ar else font.en,fontSize=9.sp)})}}
+                Row(verticalAlignment=Alignment.CenterVertically){Text(if(language==AppLanguage.ARABIC)"الحجم ${{layer.size.toInt()}" else "Size ${{layer.size.toInt()}",fontSize=10.sp,modifier=Modifier.weight(1f));Switch(checked=layer.bold,onCheckedChange={edit(layer.copy(bold=it))});Text(if(language==AppLanguage.ARABIC)"عريض" else "Bold",fontSize=9.sp)}
+                Slider(layer.size,{edit(layer.copy(size=it))},valueRange=10f..120f)
+                Text(if(language==AppLanguage.ARABIC)"لون النص" else "Text color",fontWeight=FontWeight.SemiBold,fontSize=10.sp)
+                LazyRow(horizontalArrangement=Arrangement.spacedBy(6.dp)){items(listOf(Color.White to "أبيض",Color(0xFFFFD54F) to "ذهبي",Color(0xFF80D8FF) to "سماوي",Color(0xFFFF80AB) to "وردي",Color(0xFFB39DDB) to "بنفسجي",Color.Black to "أسود"),key={it.second}){(c,label)->FilterChip(selected=layer.color==c.toArgb().toLong(),onClick={edit(layer.copy(color=c.toArgb().toLong()))},label={Text(if(language==AppLanguage.ARABIC)label else label,fontSize=9.sp)})}}
+                Text(if(language==AppLanguage.ARABIC)"الشفافية ${{(layer.alpha*100).toInt()}%" else "Opacity ${{(layer.alpha*100).toInt()}%",fontSize=10.sp)
+                Slider(layer.alpha,{edit(layer.copy(alpha=it))},valueRange=.1f..1f)
+                Text(if(language==AppLanguage.ARABIC)"المحاذاة" else "Alignment",fontWeight=FontWeight.SemiBold,fontSize=10.sp)
+                LazyRow(horizontalArrangement=Arrangement.spacedBy(6.dp)){items(listOf("start" to "يمين","center" to "وسط","end" to "يسار"),key={it.first}){(v,l)->FilterChip(selected=layer.textAlign==v,onClick={edit(layer.copy(textAlign=v))},label={Text(if(language==AppLanguage.ARABIC)l else v,fontSize=9.sp)})}}
+                Text(if(language==AppLanguage.ARABIC)"المسافات" else "Spacing",fontWeight=FontWeight.SemiBold,fontSize=10.sp)
+                Text(if(language==AppLanguage.ARABIC)"تباعد الحروف ${{String.format("%.1f",layer.letterSpacing)}" else "Letter spacing ${{String.format("%.1f",layer.letterSpacing)}",fontSize=9.sp)
+                Slider(layer.letterSpacing,{edit(layer.copy(letterSpacing=it))},valueRange=-2f..8f)
+                Text(if(language==AppLanguage.ARABIC)"ارتفاع السطر ${{String.format("%.1f",layer.lineHeightMultiplier)}" else "Line height ${{String.format("%.1f",layer.lineHeightMultiplier)}",fontSize=9.sp)
+                Slider(layer.lineHeightMultiplier,{edit(layer.copy(lineHeightMultiplier=it))},valueRange=.8f..2f)
+                Text(if(language==AppLanguage.ARABIC)"المظهر" else "Appearance",fontWeight=FontWeight.SemiBold,fontSize=10.sp)
+                Row(verticalAlignment=Alignment.CenterVertically){Text(if(language==AppLanguage.ARABIC)"خلفية" else "Background",Modifier.weight(1f),fontSize=9.sp);Switch(checked=layer.backgroundAlpha>0f,onCheckedChange={edit(layer.copy(backgroundAlpha=if(it).55f else 0f))})}
+                if(layer.backgroundAlpha>0f){Slider(layer.backgroundAlpha,{edit(layer.copy(backgroundAlpha=it))},valueRange=0f..0.9f);Text(if(language==AppLanguage.ARABIC)"حشوة الخلفية ${{layer.backgroundPadding.toInt()}" else "Background padding ${{layer.backgroundPadding.toInt()}",fontSize=9.sp);Slider(layer.backgroundPadding,{edit(layer.copy(backgroundPadding=it))},valueRange=0f..30f)}
+                Row(verticalAlignment=Alignment.CenterVertically){Text(if(language==AppLanguage.ARABIC)"ظل" else "Shadow",Modifier.weight(1f),fontSize=9.sp);Switch(checked=layer.shadowEnabled,onCheckedChange={edit(layer.copy(shadowEnabled=it))})}
+                if(layer.shadowEnabled){Text(if(language==AppLanguage.ARABIC)"قوة الظل ${{layer.shadowRadius.toInt()}" else "Shadow ${{layer.shadowRadius.toInt()}",fontSize=9.sp);Slider(layer.shadowRadius,{edit(layer.copy(shadowRadius=it))},valueRange=0f..20f);Row(horizontalArrangement=Arrangement.spacedBy(6.dp)){Slider(layer.shadowDx,{edit(layer.copy(shadowDx=it))},valueRange=-15f..15f,modifier=Modifier.weight(1f));Slider(layer.shadowDy,{edit(layer.copy(shadowDy=it))},valueRange=-15f..15f,modifier=Modifier.weight(1f))}}
+                Row(verticalAlignment=Alignment.CenterVertically){Text(if(language==AppLanguage.ARABIC)"حدود" else "Outline",Modifier.weight(1f),fontSize=9.sp);Switch(checked=layer.strokeEnabled,onCheckedChange={edit(layer.copy(strokeEnabled=it))})}
+                if(layer.strokeEnabled){Text(if(language==AppLanguage.ARABIC)"سماكة الحدود ${{layer.strokeWidth.toInt()}" else "Outline ${{layer.strokeWidth.toInt()}",fontSize=9.sp);Slider(layer.strokeWidth,{edit(layer.copy(strokeWidth=it))},valueRange=.5f..12f)}
+                Row(verticalAlignment=Alignment.CenterVertically){Text(if(language==AppLanguage.ARABIC)"توهج" else "Glow",Modifier.weight(1f),fontSize=9.sp);Switch(checked=layer.glowEnabled,onCheckedChange={edit(layer.copy(glowEnabled=it))})}
+                if(layer.glowEnabled){Text(if(language==AppLanguage.ARABIC)"قوة التوهج ${{layer.glowRadius.toInt()}" else "Glow ${{layer.glowRadius.toInt()}",fontSize=9.sp);Slider(layer.glowRadius,{edit(layer.copy(glowRadius=it))},valueRange=1f..30f)}
+                Text(if(language==AppLanguage.ARABIC)"الحركة" else "Animation",fontWeight=FontWeight.SemiBold,fontSize=10.sp)
+                LazyRow(horizontalArrangement=Arrangement.spacedBy(6.dp)){items(listOf("none" to if(language==AppLanguage.ARABIC)"بدون" else "None","fade" to if(language==AppLanguage.ARABIC)"ظهور" else "Fade","pop" to if(language==AppLanguage.ARABIC)"انبثاق" else "Pop","slide" to if(language==AppLanguage.ARABIC)"انزلاق" else "Slide","zoom" to if(language==AppLanguage.ARABIC)"تكبير" else "Zoom","typewriter" to if(language==AppLanguage.ARABIC)"كتابة" else "Typewriter"),key={it.first}){(v,l)->FilterChip(selected=layer.animation==v,onClick={edit(layer.copy(animation=v))},label={Text(l,fontSize=9.sp)})}}
+                Text(if(language==AppLanguage.ARABIC)"الموضع والحركة" else "Position & transform",fontWeight=FontWeight.SemiBold,fontSize=10.sp)
+                Text(if(language==AppLanguage.ARABIC)"أفقي ${{String.format("%.2f",layer.x)}" else "Horizontal ${{String.format("%.2f",layer.x)}",fontSize=9.sp);Slider(layer.x,{edit(layer.copy(x=it))},valueRange=-1f..1f)
+                Text(if(language==AppLanguage.ARABIC)"رأسي ${{String.format("%.2f",layer.y)}" else "Vertical ${{String.format("%.2f",layer.y)}",fontSize=9.sp);Slider(layer.y,{edit(layer.copy(y=it))},valueRange=-1f..1f)
+                Text(if(language==AppLanguage.ARABIC)"تكبير ${{String.format("%.2f",layer.scale)}x" else "Scale ${{String.format("%.2f",layer.scale)}x",fontSize=9.sp);Slider(layer.scale,{edit(layer.copy(scale=it))},valueRange=.25f..2.5f)
+                Text(if(language==AppLanguage.ARABIC)"دوران ${{layer.rotation.toInt()}°" else "Rotation ${{layer.rotation.toInt()}°",fontSize=9.sp);Slider(layer.rotation,{edit(layer.copy(rotation=it))},valueRange=-180f..180f)
+                Row(horizontalArrangement=Arrangement.spacedBy(7.dp)){
+                    OutlinedButton(onClick={layers=layers.mapIndexed{i,old->if(i==selected)old.copy(visible=!old.visible)else old};onChange(settings.copy(textLayers=layers,textVisible=layers.any{it.visible&&it.text.isNotBlank()}))},modifier=Modifier.weight(1f)){Icon(if(layer.visible)Icons.Default.VisibilityOff else Icons.Default.Visibility,null,Modifier.size(15.dp));Spacer(Modifier.width(4.dp));Text(if(language==AppLanguage.ARABIC)"إخفاء" else "Hide",fontSize=9.sp)}
+                    OutlinedButton(onClick={if(layers.size>1){layers=layers.filterIndexed{i,_->i!=selected};selected=(selected-1).coerceAtLeast(0);onChange(settings.copy(textLayers=layers,text=layers.firstOrNull()?.text.orEmpty(),textVisible=layers.any{it.visible&&it.text.isNotBlank()}))}},modifier=Modifier.weight(1f),enabled=layers.size>1){Icon(Icons.Default.Delete,null,Modifier.size(15.dp));Spacer(Modifier.width(4.dp));Text(if(language==AppLanguage.ARABIC)"حذف" else "Delete",fontSize=9.sp)}
+                    OutlinedButton(onClick={val copy=layer.copy(id=System.nanoTime().toString(),name=layer.name+" Copy",y=(layer.y+.12f).coerceIn(-1f,1f));layers=layers+copy;selected=layers.lastIndex;onChange(settings.copy(textLayers=layers,textVisible=true))},modifier=Modifier.weight(1f),enabled=layer.text.isNotBlank()){Icon(Icons.Default.ContentCopy,null,Modifier.size(15.dp));Spacer(Modifier.width(4.dp));Text(if(language==AppLanguage.ARABIC)"تكرار" else "Duplicate",fontSize=9.sp)}
+                }
+                FilledTonalButton(onClick=onAnimation,modifier=Modifier.fillMaxWidth()){Icon(Icons.Default.Animation,null,Modifier.size(16.dp));Spacer(Modifier.width(5.dp));Text(if(language==AppLanguage.ARABIC)"الحركة المتقدمة والمفاتيح الزمنية" else "Advanced animation & keyframes",fontSize=9.sp)}
+            }
+        }
+    }
+}
+
+
 @Composable
 private fun EditorScreen(
     projectId: String,
@@ -2311,7 +2418,7 @@ private fun EditorScreen(
         when (active) {
             "speed" -> SpeedDialog(settings, current, clips, playheadMs, language, { updateSettings(it); tool = null }, { tool = null })
             "audio" -> AudioDialog(settings, current, language, { updateSettings(it) }, { updated -> commitClips(clips.map { if (it == current) updated else it }); current = updated }, { tool = null }, { showMusicKeyframes = true })
-            "text" -> TextDialog(settings, language, { updateSettings(it) }, { tool = null })
+            "text" -> Unit
             "textAnimation" -> TextAnimationDialog(settings, language, { updateSettings(it) }, { tool = null })
             "layers" -> LayerManagerDialog(settings, language, { updateSettings(it) }, { tool = null })
             "subtitles" -> SubtitleDialog(settings, playheadMs, language, { updateSettings(it) }, { subtitleImportLauncher.launch(arrayOf("text/plain", "application/x-subrip", "application/octet-stream")) }, { subtitleExportLauncher.launch("${editingName.ifBlank { "VideoForge" }}.srt") }, { tool = null })
@@ -2654,14 +2761,21 @@ private fun EditorPreview(
             }
             AndroidView(
                 factory = { ctx ->
-                    val view = android.view.LayoutInflater.from(ctx)
-                        .inflate(R.layout.view_editor_player, null, false) as PlayerView
-                    view.setEnableComposeSurfaceSyncWorkaround(true)
-                    view.player = player
-                    view.keepScreenOn = true
-                    view
+                    PlayerView(ctx).apply {
+                        player = player
+                        useController = false
+                        resizeMode = androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT
+                        setKeepContentOnPlayerReset(true)
+                        setShutterBackgroundColor(android.graphics.Color.BLACK)
+                        keepScreenOn = true
+                        setEnableComposeSurfaceSyncWorkaround(true)
+                    }
                 },
-                update = { view -> view.player = player },
+                update = { view ->
+                    view.player = player
+                    view.useController = false
+                    view.resizeMode = androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT
+                },
                 modifier = Modifier.fillMaxSize()
             )
             Box(
