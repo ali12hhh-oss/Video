@@ -46,6 +46,14 @@ data class SpeedKeyframe(
 )
 
 /** Interpolates rotation along the shortest angular path to avoid an unwanted full spin. */
+fun formatTimelineTime(timeMs: Long): String {
+    val totalSeconds = (timeMs.coerceAtLeast(0L) / 1000L)
+    val minutes = totalSeconds / 60L
+    val seconds = totalSeconds % 60L
+    val millis = timeMs.coerceAtLeast(0L) % 1000L
+    return "%02d:%02d.%03d".format(minutes, seconds, millis)
+}
+
 fun interpolateAngleDegrees(from: Float, to: Float, progress: Float): Float {
     val delta = ((to - from + 540f) % 360f) - 180f
     return from + delta * progress.coerceIn(0f, 1f)
