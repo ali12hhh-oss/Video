@@ -86,3 +86,10 @@ After the video pass, continue with the remaining editor areas such as advanced 
 - Media3 export now treats freeze frames as timed image inputs and removes their audio.
 - Editor preview supports timed image playback for freeze-frame clips.
 - Commits: `600fbabca2ebc3e31b84a6d2de94b51a5eb3d8d0`, `3827ab8e41f5d14753805242b38c09015b2742e2`, `23c38e841352d8bede86bf666936ca8a0eba0451`.
+
+## Professional licensed font expansion — 2026-09-18
+- Added four additional Arabic + Latin font families from the official Google Fonts repository: Cairo, Tajawal, IBM Plex Sans Arabic, and Readex Pro.
+- Bundled font files under `app/src/main/res/font/` and documented their SIL Open Font License 1.1 sources in `FONT_LICENSES.md`.
+- Added all four families to the text editor font picker and wired them into Media3 export.
+- Variable-font families are also normalized through Typeface weight handling so Bold remains available in preview/export.
+- Commits: `bd647acf7b5fb39f96cc852bd6b5bcebd90c6d0c`, `7d6cd7ccffbc58ae4b03f48c47edcb74667c4ebe`, `a3af0f411ea52d7e6ed8acd52e4392f1f29f9abc`, `2feff3c9523c0e4b0182bca3265f50cdbdbac9ba`.
