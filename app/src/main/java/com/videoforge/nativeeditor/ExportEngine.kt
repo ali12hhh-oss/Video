@@ -367,7 +367,7 @@ class ExportEngine(private val context: Context, private val resolver: ContentRe
                 val musicItem = EditedMediaItem.Builder(musicMediaItem)
                     .setEffects(Effects(musicAudioProcessors, emptyList()))
                     .build()
-                sequences += EditedMediaItemSequence.Builder(musicItem).setIsLooping(true).build()
+                sequences += EditedMediaItemSequence.Builder(listOf(musicItem)).setIsLooping(true).build()
             }
             val composition = Composition.Builder(sequences).build()
             val temp = File(context.cacheDir, "export_${System.currentTimeMillis()}.mp4")
@@ -689,12 +689,12 @@ class ExportEngine(private val context: Context, private val resolver: ContentRe
             return out
         }
         override fun isEnded(): Boolean = ended && !outputBuffer.hasRemaining()
-        override fun flush() {
+        override fun flush(streamMetadata: AudioProcessor.StreamMetadata) {
             outputBuffer = ByteBuffer.allocateDirect(0).order(ByteOrder.LITTLE_ENDIAN)
             ended = false
             positionBytes = 0L
         }
-        override fun reset() { flush(); if (::inputFormat.isInitialized) inputFormat = AudioProcessor.AudioFormat.NOT_SET }
+        override fun reset() { flush(AudioProcessor.StreamMetadata.DEFAULT); if (::inputFormat.isInitialized) inputFormat = AudioProcessor.AudioFormat.NOT_SET }
     }
 
     @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
@@ -744,7 +744,7 @@ class ExportEngine(private val context: Context, private val resolver: ContentRe
         override fun getOutput(): ByteBuffer { val out = outputBuffer; outputBuffer = ByteBuffer.allocateDirect(0).order(ByteOrder.LITTLE_ENDIAN); return out }
         override fun isEnded(): Boolean = ended && !outputBuffer.hasRemaining()
         override fun flush() { outputBuffer = ByteBuffer.allocateDirect(0).order(ByteOrder.LITTLE_ENDIAN); ended = false; positionBytes = 0L }
-        override fun reset() { flush() }
+        override fun reset() { flush(AudioProcessor.StreamMetadata.DEFAULT) }
     }
 
     @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
