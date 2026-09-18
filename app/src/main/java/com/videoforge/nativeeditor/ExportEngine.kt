@@ -627,6 +627,7 @@ class ExportEngine(private val context: Context, private val resolver: ContentRe
 
 
     /** PCM16 gain envelope used for real audio fade-in/fade-out during export. */
+    @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
     private class VolumeEnvelopeProcessor(
         private val durationUs: Long,
         private val fadeInUs: Long,
