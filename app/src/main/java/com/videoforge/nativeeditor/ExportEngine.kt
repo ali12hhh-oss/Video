@@ -76,7 +76,7 @@ private class AnimatedTextOverlay(
         return SpannableString(baseText.subSequence(0, count))
     }
 
-    override fun getOverlaySettings(presentationTimeUs: Long): androidx.media3.effect.OverlaySettings {
+    override fun getOverlaySettings(presentationTimeUs: Long) {
         val progress = (presentationTimeUs.toFloat() / durationUs.coerceAtLeast(1L)).coerceIn(0f, 1f)
         val eased = 1f - (1f - progress) * (1f - progress)
         var x = x0
@@ -212,7 +212,7 @@ class ExportEngine(private val context: Context, private val resolver: ContentRe
                 when (editor.filter) {
                     "mono" -> videoEffects += RgbFilter.createGrayscaleFilter()
                     "invert" -> videoEffects += RgbFilter.createInvertedFilter()
-                    "sepia" -> videoEffects += RgbFilter.createSepiaFilter()
+                    "sepia" -> videoEffects += HslAdjustment.Builder().adjustHue(28f).adjustSaturation(-18f).build()
                     "warm" -> videoEffects += HslAdjustment.Builder().adjustHue(18f).adjustSaturation(10f).build()
                     "cool" -> videoEffects += HslAdjustment.Builder().adjustHue(-18f).adjustSaturation(6f).build()
                     "vivid" -> videoEffects += HslAdjustment.Builder().adjustSaturation(28f).build()
@@ -384,7 +384,7 @@ class ExportEngine(private val context: Context, private val resolver: ContentRe
             onProgress(ExportProgress(0.22f, "Encoding ${if (settings.hevc) "H.265 / HEVC" else "H.264"}…"))
             suspendCancellableCoroutine<Unit> { cont ->
                 val handler = android.os.Handler(android.os.Looper.getMainLooper())
-                val holder = Transformer.ProgressHolder()
+                val holder = androidx.media3.transformer.ProgressHolder()
                 val poll = object : Runnable {
                     override fun run() {
                         if (!cont.isActive) return
@@ -399,7 +399,7 @@ class ExportEngine(private val context: Context, private val resolver: ContentRe
                         handler.removeCallbacks(poll)
                         if (cont.isActive) cont.resume(Unit)
                     }
-                    override fun onError(composition: Composition, exportException: androidx.media3.transformer.ExportException) {
+                    override fun onError(composition: Composition, exportResult: androidx.media3.transformer.ExportResult, exportException: androidx.media3.transformer.ExportException) {
                         handler.removeCallbacks(poll)
                         if (cont.isActive) cont.resumeWithException(exportException)
                     }
@@ -423,6 +423,11 @@ class ExportEngine(private val context: Context, private val resolver: ContentRe
             runCatching { tempFileToDelete?.delete() }
             Result.failure(e)
         }
+    }
+
+    private fun clipDurationMs(clip: Clip): Long {
+        val end = if (clip.trimEndMs == Long.MAX_VALUE) clip.durationMs else clip.trimEndMs
+        return (end - clip.trimStartMs).coerceAtLeast(1L)
     }
 
     private fun timelineDurationMs(clips: List<Clip>): Long = clips.sumOf { clip ->
