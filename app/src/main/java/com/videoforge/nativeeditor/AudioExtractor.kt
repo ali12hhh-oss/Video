@@ -77,7 +77,7 @@ object AudioExtractor {
                 info.presentationTimeUs = extractor.sampleTime.coerceAtLeast(0L)
                 info.flags = 0
                 if ((extractor.sampleFlags and MediaExtractor.SAMPLE_FLAG_SYNC) != 0) {
-                    info.flags = info.flags or android.media.MediaCodec.BUFFER_FLAG_SYNC_FRAME
+                    info.flags = info.flags or android.media.MediaCodec.BUFFER_FLAG_KEY_FRAME
                 }
                 if ((extractor.sampleFlags and MediaExtractor.SAMPLE_FLAG_PARTIAL_FRAME) != 0) {
                     info.flags = info.flags or android.media.MediaCodec.BUFFER_FLAG_PARTIAL_FRAME
