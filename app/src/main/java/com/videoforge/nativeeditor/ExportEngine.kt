@@ -1,3 +1,5 @@
+@file:OptIn(androidx.media3.common.util.UnstableApi::class)
+
 package com.videoforge.nativeeditor
 
 import android.content.ContentResolver
