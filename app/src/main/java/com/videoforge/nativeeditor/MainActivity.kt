@@ -2871,25 +2871,44 @@ private fun VideoPresetDialog(s: EditorSettings, language: AppLanguage, onChange
     val vals=listOf("none","warm","cool","mono","sepia","invert","vivid","dream","noir","faded","tealOrange","vintage","sunset","ice","dramatic","soft")
     val labels=if(language==AppLanguage.ARABIC) listOf("بدون","سينمائي دافئ","سينمائي بارد","أبيض وأسود","سيبيا","معكوس","حيوي","حالم","نوير","باهت","Teal & Orange","فنتج","غروب","جليدي","درامي","ناعم") else listOf("None","Warm Cinema","Cool Cinema","Grayscale","Sepia","Inverted","Vivid","Dream","Noir","Faded","Teal & Orange","Vintage","Sunset","Ice","Dramatic","Soft")
     var blur by remember(s.blurRadius){ mutableFloatStateOf(s.blurRadius) }
+    var mosaicEnabled by remember(s.mosaicEnabled){ mutableStateOf(s.mosaicEnabled) }
+    var blockSize by remember(s.mosaicBlockSize){ mutableFloatStateOf(s.mosaicBlockSize) }
+    var mx by remember(s.mosaicX){ mutableFloatStateOf(s.mosaicX) }
+    var my by remember(s.mosaicY){ mutableFloatStateOf(s.mosaicY) }
+    var mw by remember(s.mosaicWidth){ mutableFloatStateOf(s.mosaicWidth) }
+    var mh by remember(s.mosaicHeight){ mutableFloatStateOf(s.mosaicHeight) }
     AlertDialog(onDismissRequest=onDismiss,title={Text(if(language==AppLanguage.ARABIC) "الفلاتر والمؤثرات الاحترافية" else "Professional Filters & Effects")},text={
-        Column(Modifier.verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(6.dp)){
+        Column(Modifier.verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(7.dp)){
             Text(if(language==AppLanguage.ARABIC) "فلاتر جاهزة" else "Ready filters",fontWeight=FontWeight.Bold)
             labels.forEachIndexed{i,label->FilterChip(selected=s.filter==vals[i],onClick={onChange(s.copy(filter=vals[i]));onDismiss()},label={Text(label)},modifier=Modifier.fillMaxWidth())}
             Spacer(Modifier.height(5.dp))
-            Text(if(language==AppLanguage.ARABIC) "ضبابية احترافية ${blur.toInt()}" else "Professional blur ${blur.toInt()}")
+            Text(if(language==AppLanguage.ARABIC) "ضبابية احترافية " + blur.toInt() else "Professional blur " + blur.toInt())
             Slider(blur,{blur=it},0f..20f)
             Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(6.dp)){
                 OutlinedButton(onClick={blur=0f;onChange(s.copy(blurRadius=0f))},modifier=Modifier.weight(1f)){Text(if(language==AppLanguage.ARABIC) "بدون ضباب" else "No blur")}
                 Button(onClick={onChange(s.copy(blurRadius=blur));onDismiss()},modifier=Modifier.weight(1f)){Text(if(language==AppLanguage.ARABIC) "تطبيق" else "Apply")}
             }
+            Spacer(Modifier.height(8.dp)); HorizontalDivider()
+            Text(if(language==AppLanguage.ARABIC) "Mosaic / بكسلة منطقة" else "Mosaic / Region Pixelate",fontWeight=FontWeight.Bold)
+            Text(if(language==AppLanguage.ARABIC) "يعمل على منطقة محددة من الإطار أثناء المعاينة والتصدير." else "Pixelates only a selected region in both preview and export.",color=Color.Gray,fontSize=10.sp)
+            Row(verticalAlignment=Alignment.CenterVertically){ Text(if(language==AppLanguage.ARABIC) "تفعيل البكسلة" else "Enable mosaic",Modifier.weight(1f)); Switch(checked=mosaicEnabled,onCheckedChange={mosaicEnabled=it;onChange(s.copy(mosaicEnabled=it))}) }
+            Text(if(language==AppLanguage.ARABIC) "حجم البكسل " + (blockSize*100).toInt() + "%" else "Block size " + (blockSize*100).toInt() + "%")
+            Slider(blockSize,{blockSize=it},0.02f..0.20f)
+            Text("X " + (mx*100).toInt() + "%"); Slider(mx,{mx=it},0f..0.9f)
+            Text("Y " + (my*100).toInt() + "%"); Slider(my,{my=it},0f..0.9f)
+            Text(if(language==AppLanguage.ARABIC) "العرض " + (mw*100).toInt() + "%" else "Width " + (mw*100).toInt() + "%"); Slider(mw,{mw=it},0.05f..1f)
+            Text(if(language==AppLanguage.ARABIC) "الارتفاع " + (mh*100).toInt() + "%" else "Height " + (mh*100).toInt() + "%"); Slider(mh,{mh=it},0.05f..1f)
+            Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(6.dp)){
+                OutlinedButton(onClick={ mosaicEnabled=false;blockSize=0.08f;mx=0.18f;my=0.18f;mw=0.64f;mh=0.64f; onChange(s.copy(mosaicEnabled=false,mosaicBlockSize=0.08f,mosaicX=0.18f,mosaicY=0.18f,mosaicWidth=0.64f,mosaicHeight=0.64f)) },modifier=Modifier.weight(1f)){Text(if(language==AppLanguage.ARABIC) "إزالة البكسلة" else "Remove")}
+                Button(onClick={onChange(s.copy(mosaicEnabled=mosaicEnabled,mosaicBlockSize=blockSize,mosaicX=mx,mosaicY=my,mosaicWidth=mw,mosaicHeight=mh));onDismiss()},modifier=Modifier.weight(1f)){Text(if(language==AppLanguage.ARABIC) "تطبيق" else "Apply")}
+            }
             Spacer(Modifier.height(5.dp)); Text(if(language==AppLanguage.ARABIC) "معالجات لونية سريعة" else "Quick color grades",fontWeight=FontWeight.Bold)
             OutlinedButton(onClick={onChange(s.copy(filter="none",brightness=0.06f,contrast=1.08f,saturation=1.12f,temperature=12f,tint=0f));onDismiss()},modifier=Modifier.fillMaxWidth()){Text(if(language==AppLanguage.ARABIC) "تحسين تلقائي" else "Auto Enhance")}
             OutlinedButton(onClick={onChange(s.copy(filter="none",brightness=0.02f,contrast=1.16f,saturation=1.05f,temperature=8f,tint=2f));onDismiss()},modifier=Modifier.fillMaxWidth()){Text(if(language==AppLanguage.ARABIC) "تدرج سينمائي" else "Cinematic Grade")}
-            OutlinedButton(onClick={onChange(s.copy(filter="none",brightness=0f,contrast=1f,saturation=1f,hue=0f,temperature=0f,tint=0f,blurRadius=0f));onDismiss()},modifier=Modifier.fillMaxWidth()){Text(if(language==AppLanguage.ARABIC) "إعادة ضبط الألوان والمؤثرات" else "Reset color & effects")}
+            OutlinedButton(onClick={onChange(s.copy(filter="none",brightness=0f,contrast=1f,saturation=1f,hue=0f,temperature=0f,tint=0f,blurRadius=0f,mosaicEnabled=false));onDismiss()},modifier=Modifier.fillMaxWidth()){Text(if(language==AppLanguage.ARABIC) "إعادة ضبط الألوان والمؤثرات" else "Reset color & effects")}
         }
     },confirmButton={TextButton(onClick=onDismiss){Text(if(language==AppLanguage.ARABIC) "إغلاق" else "Close")}})
 }
-
 @Composable private fun AdjustDialog(s: EditorSettings, language: AppLanguage, onChange:(EditorSettings)->Unit,onDismiss:()->Unit){
     var b by remember{mutableFloatStateOf(s.brightness)};var c by remember{mutableFloatStateOf(s.contrast)};var sat by remember{mutableFloatStateOf(s.saturation)};var hue by remember{mutableFloatStateOf(s.hue)};var temp by remember{mutableFloatStateOf(s.temperature)};var tintValue by remember{mutableFloatStateOf(s.tint)}
     AlertDialog(onDismissRequest=onDismiss,title={Text(if(language==AppLanguage.ARABIC)"ضبط متقدم" else "Advanced Adjust")},text={Column{Text(if(language==AppLanguage.ARABIC)"السطوع ${(b*100).toInt()}" else "Brightness ${(b*100).toInt()}");Slider(b,{b=it},-1f..1f);Text(if(language==AppLanguage.ARABIC)"التباين ${(c*100).toInt()}%" else "Contrast ${(c*100).toInt()}%");Slider(c,{c=it},0f..2f);Text(if(language==AppLanguage.ARABIC)"التشبع ${(sat*100).toInt()}%" else "Saturation ${(sat*100).toInt()}%");Slider(sat,{sat=it},0f..2f);Text(if(language==AppLanguage.ARABIC)"درجة اللون ${hue.toInt()}°" else "Hue ${hue.toInt()}°");Slider(hue,{hue=it},-180f..180f);Text(if(language==AppLanguage.ARABIC)"حرارة اللون ${temp.toInt()}" else "Temperature ${temp.toInt()}");Slider(temp,{temp=it},-100f..100f);Text(if(language==AppLanguage.ARABIC)"الصبغة ${tintValue.toInt()}" else "Tint ${tintValue.toInt()}");Slider(tintValue,{tintValue=it},-100f..100f)}},confirmButton={TextButton(onClick={onChange(s.copy(brightness=b,contrast=c,saturation=sat,hue=hue,temperature=temp,tint=tintValue));onDismiss()}){Text(if(language==AppLanguage.ARABIC)"تطبيق" else "Apply")}},dismissButton={TextButton(onClick=onDismiss){Text(if(language==AppLanguage.ARABIC)"إلغاء" else "Cancel")}})
