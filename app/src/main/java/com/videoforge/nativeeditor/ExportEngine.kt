@@ -541,16 +541,22 @@ class ExportEngine(private val context: Context, private val resolver: ContentRe
                 keyframes = layer.keyframes
             )
         }
-        if (editor.overlayImageUri.isNotBlank()) {
+        val pipLayers = editor.pipLayers.ifEmpty {
+            if (editor.overlayImageUri.isNotBlank()) listOf(
+                PipLayer(uri = editor.overlayImageUri, x = editor.overlayImageX, y = editor.overlayImageY,
+                    scale = editor.overlayImageScale, rotation = editor.overlayImageRotation, alpha = editor.overlayImageAlpha)
+            ) else emptyList()
+        }
+        pipLayers.filter { it.visible && it.uri.isNotBlank() }.forEach { pip ->
             runCatching {
-                val settings = StaticOverlaySettings.Builder()
-                    .setBackgroundFrameAnchor(editor.overlayImageX.coerceIn(-1f, 1f), editor.overlayImageY.coerceIn(-1f, 1f))
+                val overlaySettings = StaticOverlaySettings.Builder()
+                    .setBackgroundFrameAnchor(pip.x.coerceIn(-1f, 1f), pip.y.coerceIn(-1f, 1f))
                     .setOverlayFrameAnchor(0f, 0f)
-                    .setScale(editor.overlayImageScale.coerceIn(0.05f, 1.5f), editor.overlayImageScale.coerceIn(0.05f, 1.5f))
-                    .setRotationDegrees(editor.overlayImageRotation)
-                    .setAlphaScale(editor.overlayImageAlpha.coerceIn(0f, 1f))
+                    .setScale(pip.scale.coerceIn(0.05f, 1.5f), pip.scale.coerceIn(0.05f, 1.5f))
+                    .setRotationDegrees(pip.rotation)
+                    .setAlphaScale(pip.alpha.coerceIn(0f, 1f))
                     .build()
-                overlays += BitmapOverlay.createStaticBitmapOverlay(context, Uri.parse(editor.overlayImageUri), settings)
+                overlays += BitmapOverlay.createStaticBitmapOverlay(context, Uri.parse(pip.uri), overlaySettings)
             }
         }
         if (editor.sticker.isNotBlank()) {
