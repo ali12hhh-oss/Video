@@ -79,3 +79,10 @@ After the video pass, continue with the remaining editor areas such as advanced 
 - The action extracts the selected clip's AAC audio non-destructively through `AudioExtractor` and saves the resulting M4A in `Music/VideoForge`.
 - Progress is shown in the editor status area and failures are surfaced without modifying the source video.
 - Commit: `38fe3ca409fe6557d41ae819f874dbbca84488ab`.
+## Freeze frame — 2026-09-18
+- Added non-destructive freeze-frame creation at the current playhead position.
+- The editor captures the source frame, inserts it as a timed 1-second image clip, and splits the source clip around the freeze point when needed.
+- Freeze-frame metadata is persisted with projects.
+- Media3 export now treats freeze frames as timed image inputs and removes their audio.
+- Editor preview supports timed image playback for freeze-frame clips.
+- Commits: `600fbabca2ebc3e31b84a6d2de94b51a5eb3d8d0`, `3827ab8e41f5d14753805242b38c09015b2742e2`, `23c38e841352d8bede86bf666936ca8a0eba0451`.
