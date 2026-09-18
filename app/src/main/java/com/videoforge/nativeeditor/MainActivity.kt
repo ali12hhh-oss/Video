@@ -546,7 +546,7 @@ private fun HomeScreen(
         containerColor = Color(0xFFF5F7FB),
         topBar = { HomeTopBar(language, onLanguageSelected, onOpenSettings) },
         bottomBar = {
-            HomeBottomBar(selected = selected, onSelected = onSelected, onNewProject = onNewProject)
+            HomeBottomBar(selected = selected, onSelected = onSelected, onImport = onImport)
         }
     ) { pad ->
         Column(
@@ -1179,7 +1179,7 @@ private fun PremiumBanner() {
 }
 
 @Composable
-private fun HomeBottomBar(selected: Int, onSelected: (Int) -> Unit, onNewProject: () -> Unit) {
+private fun HomeBottomBar(selected: Int, onSelected: (Int) -> Unit, onImport: () -> Unit) {
     NavigationBar(containerColor = Color.White, tonalElevation = 2.dp, modifier = Modifier.height(78.dp)) {
         NavigationBarItem(
             selected = selected == 0, onClick = { onSelected(0) },
