@@ -33,7 +33,7 @@ import androidx.media3.effect.RgbFilter
 import androidx.media3.effect.ScaleAndRotateTransformation
 import androidx.media3.effect.StaticOverlaySettings
 import androidx.media3.effect.TextOverlay
-import androidx.media3.effect.OverlaySettings
+import androidx.media3.common.OverlaySettings
 import androidx.media3.transformer.EditedMediaItem
 import androidx.media3.transformer.EditedMediaItemSequence
 import androidx.media3.transformer.Effects
@@ -367,7 +367,7 @@ class ExportEngine(private val context: Context, private val resolver: ContentRe
                     .build()
                 sequences += EditedMediaItemSequence.Builder(musicItem).setIsLooping(true).build()
             }
-            val composition = Composition.Builder(*sequences.toTypedArray()).build()
+            val composition = Composition.Builder(sequences).build()
             val temp = File(context.cacheDir, "export_${System.currentTimeMillis()}.mp4")
             tempFileToDelete = temp
             if (temp.exists()) temp.delete()
