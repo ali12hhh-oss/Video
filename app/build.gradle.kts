@@ -49,4 +49,5 @@ dependencies {
     implementation("androidx.media3:media3-effect:1.9.0")
     // Google ML Kit Subject Segmentation (beta): optional AI image cutout/background removal.
     implementation("com.google.android.gms:play-services-mlkit-subject-segmentation:16.0.0-beta1")
+    implementation("com.google.android.gms:play-services-ads:25.5.0")
 }
