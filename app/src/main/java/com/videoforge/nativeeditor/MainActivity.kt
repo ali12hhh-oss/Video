@@ -296,7 +296,6 @@ private fun VideoForgeApp() {
     var projectId by remember { mutableStateOf(ProjectRepository.newId()) }
     var projectName by remember { mutableStateOf(context.getString(R.string.new_project)) }
     var selected by remember { mutableIntStateOf(0) }
-    var showSettings by remember { mutableStateOf(false) }
     var showTemplates by remember { mutableStateOf(false) }
 
     val picker = rememberLauncherForActivityResult(
@@ -377,7 +376,6 @@ private fun VideoForgeApp() {
                             )
                         )
                     },
-                    onOpenSettings = { showSettings = true },
                     onOpenTemplates = { showTemplates = true },
                     onOpenProject = { project ->
                         projectId = project.id
@@ -393,16 +391,6 @@ private fun VideoForgeApp() {
         }
     }
 
-    if (showSettings) {
-        SettingsSheet(
-            language = language,
-            onLanguageSelected = {
-                language = it
-                LanguageManager.setLanguage(context, it)
-            },
-            onDismiss = { showSettings = false }
-        )
-    }
     if (showTemplates) {
         TemplatesSheet(onDismiss = { showTemplates = false }, onUseTemplate = {
             showTemplates = false
@@ -419,7 +407,6 @@ private fun HomeScreen(
     onSelected: (Int) -> Unit,
     onNewProject: () -> Unit,
     onImport: () -> Unit,
-    onOpenSettings: () -> Unit,
     onOpenTemplates: () -> Unit,
     onOpenProject: (RecentProject) -> Unit,
     onViewAllProjects: () -> Unit
@@ -427,26 +414,13 @@ private fun HomeScreen(
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     var recentProjects by remember { mutableStateOf(emptyList<RecentProject>()) }
-    var hasPermission by remember { mutableStateOf(hasVideoPermission(context)) }
-
-    val permissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { granted ->
-        hasPermission = granted
-        if (granted) recentProjects = RecentProjectsRepository.load(context, true)
-    }
-
-    fun requestVideoPermission() {
-        if (Build.VERSION.SDK_INT >= 33) {
-            permissionLauncher.launch(android.Manifest.permission.READ_MEDIA_VIDEO)
-        } else {
-            permissionLauncher.launch(android.Manifest.permission.READ_EXTERNAL_STORAGE)
-        }
-    }
+    var hasPermission by remember { mutableStateOf(true) }
 
     fun reloadRecentProjects() {
-        hasPermission = hasVideoPermission(context)
-        if (hasPermission) recentProjects = RecentProjectsRepository.load(context, hasPermission)
+        recentProjects = ProjectRepository.load(context).mapNotNull { project ->
+            val primary = project.primaryClip ?: return@mapNotNull null
+            RecentProject(project.id, primary.uri, project.name, primary.durationMs, project.updatedAtMs / 1000L, project.clips)
+        }.sortedByDescending { it.dateModifiedSeconds }.take(12)
     }
 
     DisposableEffect(lifecycleOwner) {
@@ -458,16 +432,24 @@ private fun HomeScreen(
     }
 
     LaunchedEffect(Unit) {
-        if (hasVideoPermission(context)) {
-            recentProjects = RecentProjectsRepository.load(context, hasPermission)
-        }
+        reloadRecentProjects()
     }
 
     val scroll = rememberScrollState()
 
+    MaterialTheme(
+        colorScheme = lightColorScheme(
+            primary = Color(0xFF6D3DFF), onPrimary = Color.White,
+            secondary = Color(0xFF008F82),
+            background = Color(0xFFF5F7FB), surface = Color.White,
+            surfaceVariant = Color(0xFFE9EDF5),
+            onBackground = Color(0xFF172033), onSurface = Color(0xFF172033),
+            onSurfaceVariant = Color(0xFF4E5A6D)
+        )
+    ) {
     Scaffold(
-        containerColor = Color(0xFF020812),
-        topBar = { HomeTopBar(language, onLanguageSelected, onOpenSettings) },
+        containerColor = Color(0xFFF5F7FB),
+        topBar = { HomeTopBar(language, onLanguageSelected) },
         bottomBar = {
             HomeBottomBar(selected = selected, onSelected = onSelected, onNewProject = onNewProject)
         }
@@ -489,17 +471,12 @@ private fun HomeScreen(
             })
             Spacer(Modifier.height(16.dp))
 
-            SectionHeader(stringResource(R.string.quick_tools), null)
-            Spacer(Modifier.height(8.dp))
-            QuickTools()
-            Spacer(Modifier.height(18.dp))
-
-            SectionHeader(stringResource(R.string.recent_projects), stringResource(R.string.view_all), onViewAllProjects)
+            SectionHeader(stringResource(R.string.drafts), stringResource(R.string.view_all), onViewAllProjects)
             Spacer(Modifier.height(8.dp))
             RecentProjects(
                 projects = recentProjects,
-                hasPermission = hasPermission,
-                onRequestPermission = { requestVideoPermission() },
+                hasPermission = true,
+                onRequestPermission = { },
                 onOpenProject = onOpenProject
             )
             Spacer(Modifier.height(16.dp))
@@ -507,6 +484,7 @@ private fun HomeScreen(
             PremiumBanner()
             Spacer(Modifier.height(10.dp))
         }
+    }
     }
 }
 
@@ -717,65 +695,38 @@ private fun ProjectListCard(
 }
 
 @Composable
-private fun HomeTopBar(language: AppLanguage, onLanguageSelected: (AppLanguage) -> Unit, onSettings: () -> Unit) {
+private fun HomeTopBar(language: AppLanguage, onLanguageSelected: (AppLanguage) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
-
-    Surface(color = Color(0xFF020812)) {
+    Surface(color = Color.White, shadowElevation = 2.dp) {
         Row(
-            Modifier
-                .fillMaxWidth()
-                .height(72.dp)
-                .padding(horizontal = 12.dp),
+            Modifier.fillMaxWidth().height(68.dp).padding(horizontal = 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(onClick = {}) {
-                Icon(Icons.Default.Menu, null, tint = Color.White, modifier = Modifier.size(25.dp))
-            }
-
-            Spacer(Modifier.width(4.dp))
-
             androidx.compose.foundation.Image(
                 painter = painterResource(R.drawable.videoforge_logo),
                 contentDescription = stringResource(R.string.app_name),
                 contentScale = androidx.compose.ui.layout.ContentScale.Fit,
-                modifier = Modifier
-                    .weight(1f)
-                    .height(56.dp)
+                modifier = Modifier.weight(1f).height(48.dp)
             )
-
             Box {
                 OutlinedButton(
                     onClick = { expanded = true },
                     shape = RoundedCornerShape(22.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF713BFF)),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF6D3DFF)),
                     colors = ButtonDefaults.outlinedButtonColors(
-                        containerColor = Color(0xFF151025),
-                        contentColor = Color.White
+                        containerColor = Color(0xFFF5F1FF), contentColor = Color(0xFF4B278F)
                     ),
                     contentPadding = PaddingValues(horizontal = 11.dp, vertical = 4.dp)
                 ) {
-                    Icon(Icons.Default.Language, null, Modifier.size(18.dp), tint = Color(0xFFE9E1FF))
+                    Icon(Icons.Default.Language, null, Modifier.size(18.dp), tint = Color(0xFF6D3DFF))
                     Spacer(Modifier.width(5.dp))
-                    Text(if (language == AppLanguage.ARABIC) "العربية" else "English", fontSize = 11.sp)
+                    Text(if (language == AppLanguage.ARABIC) "العربية" else "English", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                     Icon(Icons.Default.ExpandMore, null, Modifier.size(17.dp))
                 }
-                DropdownMenu(
-                    expanded = expanded,
-                    onDismissRequest = { expanded = false }
-                ) {
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.arabic)) },
-                        onClick = { expanded = false; onLanguageSelected(AppLanguage.ARABIC) }
-                    )
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.english)) },
-                        onClick = { expanded = false; onLanguageSelected(AppLanguage.ENGLISH) }
-                    )
+                DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                    DropdownMenuItem(text = { Text(stringResource(R.string.arabic)) }, onClick = { expanded = false; onLanguageSelected(AppLanguage.ARABIC) })
+                    DropdownMenuItem(text = { Text(stringResource(R.string.english)) }, onClick = { expanded = false; onLanguageSelected(AppLanguage.ENGLISH) })
                 }
-            }
-
-            IconButton(onClick = onSettings) {
-                Icon(Icons.Default.Settings, null, tint = Color.White, modifier = Modifier.size(23.dp))
             }
         }
     }
@@ -1005,118 +956,58 @@ private fun RecentProjects(
     onRequestPermission: () -> Unit,
     onOpenProject: (RecentProject) -> Unit
 ) {
-    val context = LocalContext.current
-    if (!hasPermission) {
-        Surface(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp)
-                .clip(RoundedCornerShape(14.dp))
-                .clickable(onClick = onRequestPermission),
-            color = Color(0xFF0C1521)
-        ) {
-            Row(
-                Modifier.padding(horizontal = 14.dp, vertical = 16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(Icons.Default.VideoLibrary, null, tint = Color(0xFFB98BFF), modifier = Modifier.size(28.dp))
-                Spacer(Modifier.width(10.dp))
-                Column(Modifier.weight(1f)) {
-                    Text(stringResource(R.string.recent_permission_title), fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                    Spacer(Modifier.height(3.dp))
-                    Text(stringResource(R.string.recent_permission_desc), color = Color.Gray, fontSize = 10.sp)
-                }
-                Icon(Icons.Default.ChevronRight, null, tint = Color.White)
-            }
-        }
-        return
-    }
-
     if (projects.isEmpty()) {
         Surface(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp),
-            color = Color(0xFF0C1521),
-            shape = RoundedCornerShape(14.dp)
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+            color = Color.White, shape = RoundedCornerShape(16.dp), shadowElevation = 1.dp
         ) {
-            Row(
-                Modifier.padding(horizontal = 14.dp, vertical = 18.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(Icons.Default.VideoLibrary, null, tint = Color(0xFF7C4DFF), modifier = Modifier.size(30.dp))
-                Spacer(Modifier.width(10.dp))
-                Text(stringResource(R.string.no_recent_projects), color = Color.LightGray, fontSize = 12.sp)
+            Row(Modifier.padding(horizontal = 16.dp, vertical = 20.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(48.dp).clip(RoundedCornerShape(14.dp)).background(Color(0xFFF0EBFF)), contentAlignment = Alignment.Center) {
+                    Icon(Icons.Default.VideoLibrary, null, tint = Color(0xFF6D3DFF), modifier = Modifier.size(27.dp))
+                }
+                Spacer(Modifier.width(12.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(stringResource(R.string.no_saved_projects), fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    Spacer(Modifier.height(3.dp))
+                    Text(stringResource(R.string.create_first_project), color = Color(0xFF667085), fontSize = 10.sp)
+                }
+                Icon(Icons.Default.ChevronRight, null, tint = Color(0xFF667085))
             }
         }
         return
     }
-
-    LazyRow(
-        Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
-        items(projects.take(6), key = { it.uri.toString() }) { project ->
+    LazyRow(Modifier.fillMaxWidth().padding(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        items(projects.take(6), key = { it.id }) { project ->
+            val context = LocalContext.current
             var thumbnail by remember(project.uri) { mutableStateOf<android.graphics.Bitmap?>(null) }
             LaunchedEffect(project.uri) {
-                thumbnail = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                    loadVideoThumbnail(context, project.uri)
-                }
+                thumbnail = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { loadVideoThumbnail(context, project.uri) }
             }
             Column(
-                Modifier
-                    .width(154.dp)
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(Color(0xFF0C1521))
-                    .clickable { onOpenProject(project) }
-                    .padding(7.dp)
+                Modifier.width(166.dp).clip(RoundedCornerShape(16.dp)).background(Color.White)
+                    .clickable { onOpenProject(project) }.padding(8.dp)
             ) {
-                Box(
-                    Modifier
-                        .fillMaxWidth()
-                        .height(91.dp)
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(Color(0xFF111D2B))
-                ) {
+                Box(Modifier.fillMaxWidth().height(96.dp).clip(RoundedCornerShape(11.dp)).background(Color(0xFFE9EDF5))) {
                     if (thumbnail != null) {
                         androidx.compose.foundation.Image(
-                            bitmap = thumbnail!!.asImageBitmap(),
-                            contentDescription = project.name,
-                            contentScale = androidx.compose.ui.layout.ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize()
+                            bitmap = thumbnail!!.asImageBitmap(), contentDescription = project.name,
+                            contentScale = androidx.compose.ui.layout.ContentScale.Crop, modifier = Modifier.fillMaxSize()
                         )
                     } else {
-                        Icon(
-                            Icons.Default.PlayCircle,
-                            null,
-                            tint = Color(0xFF7C4DFF),
-                            modifier = Modifier.align(Alignment.Center).size(34.dp)
-                        )
+                        Icon(Icons.Default.PlayCircle, null, tint = Color(0xFF6D3DFF), modifier = Modifier.align(Alignment.Center).size(34.dp))
                     }
                     if (project.durationMs > 0L) {
                         Text(
                             formatDuration(project.durationMs),
-                            Modifier
-                                .align(Alignment.BottomEnd)
-                                .padding(5.dp)
-                                .clip(RoundedCornerShape(5.dp))
-                                .background(Color(0xDD000000))
-                                .padding(horizontal = 5.dp, vertical = 2.dp),
-                            fontSize = 9.sp,
-                            fontWeight = FontWeight.SemiBold
+                            Modifier.align(Alignment.BottomEnd).padding(5.dp).clip(RoundedCornerShape(5.dp))
+                                .background(Color(0xDD172033)).padding(horizontal = 5.dp, vertical = 2.dp),
+                            fontSize = 9.sp, fontWeight = FontWeight.SemiBold, color = Color.White
                         )
                     }
                 }
-                Spacer(Modifier.height(6.dp))
-                Text(project.name, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
-                Text(
-                    formatProjectDate(project.dateModifiedSeconds),
-                    color = Color.Gray,
-                    fontSize = 8.sp,
-                    maxLines = 1
-                )
+                Spacer(Modifier.height(7.dp))
+                Text(project.name, color = Color(0xFF172033), fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                Text(formatProjectDate(project.dateModifiedSeconds), color = Color(0xFF667085), fontSize = 8.sp, maxLines = 1)
             }
         }
     }
@@ -1164,75 +1055,27 @@ private fun PremiumBanner() {
 
 @Composable
 private fun HomeBottomBar(selected: Int, onSelected: (Int) -> Unit, onNewProject: () -> Unit) {
-    NavigationBar(
-        containerColor = Color(0xFF040B15),
-        tonalElevation = 0.dp,
-        modifier = Modifier.height(78.dp)
-    ) {
+    NavigationBar(containerColor = Color.White, tonalElevation = 2.dp, modifier = Modifier.height(72.dp)) {
         NavigationBarItem(
-            selected = selected == 0,
-            onClick = { onSelected(0) },
+            selected = selected == 0, onClick = { onSelected(0) },
             icon = { Icon(Icons.Default.Home, null) },
             label = { Text(stringResource(R.string.home), fontSize = 10.sp) }
         )
         NavigationBarItem(
-            selected = selected == 1,
-            onClick = { onSelected(1) },
+            selected = selected == 1, onClick = { onSelected(1) },
             icon = { Icon(Icons.Default.Folder, null) },
-            label = { Text(stringResource(R.string.projects), fontSize = 10.sp) }
+            label = { Text(stringResource(R.string.drafts), fontSize = 10.sp) }
         )
         NavigationBarItem(
-            selected = selected == 2,
-            onClick = onNewProject,
+            selected = false, onClick = onNewProject,
             icon = {
-                Box(
-                    Modifier
-                        .size(54.dp)
-                        .offset(y = (-10).dp)
-                        .clip(RoundedCornerShape(50))
-                        .background(Brush.linearGradient(listOf(Color(0xFF8A45FF), Color(0xFF216DFF)))),
+                Box(Modifier.size(50.dp).offset(y = (-8).dp).clip(RoundedCornerShape(50))
+                    .background(Brush.linearGradient(listOf(Color(0xFF8A45FF), Color(0xFF216DFF)))),
                     contentAlignment = Alignment.Center
-                ) {
-                    Icon(Icons.Default.Add, null, Modifier.size(32.dp), tint = Color.White)
-                }
+                ) { Icon(Icons.Default.Add, null, Modifier.size(30.dp), tint = Color.White) }
             },
             label = { Text(stringResource(R.string.new_project), fontSize = 9.sp) }
         )
-        NavigationBarItem(
-            selected = selected == 3,
-            onClick = { onSelected(3) },
-            icon = { Icon(Icons.Default.PlayCircle, null) },
-            label = { Text(stringResource(R.string.templates), fontSize = 10.sp) }
-        )
-        NavigationBarItem(
-            selected = selected == 4,
-            onClick = { onSelected(4) },
-            icon = { Icon(Icons.Default.Person, null) },
-            label = { Text(stringResource(R.string.account), fontSize = 10.sp) }
-        )
-    }
-}
-
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun SettingsSheet(
-    language: AppLanguage,
-    onLanguageSelected: (AppLanguage) -> Unit,
-    onDismiss: () -> Unit
-) {
-    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = Color(0xFF0A111D)) {
-        Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp)) {
-            Text(stringResource(R.string.settings), fontSize = 22.sp, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(16.dp))
-            Text(stringResource(R.string.language), color = Color.LightGray, fontSize = 12.sp)
-            Spacer(Modifier.height(8.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                FilterChip(selected = language == AppLanguage.ARABIC, onClick = { onLanguageSelected(AppLanguage.ARABIC) }, label = { Text(stringResource(R.string.arabic)) })
-                FilterChip(selected = language == AppLanguage.ENGLISH, onClick = { onLanguageSelected(AppLanguage.ENGLISH) }, label = { Text(stringResource(R.string.english)) })
-            }
-            Spacer(Modifier.height(24.dp))
-        }
     }
 }
 
