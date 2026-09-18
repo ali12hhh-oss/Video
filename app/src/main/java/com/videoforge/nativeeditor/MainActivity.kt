@@ -3026,19 +3026,19 @@ private fun OverlayDialog(
                         AssistChip(onClick={ val copy=layer.copy(id=System.nanoTime().toString(), x=(layer.x+0.08f).coerceIn(-1f,1f), y=(layer.y+0.08f).coerceIn(-1f,1f)); layers=layers+copy; selected=layers.lastIndex }, label={Text(if(language==AppLanguage.ARABIC) "تكرار" else "Duplicate")}, leadingIcon={Icon(Icons.Default.ContentCopy,null,Modifier.size(16.dp))})
                     }
                     Text(if(language==AppLanguage.ARABIC) "الموضع الأفقي " + (layer.x*100).toInt() + "%" else "Horizontal " + (layer.x*100).toInt() + "%")
-                    Slider(layer.x,{v->editSelected{it.copy(x=v)}},-1f..1f)
+                    Slider(value = layer.x, onValueChange = { v -> editSelected { it.copy(x = v) } }, valueRange = -1f..1f)
                     Text(if(language==AppLanguage.ARABIC) "الموضع العمودي " + (layer.y*100).toInt() + "%" else "Vertical " + (layer.y*100).toInt() + "%")
-                    Slider(layer.y,{v->editSelected{it.copy(y=v)}},-1f..1f)
+                    Slider(value = layer.y, onValueChange = { v -> editSelected { it.copy(y = v) } }, valueRange = -1f..1f)
                     Text(if(language==AppLanguage.ARABIC) "الحجم " + (layer.scale*100).toInt() + "%" else "Scale " + (layer.scale*100).toInt() + "%")
-                    Slider(layer.scale,{v->editSelected{it.copy(scale=v)}},0.08f..2f)
+                    Slider(value = layer.scale, onValueChange = { v -> editSelected { it.copy(scale = v) } }, valueRange = 0.08f..2f)
                     Text(if(language==AppLanguage.ARABIC) "الدوران " + layer.rotation.toInt() + "°" else "Rotation " + layer.rotation.toInt() + "°")
-                    Slider(layer.rotation,{v->editSelected{it.copy(rotation=v)}},-180f..180f)
+                    Slider(value = layer.rotation, onValueChange = { v -> editSelected { it.copy(rotation = v) } }, valueRange = -180f..180f)
                     Text(if(language==AppLanguage.ARABIC) "الشفافية " + (layer.alpha*100).toInt() + "%" else "Opacity " + (layer.alpha*100).toInt() + "%")
-                    Slider(layer.alpha,{v->editSelected{it.copy(alpha=v)}},0.05f..1f)
+                    Slider(value = layer.alpha, onValueChange = { v -> editSelected { it.copy(alpha = v) } }, valueRange = 0.05f..1f)
                 }
             }
             Text(if(language==AppLanguage.ARABIC) "طبقة لونية " + (s.overlayOpacity*100).toInt() + "%" else "Color overlay " + (s.overlayOpacity*100).toInt() + "%", fontSize=11.sp)
-            Slider(s.overlayOpacity,{v->commit(opacity=v)},0f..0.75f)
+            Slider(value = s.overlayOpacity, onValueChange = { v -> commit(opacity = v) }, valueRange = 0f..0.75f)
             if(layers.isNotEmpty()) OutlinedButton(onClick={layers=emptyList();selected=0}, modifier=Modifier.fillMaxWidth()){ Icon(Icons.Default.DeleteSweep,null); Spacer(Modifier.width(5.dp)); Text(if(language==AppLanguage.ARABIC) "إزالة جميع طبقات PIP" else "Remove all PIP layers") }
         } },
         confirmButton={TextButton(onClick={commit();onDismiss()}){Text(if(language==AppLanguage.ARABIC) "تطبيق" else "Apply")}},
