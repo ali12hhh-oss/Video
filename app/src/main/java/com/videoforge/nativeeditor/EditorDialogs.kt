@@ -22,7 +22,84 @@ import androidx.compose.ui.unit.sp
 @Composable fun LayerManagerDialog(s:EditorSettings,language:AppLanguage,onChange:(EditorSettings)->Unit,onDismiss:()->Unit){AlertDialog(onDismissRequest=onDismiss,title={Text("Layers")},text={Column{if(s.textLayers.isEmpty())Text("No text layers") else s.textLayers.forEach{l->Text(l.name)} }},confirmButton={TextButton(onClick=onDismiss){Text("Close")}})}
 @Composable fun MarkerDialog(s:EditorSettings,playheadMs:Long,language:AppLanguage,onChange:(EditorSettings)->Unit,onSeek:(Long)->Unit,onDismiss:()->Unit){AlertDialog(onDismissRequest=onDismiss,title={Text("Markers")},text={Column{ s.markers.forEach{m->TextButton(onClick={onSeek(m.timeMs)}){Text(m.label)}}}},confirmButton={TextButton(onClick={onChange(s.copy(markers=s.markers+TimelineMarker(timeMs=playheadMs)));onDismiss()}){Text("Add")}},dismissButton={TextButton(onClick=onDismiss){Text("Close")}})}
 @Composable fun TrimDialog(clip:Clip,onDismiss:()->Unit,onApply:(Long,Long)->Unit){val end=if(clip.trimEndMs==Long.MAX_VALUE)clip.durationMs else clip.trimEndMs;AlertDialog(onDismissRequest=onDismiss,title={Text("Trim")},text={Text(formatTimelineTime(clip.trimStartMs)+" - "+formatTimelineTime(end))},confirmButton={TextButton(onClick={onApply(clip.trimStartMs,end)}){Text("Apply")}},dismissButton={TextButton(onClick=onDismiss){Text("Cancel")}})}
-@Composable fun ExportDialog(language:AppLanguage,settings:ExportSettings,onDismiss:()->Unit,onSettings:(ExportSettings)->Unit,onExport:(ExportSettings)->Unit){AlertDialog(onDismissRequest=onDismiss,title={Text("Export")},text={Column{ExportResolution.values().forEach{r->FilterChip(selected=settings.resolution==r,onClick={onSettings(settings.copy(resolution=r))},label={Text(r.label)})}}},confirmButton={Button(onClick={onExport(settings)}){Text("Export")}},dismissButton={TextButton(onClick=onDismiss){Text("Cancel")}})}
+@Composable
+fun ExportDialog(
+    language: AppLanguage,
+    settings: ExportSettings,
+    watermarkRemoved: Boolean,
+    onWatchAdToRemoveWatermark: () -> Unit,
+    onDismiss: () -> Unit,
+    onSettings: (ExportSettings) -> Unit,
+    onExport: (ExportSettings) -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(if (language == AppLanguage.ARABIC) "تصدير الفيديو" else "Export video") },
+        text = {
+            Column(
+                Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    if (language == AppLanguage.ARABIC) "اختر جودة الفيديو" else "Choose video quality",
+                    fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold
+                )
+                ExportResolution.values().forEach { r ->
+                    FilterChip(
+                        selected = settings.resolution == r,
+                        onClick = { onSettings(settings.copy(resolution = r)) },
+                        label = { Text(r.label) }
+                    )
+                }
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.medium,
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
+                ) {
+                    Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                        Text(
+                            if (language == AppLanguage.ARABIC) "النسخة المجانية" else "Free version",
+                            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                        )
+                        Text(
+                            if (watermarkRemoved) {
+                                if (language == AppLanguage.ARABIC) "تمت إزالة العلامة المائية لهذا التصدير." else "Watermark removed for this export."
+                            } else {
+                                if (language == AppLanguage.ARABIC) "ستظهر علامة VideoForge صغيرة أعلى يمين الفيديو." else "A small VideoForge watermark will appear at the top-right of the video."
+                            },
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        if (!watermarkRemoved) {
+                            Button(
+                                onClick = onWatchAdToRemoveWatermark,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(if (language == AppLanguage.ARABIC) "مشاهدة إعلان لإزالة العلامة" else "Watch an ad to remove watermark")
+                            }
+                        } else {
+                            Text(
+                                if (language == AppLanguage.ARABIC) "يمكنك الآن التصدير بدون العلامة المائية." else "You can now export without the watermark.",
+                                fontSize = 10.sp,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(onClick = { onExport(settings) }) {
+                Text(if (language == AppLanguage.ARABIC) "تصدير" else "Export")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(if (language == AppLanguage.ARABIC) "إلغاء" else "Cancel")
+            }
+        }
+    )
+}
 @Composable fun TextAnimationDialog(s:EditorSettings,language:AppLanguage,onChange:(EditorSettings)->Unit,onDismiss:()->Unit){val v=listOf("none","fade","pop","zoom","slide","typewriter");AlertDialog(onDismissRequest=onDismiss,title={Text("Text animation")},text={Column{v.forEach{x->FilterChip(selected=s.textAnimation==x,onClick={onChange(s.copy(textAnimation=x))},label={Text(x)})}}},confirmButton={TextButton(onClick=onDismiss){Text("Close")}})}
 @Composable fun RotateDialog(s:EditorSettings,language:AppLanguage,onChange:(EditorSettings)->Unit,onDismiss:()->Unit){AlertDialog(onDismissRequest=onDismiss,title={Text("Rotate")},text={Row{listOf(0,90,180,270).forEach{v->TextButton(onClick={onChange(s.copy(rotation=v))}){Text(v.toString()+"°")}}}},confirmButton={TextButton(onClick=onDismiss){Text("Close")}})}
 @Composable fun FlipDialog(s:EditorSettings,language:AppLanguage,onChange:(EditorSettings)->Unit,onDismiss:()->Unit){AlertDialog(onDismissRequest=onDismiss,title={Text("Flip")},text={Column{Row{Text("Horizontal",Modifier.weight(1f));Switch(s.flipHorizontal,{onChange(s.copy(flipHorizontal=it))})};Row{Text("Vertical",Modifier.weight(1f));Switch(s.flipVertical,{onChange(s.copy(flipVertical=it))})}}},confirmButton={TextButton(onClick=onDismiss){Text("Close")}})}
