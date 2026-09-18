@@ -1355,7 +1355,7 @@ private fun timelineClipAt(clips: List<Clip>, positionMs: Long): Pair<Clip, Long
 @Composable
 private fun EditorFeaturePanel(
     activeTool: String?, settings: EditorSettings, current: Clip?, clips: List<Clip>, language: AppLanguage,
-    onSettingsLiveChange: (EditorSettings) -> Unit, onTrim: () -> Unit, onSplit: () -> Unit,
+    onSettingsLiveChange: (EditorSettings) -> Unit, onCurrentClipChange: (Clip) -> Unit, onTrim: () -> Unit, onSplit: () -> Unit,
     onDelete: () -> Unit, onDuplicate: () -> Unit, onReplace: () -> Unit,
     onMoveLeft: () -> Unit, onMoveRight: () -> Unit, onFreeze: () -> Unit,
     onExtractAudio: () -> Unit, onAudioKeyframes: () -> Unit, onMusicKeyframes: () -> Unit,
@@ -1553,7 +1553,7 @@ private fun EditorFeaturePanel(
                             Text((audioClip.audioVolume*100).toInt().toString()+"%",fontSize=10.sp,Modifier.width(42.dp))
                             Slider(
                                 value=audioClip.audioVolume,
-                                onValueChange={v -> onSettingsLiveChange(settings)},
+                                onValueChange={v -> onCurrentClipChange(audioClip.copy(audioVolume=v.coerceIn(0f,2f)))},
                                 valueRange=0f..2f, modifier=Modifier.weight(1f)
                             )
                         }
@@ -1561,7 +1561,7 @@ private fun EditorFeaturePanel(
                             Text(audioClip.audioFadeIn.toInt().toString()+"s",fontSize=10.sp,Modifier.width(42.dp))
                             Slider(
                                 value=audioClip.audioFadeIn,
-                                onValueChange={v -> onSettingsLiveChange(settings.copy(fadeIn=v))},
+                                onValueChange={v -> onCurrentClipChange(audioClip.copy(audioFadeIn=v.coerceIn(0f,10f)))},
                                 valueRange=0f..10f,modifier=Modifier.weight(1f)
                             )
                         }
@@ -1569,7 +1569,7 @@ private fun EditorFeaturePanel(
                             Text(audioClip.audioFadeOut.toInt().toString()+"s",fontSize=10.sp,Modifier.width(42.dp))
                             Slider(
                                 value=audioClip.audioFadeOut,
-                                onValueChange={v -> onSettingsLiveChange(settings.copy(fadeOut=v))},
+                                onValueChange={v -> onCurrentClipChange(audioClip.copy(audioFadeOut=v.coerceIn(0f,10f)))},
                                 valueRange=0f..10f,modifier=Modifier.weight(1f)
                             )
                         }
@@ -2139,6 +2139,7 @@ private fun EditorScreen(
                 activeTool = activeEditorTool,
                 settings = settings, current = current, clips = clips, language = language,
                 onSettingsLiveChange = ::updateSettingsLive,
+                onCurrentClipChange = { updated -> commitClips(clips.map { if (it == current) updated else it }); current = updated },
                 onTrim = { if (current != null) showTrim = true },
                 onSplit = {
                     val clip = current
