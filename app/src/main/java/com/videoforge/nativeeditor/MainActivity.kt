@@ -2762,7 +2762,7 @@ private fun EditorPreview(
             AndroidView(
                 factory = { ctx ->
                     PlayerView(ctx).apply {
-                        player = player
+                        this.player = player
                         useController = false
                         resizeMode = androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT
                         setKeepContentOnPlayerReset(true)
