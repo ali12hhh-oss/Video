@@ -74,3 +74,8 @@ After the video pass, continue with the remaining editor areas such as advanced 
 - The original video is never modified.
 - The engine reports extraction progress and cleans up partial MediaStore output on failure.
 - UI wiring remains part of the next integration pass; final Gradle/Lint verification is still intentionally deferred.
+## Audio extraction UI integration — 2026-09-18
+- Added a direct **Extract audio / استخراج الصوت** action to the editor.
+- The action extracts the selected clip's AAC audio non-destructively through `AudioExtractor` and saves the resulting M4A in `Music/VideoForge`.
+- Progress is shown in the editor status area and failures are surfaced without modifying the source video.
+- Commit: `38fe3ca409fe6557d41ae819f874dbbca84488ab`.
