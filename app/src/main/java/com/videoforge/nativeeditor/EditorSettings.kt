@@ -438,7 +438,7 @@ object EditorSettingsRepository {
             .put("cropZoom", s.cropZoom).put("cropX", s.cropX).put("cropY", s.cropY)
             .put("rotation", s.rotation).put("flipHorizontal", s.flipHorizontal).put("flipVertical", s.flipVertical).put("overlayOpacity", s.overlayOpacity)
             .put("overlayImageUri", s.overlayImageUri).put("overlayImageX", s.overlayImageX).put("overlayImageY", s.overlayImageY).put("overlayImageScale", s.overlayImageScale).put("overlayImageRotation", s.overlayImageRotation).put("overlayImageAlpha", s.overlayImageAlpha)
-            .put("pipLayers", JSONArray().apply { s.pipLayers.forEach { p -> put(JSONObject().put("id", p.id).put("uri", p.uri).put("x", p.x).put("y", p.y).put("scale", p.scale).put("rotation", p.rotation).put("alpha", p.alpha).put("visible", p.visible).put("locked", p.locked)) })
+            .put("pipLayers", JSONArray().apply { s.pipLayers.forEach { p -> put(JSONObject().put("id", p.id).put("uri", p.uri).put("x", p.x).put("y", p.y).put("scale", p.scale).put("rotation", p.rotation).put("alpha", p.alpha).put("visible", p.visible).put("locked", p.locked)) } })
             .put("sticker", s.sticker).put("stickerX", s.stickerX).put("stickerY", s.stickerY)
             .put("stickerScale", s.stickerScale).put("stickerRotation", s.stickerRotation).put("stickerAlpha", s.stickerAlpha)
             .put("transition", s.transition)
