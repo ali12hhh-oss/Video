@@ -599,11 +599,7 @@ private fun ProjectsScreen(
                             onOpen = { onOpenProject(project) },
                             onRename = { renameTarget = project },
                             onDelete = { deleteTarget = project },
-                            onFreezeFrame = {
-                    createFreezeFrame()
-                    tool = null
-                },
-                onDuplicate = { duplicateTarget = project }
+                            onDuplicate = { duplicateTarget = project }
                         )
                     }
                 }
@@ -1731,6 +1727,15 @@ private fun EditorScreen(
                     Icon(Icons.Default.AudioFile, null, Modifier.size(17.dp))
                     Spacer(Modifier.width(5.dp))
                     Text(if (language == AppLanguage.ARABIC) "استخراج الصوت" else "Extract audio", fontSize = 10.sp)
+                }
+                Spacer(Modifier.width(6.dp))
+                OutlinedButton(
+                    onClick = { createFreezeFrame() },
+                    enabled = current != null
+                ) {
+                    Icon(Icons.Default.PauseCircle, null, Modifier.size(17.dp))
+                    Spacer(Modifier.width(5.dp))
+                    Text(if (language == AppLanguage.ARABIC) "إطار ثابت" else "Freeze frame", fontSize = 10.sp)
                 }
             }
             LazyRow(Modifier.fillMaxWidth().padding(horizontal = 10.dp), horizontalArrangement = Arrangement.spacedBy(7.dp), contentPadding = PaddingValues(bottom = 12.dp)) {
