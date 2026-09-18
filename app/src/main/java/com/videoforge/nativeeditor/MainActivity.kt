@@ -1,4 +1,4 @@
-@file:androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])
+@file:androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class, androidx.compose.material3.ExperimentalMaterial3Api::class])
 
 package com.videoforge.nativeeditor
 
@@ -1554,7 +1554,7 @@ private fun EditorFeaturePanel(
                 Row(Modifier.fillMaxWidth().padding(horizontal=12.dp),verticalAlignment=Alignment.CenterVertically) {
                     when(audioFeature) {
                         "volume" -> {
-                            Text((audioClip.audioVolume*100).toInt().toString()+"%",fontSize=10.sp,Modifier.width(42.dp))
+                            Text((audioClip.audioVolume*100).toInt().toString()+"%",fontSize=10.sp,modifier=Modifier.width(42.dp))
                             Slider(
                                 value=audioClip.audioVolume,
                                 onValueChange={v -> onCurrentClipChange(audioClip.copy(audioVolume=v.coerceIn(0f,2f)))},
@@ -1562,7 +1562,7 @@ private fun EditorFeaturePanel(
                             )
                         }
                         "fadeIn" -> {
-                            Text(audioClip.audioFadeIn.toInt().toString()+"s",fontSize=10.sp,Modifier.width(42.dp))
+                            Text(audioClip.audioFadeIn.toInt().toString()+"s",fontSize=10.sp,modifier=Modifier.width(42.dp))
                             Slider(
                                 value=audioClip.audioFadeIn,
                                 onValueChange={v -> onCurrentClipChange(audioClip.copy(audioFadeIn=v.coerceIn(0f,10f)))},
@@ -1570,7 +1570,7 @@ private fun EditorFeaturePanel(
                             )
                         }
                         "fadeOut" -> {
-                            Text(audioClip.audioFadeOut.toInt().toString()+"s",fontSize=10.sp,Modifier.width(42.dp))
+                            Text(audioClip.audioFadeOut.toInt().toString()+"s",fontSize=10.sp,modifier=Modifier.width(42.dp))
                             Slider(
                                 value=audioClip.audioFadeOut,
                                 onValueChange={v -> onCurrentClipChange(audioClip.copy(audioFadeOut=v.coerceIn(0f,10f)))},
