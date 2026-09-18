@@ -297,6 +297,7 @@ private fun VideoForgeApp() {
     var projectName by remember { mutableStateOf(context.getString(R.string.new_project)) }
     var selected by remember { mutableIntStateOf(0) }
     var showTemplates by remember { mutableStateOf(false) }
+    var showSettings by remember { mutableStateOf(false) }
 
     val picker = rememberLauncherForActivityResult(
         ActivityResultContracts.PickMultipleVisualMedia(20)
@@ -366,6 +367,7 @@ private fun VideoForgeApp() {
                         language = it
                         LanguageManager.setLanguage(context, it)
                     },
+                    onOpenSettings = { showSettings = true },
                     selected = selected,
                     onSelected = { selected = it },
                     onNewProject = { projectId = ProjectRepository.newId(); projectName = context.getString(R.string.new_project); clips = emptyList(); showEditor = true },
@@ -391,6 +393,17 @@ private fun VideoForgeApp() {
         }
     }
 
+    if (showSettings) {
+        SettingsSheet(
+            language = language,
+            onLanguageSelected = {
+                language = it
+                LanguageManager.setLanguage(context, it)
+            },
+            onDismiss = { showSettings = false }
+        )
+    }
+
     if (showTemplates) {
         TemplatesSheet(onDismiss = { showTemplates = false }, onUseTemplate = {
             showTemplates = false
@@ -403,6 +416,7 @@ private fun VideoForgeApp() {
 private fun HomeScreen(
     language: AppLanguage,
     onLanguageSelected: (AppLanguage) -> Unit,
+    onOpenSettings: () -> Unit,
     selected: Int,
     onSelected: (Int) -> Unit,
     onNewProject: () -> Unit,
@@ -449,7 +463,7 @@ private fun HomeScreen(
     ) {
     Scaffold(
         containerColor = Color(0xFFF5F7FB),
-        topBar = { HomeTopBar(language, onLanguageSelected) },
+        topBar = { HomeTopBar(language, onLanguageSelected, onOpenSettings) },
         bottomBar = {
             HomeBottomBar(selected = selected, onSelected = onSelected, onNewProject = onNewProject)
         }
@@ -695,13 +709,24 @@ private fun ProjectListCard(
 }
 
 @Composable
-private fun HomeTopBar(language: AppLanguage, onLanguageSelected: (AppLanguage) -> Unit) {
-    var expanded by remember { mutableStateOf(false) }
+private fun HomeTopBar(
+    language: AppLanguage,
+    onLanguageSelected: (AppLanguage) -> Unit,
+    onOpenSettings: () -> Unit
+) {
+    var languageMenu by remember { mutableStateOf(false) }
     Surface(color = Color.White, shadowElevation = 2.dp) {
         Row(
-            Modifier.fillMaxWidth().height(68.dp).padding(horizontal = 14.dp),
+            Modifier.fillMaxWidth().height(68.dp).padding(horizontal = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            IconButton(onClick = onOpenSettings) {
+                Icon(
+                    Icons.Default.Menu,
+                    contentDescription = if (language == AppLanguage.ARABIC) "الإعدادات" else "Settings",
+                    tint = Color(0xFF172033)
+                )
+            }
             androidx.compose.foundation.Image(
                 painter = painterResource(R.drawable.videoforge_logo),
                 contentDescription = stringResource(R.string.app_name),
@@ -710,22 +735,41 @@ private fun HomeTopBar(language: AppLanguage, onLanguageSelected: (AppLanguage) 
             )
             Box {
                 OutlinedButton(
-                    onClick = { expanded = true },
+                    onClick = { languageMenu = true },
                     shape = RoundedCornerShape(22.dp),
                     border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF6D3DFF)),
                     colors = ButtonDefaults.outlinedButtonColors(
-                        containerColor = Color(0xFFF5F1FF), contentColor = Color(0xFF4B278F)
+                        containerColor = Color(0xFFF5F1FF),
+                        contentColor = Color(0xFF4B278F)
                     ),
-                    contentPadding = PaddingValues(horizontal = 11.dp, vertical = 4.dp)
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
                 ) {
                     Icon(Icons.Default.Language, null, Modifier.size(18.dp), tint = Color(0xFF6D3DFF))
                     Spacer(Modifier.width(5.dp))
-                    Text(if (language == AppLanguage.ARABIC) "العربية" else "English", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
-                    Icon(Icons.Default.ExpandMore, null, Modifier.size(17.dp))
+                    Text(
+                        if (language == AppLanguage.ARABIC) "العربية" else "English",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
                 }
-                DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                    DropdownMenuItem(text = { Text(stringResource(R.string.arabic)) }, onClick = { expanded = false; onLanguageSelected(AppLanguage.ARABIC) })
-                    DropdownMenuItem(text = { Text(stringResource(R.string.english)) }, onClick = { expanded = false; onLanguageSelected(AppLanguage.ENGLISH) })
+                DropdownMenu(
+                    expanded = languageMenu,
+                    onDismissRequest = { languageMenu = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.arabic)) },
+                        onClick = {
+                            languageMenu = false
+                            onLanguageSelected(AppLanguage.ARABIC)
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.english)) },
+                        onClick = {
+                            languageMenu = false
+                            onLanguageSelected(AppLanguage.ENGLISH)
+                        }
+                    )
                 }
             }
         }
@@ -1076,6 +1120,163 @@ private fun HomeBottomBar(selected: Int, onSelected: (Int) -> Unit, onNewProject
             },
             label = { Text(stringResource(R.string.new_project), fontSize = 9.sp) }
         )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SettingsSheet(
+    language: AppLanguage,
+    onLanguageSelected: (AppLanguage) -> Unit,
+    onDismiss: () -> Unit
+) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = Color.White
+    ) {
+        Column(
+            Modifier.fillMaxWidth().verticalScroll(rememberScrollState())
+                .padding(horizontal = 18.dp, vertical = 8.dp)
+        ) {
+            Text(
+                stringResource(R.string.settings),
+                color = Color(0xFF172033),
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                if (language == AppLanguage.ARABIC) "إعدادات VideoForge والمحرر" else "VideoForge and editor settings",
+                color = Color(0xFF667085),
+                fontSize = 11.sp
+            )
+
+            Spacer(Modifier.height(18.dp))
+            Text(
+                if (language == AppLanguage.ARABIC) "عام" else "General",
+                color = Color(0xFF6D3DFF),
+                fontWeight = FontWeight.Bold,
+                fontSize = 12.sp
+            )
+            Spacer(Modifier.height(7.dp))
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = Color(0xFFF5F7FB),
+                shape = RoundedCornerShape(14.dp)
+            ) {
+                Row(
+                    Modifier.fillMaxWidth().padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Default.Language, null, tint = Color(0xFF6D3DFF))
+                    Spacer(Modifier.width(10.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(stringResource(R.string.language), color = Color(0xFF172033), fontWeight = FontWeight.SemiBold)
+                        Text(
+                            if (language == AppLanguage.ARABIC) "العربية" else "English",
+                            color = Color(0xFF667085),
+                            fontSize = 10.sp
+                        )
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        FilterChip(
+                            selected = language == AppLanguage.ARABIC,
+                            onClick = { onLanguageSelected(AppLanguage.ARABIC) },
+                            label = { Text(stringResource(R.string.arabic), fontSize = 10.sp) }
+                        )
+                        FilterChip(
+                            selected = language == AppLanguage.ENGLISH,
+                            onClick = { onLanguageSelected(AppLanguage.ENGLISH) },
+                            label = { Text(stringResource(R.string.english), fontSize = 10.sp) }
+                        )
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(16.dp))
+            Text(
+                if (language == AppLanguage.ARABIC) "المحرر" else "Editor",
+                color = Color(0xFF6D3DFF),
+                fontWeight = FontWeight.Bold,
+                fontSize = 12.sp
+            )
+            Spacer(Modifier.height(7.dp))
+            SettingsInfoRow(
+                icon = Icons.Default.VideoSettings,
+                title = if (language == AppLanguage.ARABIC) "إعدادات التحرير" else "Editing settings",
+                description = if (language == AppLanguage.ARABIC) "خيارات مرتبطة بسلوك محرر الفيديو وأدواته" else "Options related to the video editor and its tools"
+            )
+            SettingsInfoRow(
+                icon = Icons.Default.Tune,
+                title = if (language == AppLanguage.ARABIC) "إعدادات المعالجة" else "Processing settings",
+                description = if (language == AppLanguage.ARABIC) "إعدادات الصورة والصوت والمؤثرات المستخدمة أثناء التحرير" else "Video, audio and effects processing options"
+            )
+
+            Spacer(Modifier.height(16.dp))
+            Text(
+                if (language == AppLanguage.ARABIC) "التصدير" else "Export",
+                color = Color(0xFF6D3DFF),
+                fontWeight = FontWeight.Bold,
+                fontSize = 12.sp
+            )
+            Spacer(Modifier.height(7.dp))
+            SettingsInfoRow(
+                icon = Icons.Default.VideoFile,
+                title = if (language == AppLanguage.ARABIC) "إعدادات التصدير" else "Export settings",
+                description = if (language == AppLanguage.ARABIC) "الدقة والترميز ومعدل الإطارات وجودة الفيديو" else "Resolution, codec, frame rate and video quality"
+            )
+
+            Spacer(Modifier.height(16.dp))
+            Text(
+                if (language == AppLanguage.ARABIC) "التطبيق" else "Application",
+                color = Color(0xFF6D3DFF),
+                fontWeight = FontWeight.Bold,
+                fontSize = 12.sp
+            )
+            Spacer(Modifier.height(7.dp))
+            SettingsInfoRow(
+                icon = Icons.Default.Storage,
+                title = if (language == AppLanguage.ARABIC) "المشاريع والمسودات" else "Projects & drafts",
+                description = if (language == AppLanguage.ARABIC) "إدارة المشاريع المحفوظة وملفات العمل" else "Manage saved projects and working files"
+            )
+            SettingsInfoRow(
+                icon = Icons.Default.Info,
+                title = if (language == AppLanguage.ARABIC) "حول VideoForge" else "About VideoForge",
+                description = if (language == AppLanguage.ARABIC) "معلومات التطبيق وإصداره" else "Application information and version"
+            )
+            Spacer(Modifier.height(16.dp))
+        }
+    }
+}
+
+@Composable
+private fun SettingsInfoRow(
+    icon: ImageVector,
+    title: String,
+    description: String
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth().padding(bottom = 7.dp),
+        color = Color(0xFFF5F7FB),
+        shape = RoundedCornerShape(14.dp)
+    ) {
+        Row(
+            Modifier.padding(13.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                Modifier.size(40.dp).clip(RoundedCornerShape(11.dp)).background(Color(0xFFEDE8FF)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(icon, null, tint = Color(0xFF6D3DFF))
+            }
+            Spacer(Modifier.width(11.dp))
+            Column(Modifier.weight(1f)) {
+                Text(title, color = Color(0xFF172033), fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+                Spacer(Modifier.height(2.dp))
+                Text(description, color = Color(0xFF667085), fontSize = 9.sp)
+            }
+        }
     }
 }
 
