@@ -358,8 +358,8 @@ class ExportEngine(private val context: Context, private val resolver: ContentRe
                 if (editor.musicFadeIn > 0f || editor.musicFadeOut > 0f) {
                     musicAudioProcessors += VolumeEnvelopeProcessor(
                         musicActiveDurationMs.coerceAtLeast(1L) * 1000L,
-                        editor.musicFadeIn.coerceIn(0f, 30f) * 1_000_000L,
-                        editor.musicFadeOut.coerceIn(0f, 30f) * 1_000_000L
+                        (editor.musicFadeIn.coerceIn(0f, 30f) * 1_000_000f).toLong(),
+                        (editor.musicFadeOut.coerceIn(0f, 30f) * 1_000_000f).toLong()
                     )
                 }
                 val musicItem = EditedMediaItem.Builder(musicMediaItem)
@@ -372,13 +372,9 @@ class ExportEngine(private val context: Context, private val resolver: ContentRe
             tempFileToDelete = temp
             if (temp.exists()) temp.delete()
 
-            val bitrate = estimateBitrate(settings).coerceAtLeast(500_000)
-            val encoderFactory = DefaultEncoderFactory.Builder(context)
-                .setRequestedVideoEncoderSettings(VideoEncoderSettings.Builder().setBitrate(bitrate).build()).build()
             val transformer = Transformer.Builder(context)
                 .setVideoMimeType(if (settings.hevc) MimeTypes.VIDEO_H265 else MimeTypes.VIDEO_H264)
                 .setAudioMimeType(MimeTypes.AUDIO_AAC)
-                .setEncoderFactory(encoderFactory)
                 .setPortraitEncodingEnabled(true)
                 .build()
 
