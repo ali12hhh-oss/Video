@@ -172,9 +172,12 @@ private fun hasVideoPermission(context: android.content.Context): Boolean {
 
 private fun mediaDurationMs(context: android.content.Context, uri: Uri): Long {
     return runCatching {
-        MediaMetadataRetriever().use { retriever ->
+        val retriever = MediaMetadataRetriever()
+        try {
             retriever.setDataSource(context, uri)
             retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L
+        } finally {
+            retriever.release()
         }
     }.getOrDefault(0L)
 }
