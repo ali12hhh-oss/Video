@@ -2999,3 +2999,48 @@ private fun OverlayDialog(
         onDismissRequest=onDismiss,
         title={ Text(if(language==AppLanguage.ARABIC) "طبقات الصورة / PIP" else "Image / PIP Layers") },
         text={ Column(Modifier.verticalScroll(rememberScrollState()).fillMaxWidth(), verticalArrangement=Arrangement.spacedBy(6.dp)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement=Arrangement.spacedBy(6.dp)) {
+                Button(onClick=onPickImage, modifier=Modifier.weight(1f)) { Icon(Icons.Default.AddPhotoAlternate,null); Spacer(Modifier.width(4.dp)); Text(if(language==AppLanguage.ARABIC) "إضافة PIP" else "Add PIP") }
+                OutlinedButton(onClick=onAiCutout, modifier=Modifier.weight(1f)) { Icon(Icons.Default.AutoAwesome,null); Spacer(Modifier.width(4.dp)); Text(if(language==AppLanguage.ARABIC) "قص AI" else "AI Cutout") }
+            }
+            if (layers.isEmpty()) {
+                Text(if(language==AppLanguage.ARABIC) "لا توجد طبقات. أضف صورة أو نتيجة قص AI." else "No PIP layers. Add an image or an AI cutout.", color=Color.Gray, fontSize=11.sp)
+            } else {
+                Text(if(language==AppLanguage.ARABIC) "ترتيب الطبقات — الأعلى يظهر فوق ما تحته" else "Layer order — higher rows render above lower rows", fontWeight=FontWeight.SemiBold, fontSize=12.sp)
+                layers.forEachIndexed { index, layer ->
+                    val active=index==selected
+                    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).background(if(active) Color(0xFF25203A) else Color(0xFF151922)).clickable{selected=index}.padding(6.dp), verticalAlignment=Alignment.CenterVertically) {
+                        Text((index+1).toString(), color=if(active) Color(0xFFB88CFF) else Color.Gray, fontWeight=FontWeight.Bold, modifier=Modifier.width(22.dp))
+                        Text("PIP " + (index+1), Modifier.weight(1f), maxLines=1, fontSize=11.sp)
+                        IconButton(onClick={ if(index>0){ val n=layers.toMutableList(); val t=n[index-1]; n[index-1]=n[index]; n[index]=t; layers=n; selected=index-1 } }, enabled=index>0, modifier=Modifier.size(30.dp)){ Icon(Icons.Default.KeyboardArrowUp,null,Modifier.size(18.dp)) }
+                        IconButton(onClick={ if(index<layers.lastIndex){ val n=layers.toMutableList(); val t=n[index+1]; n[index+1]=n[index]; n[index]=t; layers=n; selected=index+1 } }, enabled=index<layers.lastIndex, modifier=Modifier.size(30.dp)){ Icon(Icons.Default.KeyboardArrowDown,null,Modifier.size(18.dp)) }
+                        IconButton(onClick={ layers=layers.filterIndexed{i,_->i!=index}; selected=(selected.coerceAtMost(layers.lastIndex)).coerceAtLeast(0) }, modifier=Modifier.size(30.dp)){ Icon(Icons.Default.DeleteOutline,null,Modifier.size(18.dp)) }
+                    }
+                }
+                selectedLayer?.let { layer ->
+                    HorizontalDivider()
+                    Text(if(language==AppLanguage.ARABIC) "الطبقة المحددة" else "Selected layer", fontWeight=FontWeight.Bold)
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement=Arrangement.spacedBy(5.dp)) {
+                        FilterChip(selected=layer.visible, onClick={editSelected{it.copy(visible=!it.visible)}}, label={Text(if(language==AppLanguage.ARABIC) if(layer.visible) "مرئية" else "مخفية" else if(layer.visible) "Visible" else "Hidden")}, leadingIcon={Icon(if(layer.visible) Icons.Default.Visibility else Icons.Default.VisibilityOff,null,Modifier.size(16.dp))})
+                        AssistChip(onClick={ val copy=layer.copy(id=System.nanoTime().toString(), x=(layer.x+0.08f).coerceIn(-1f,1f), y=(layer.y+0.08f).coerceIn(-1f,1f)); layers=layers+copy; selected=layers.lastIndex }, label={Text(if(language==AppLanguage.ARABIC) "تكرار" else "Duplicate")}, leadingIcon={Icon(Icons.Default.ContentCopy,null,Modifier.size(16.dp))})
+                    }
+                    Text(if(language==AppLanguage.ARABIC) "الموضع الأفقي " + (layer.x*100).toInt() + "%" else "Horizontal " + (layer.x*100).toInt() + "%")
+                    Slider(layer.x,{v->editSelected{it.copy(x=v)}},-1f..1f)
+                    Text(if(language==AppLanguage.ARABIC) "الموضع العمودي " + (layer.y*100).toInt() + "%" else "Vertical " + (layer.y*100).toInt() + "%")
+                    Slider(layer.y,{v->editSelected{it.copy(y=v)}},-1f..1f)
+                    Text(if(language==AppLanguage.ARABIC) "الحجم " + (layer.scale*100).toInt() + "%" else "Scale " + (layer.scale*100).toInt() + "%")
+                    Slider(layer.scale,{v->editSelected{it.copy(scale=v)}},0.08f..2f)
+                    Text(if(language==AppLanguage.ARABIC) "الدوران " + layer.rotation.toInt() + "°" else "Rotation " + layer.rotation.toInt() + "°")
+                    Slider(layer.rotation,{v->editSelected{it.copy(rotation=v)}},-180f..180f)
+                    Text(if(language==AppLanguage.ARABIC) "الشفافية " + (layer.alpha*100).toInt() + "%" else "Opacity " + (layer.alpha*100).toInt() + "%")
+                    Slider(layer.alpha,{v->editSelected{it.copy(alpha=v)}},0.05f..1f)
+                }
+            }
+            Text(if(language==AppLanguage.ARABIC) "طبقة لونية " + (s.overlayOpacity*100).toInt() + "%" else "Color overlay " + (s.overlayOpacity*100).toInt() + "%", fontSize=11.sp)
+            Slider(s.overlayOpacity,{v->commit(opacity=v)},0f..0.75f)
+            if(layers.isNotEmpty()) OutlinedButton(onClick={layers=emptyList();selected=0}, modifier=Modifier.fillMaxWidth()){ Icon(Icons.Default.DeleteSweep,null); Spacer(Modifier.width(5.dp)); Text(if(language==AppLanguage.ARABIC) "إزالة جميع طبقات PIP" else "Remove all PIP layers") }
+        } },
+        confirmButton={TextButton(onClick={commit();onDismiss()}){Text(if(language==AppLanguage.ARABIC) "تطبيق" else "Apply")}},
+        dismissButton={TextButton(onClick=onDismiss){Text(if(language==AppLanguage.ARABIC) "إلغاء" else "Cancel")}}
+    )
+}
