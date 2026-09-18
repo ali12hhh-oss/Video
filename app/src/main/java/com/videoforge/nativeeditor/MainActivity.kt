@@ -1376,6 +1376,8 @@ private fun EditorScreen(
     var showLayers by remember { mutableStateOf(false) }
     var showMarkers by remember { mutableStateOf(false) }
     var playheadMs by remember { mutableLongStateOf(0L) }
+    var previewPlaying by remember { mutableStateOf(false) }
+    var previewError by remember { mutableStateOf<String?>(null) }
     var exportSettings by remember { mutableStateOf(ExportSettings()) }
     var status by remember { mutableStateOf("") }
     var lastExportUri by remember { mutableStateOf<Uri?>(null) }
@@ -1649,16 +1651,34 @@ private fun EditorScreen(
             )
         },
         bottomBar = {
-            NavigationBar(containerColor = Color(0xFF070D17)) {
-                val labels = if (language == AppLanguage.ARABIC) listOf("تحرير", "الصوت", "التأثيرات", "الإعدادات") else listOf("Edit", "Audio", "Effects", "Settings")
-                val icons = listOf(Icons.Default.Edit, Icons.Default.AudioFile, Icons.Default.AutoAwesome, Icons.Default.Settings)
-                labels.forEachIndexed { i, label ->
-                    NavigationBarItem(
-                        selected = false,
-                        onClick = { tool = listOf("edit", "audio", "effects", "settings")[i] },
-                        icon = { Icon(icons[i], null) },
-                        label = { Text(label, fontSize = 9.sp) }
+            Surface(
+                color = Color(0xFF0A0F18),
+                tonalElevation = 8.dp,
+                shadowElevation = 10.dp
+            ) {
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 5.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    val dockTools = listOf(
+                        Triple("edit", Icons.Default.Edit, if(language==AppLanguage.ARABIC)"تحرير" else "Edit"),
+                        Triple("audio", Icons.Default.AudioFile, if(language==AppLanguage.ARABIC)"صوت" else "Audio"),
+                        Triple("effects", Icons.Default.AutoAwesome, if(language==AppLanguage.ARABIC)"مؤثرات" else "Effects"),
+                        Triple("filters", Icons.Default.FilterVintage, if(language==AppLanguage.ARABIC)"فلتر" else "Filter"),
+                        Triple("text", Icons.Default.TextFields, if(language==AppLanguage.ARABIC)"نص" else "Text"),
+                        Triple("more", Icons.Default.MoreHoriz, if(language==AppLanguage.ARABIC)"المزيد" else "More")
                     )
+                    dockTools.forEach { (id, icon, label) ->
+                        Column(
+                            Modifier.weight(1f).clip(RoundedCornerShape(10.dp))
+                                .clickable { tool = id }
+                                .padding(vertical = 4.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Icon(icon, null, tint = Color.White, modifier = Modifier.size(23.dp))
+                            Text(label, color = Color(0xFFB7C0D0), fontSize = 8.sp, maxLines = 1)
+                        }
+                    }
                 }
             }
         }
@@ -1675,29 +1695,68 @@ private fun EditorScreen(
                 AssistChip(onClick = {}, label = { Text(if (language == AppLanguage.ARABIC) "محفوظ" else "Saved", fontSize = 10.sp) }, leadingIcon = { Icon(Icons.Default.CloudDone, null, Modifier.size(16.dp)) })
             }
 
-            EditorPreview(current, settings, playheadMs, current?.let { timelinePositionOf(clips, it) } ?: 0L, onSettingsChange = { next ->
-                settings = next
-                EditorSettingsRepository.save(context, projectId, next)
-            })
+            EditorPreview(
+                clip = current,
+                settings = settings,
+                playheadMs = playheadMs,
+                clipOffsetMs = current?.let { timelinePositionOf(clips, it) } ?: 0L,
+                onSettingsChange = { next ->
+                    settings = next
+                    EditorSettingsRepository.save(context, projectId, next)
+                },
+                onPlaybackPosition = { position ->
+                    playheadMs = position.coerceIn(0L, timelineTotalDuration(clips))
+                    timelineClipAt(clips, playheadMs)?.let { (clipAtPlayhead, _) ->
+                        if (clipAtPlayhead != current) current = clipAtPlayhead
+                    }
+                },
+                onPlaybackStateChanged = { previewPlaying = it },
+                onPlaybackError = { previewError = it }
+            )
 
-            Text(if (language == AppLanguage.ARABIC) "أدوات التحرير" else "Editing tools", fontWeight = FontWeight.Bold, fontSize = 14.sp, modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp))
-            LazyRow(Modifier.fillMaxWidth().padding(horizontal = 10.dp), horizontalArrangement = Arrangement.spacedBy(7.dp), contentPadding = PaddingValues(bottom = 5.dp)) {
-                val tools = listOf(
-                    Triple("edit", Icons.Default.Edit, if(language==AppLanguage.ARABIC)"تحرير" else "Edit"),
-                    Triple("text", Icons.Default.TextFields, if(language==AppLanguage.ARABIC)"النص" else "Text"),
-                    Triple("audio", Icons.Default.MusicNote, if(language==AppLanguage.ARABIC)"الصوت" else "Audio"),
-                    Triple("effects", Icons.Default.AutoAwesome, if(language==AppLanguage.ARABIC)"المؤثرات" else "Effects"),
-                    Triple("filters", Icons.Default.FilterVintage, if(language==AppLanguage.ARABIC)"الفلاتر" else "Filters"),
-                    Triple("adjust", Icons.Default.Tune, if(language==AppLanguage.ARABIC)"الضبط" else "Adjust"),
-                    Triple("canvas", Icons.Default.CropFree, if(language==AppLanguage.ARABIC)"المقاس" else "Canvas"),
-                    Triple("transition", Icons.Default.SwapHoriz, if(language==AppLanguage.ARABIC)"الانتقال" else "Transition"),
-                    Triple("subtitles", Icons.Default.Subtitles, if(language==AppLanguage.ARABIC)"الترجمة" else "Subtitles"),
-                    Triple("layers", Icons.Default.Layers, if(language==AppLanguage.ARABIC)"الطبقات" else "Layers"),
-                    Triple("videoKeyframes", Icons.Default.Timeline, if(language==AppLanguage.ARABIC)"الحركة" else "Motion"),
-                    Triple("more", Icons.Default.MoreHoriz, if(language==AppLanguage.ARABIC)"المزيد" else "More")
-                )
-                items(tools,key={it.first}){(id,icon,label)->Column(Modifier.width(76.dp).clip(RoundedCornerShape(13.dp)).background(Color(0xFF0D1724)).clickable{tool=id}.padding(vertical=9.dp),horizontalAlignment=Alignment.CenterHorizontally){Icon(icon,null,tint=Color(0xFFD09CFF),modifier=Modifier.size(24.dp));Spacer(Modifier.height(4.dp));Text(label,fontSize=9.sp,maxLines=1)}}
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(
+                    onClick = { playheadMs = (playheadMs - 5000L).coerceAtLeast(0L) },
+                    enabled = current != null
+                ) { Icon(Icons.Default.Replay5, null) }
+
+                Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        "${formatDuration(playheadMs)} / ${formatDuration(timelineTotalDuration(clips))}",
+                        color = Color.White,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    previewError?.let {
+                        Text(
+                            if (language == AppLanguage.ARABIC) "تعذر تشغيل المعاينة" else "Preview playback error",
+                            color = Color(0xFFFF8A80),
+                            fontSize = 9.sp
+                        )
+                    }
+                }
+
+                FilledIconButton(
+                    onClick = { previewError = null },
+                    enabled = current != null
+                ) {
+                    Icon(if (previewPlaying) Icons.Default.Pause else Icons.Default.PlayArrow, null)
+                }
+
+                IconButton(
+                    onClick = { playheadMs = (playheadMs + 5000L).coerceAtMost(timelineTotalDuration(clips)) },
+                    enabled = current != null
+                ) { Icon(Icons.Default.Forward5, null) }
+
+                IconButton(onClick = { tool = "canvas" }, enabled = current != null) {
+                    Icon(Icons.Default.CropFree, null)
+                }
             }
+
+            // Primary tools are placed after the timeline to match a professional editor workflow.
             Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(if (language == AppLanguage.ARABIC) "المخطط الزمني" else "Timeline", fontSize = 15.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
                 Text("${clips.size} ${if (language == AppLanguage.ARABIC) "مقطع" else "clips"}", color = Color.Gray, fontSize = 10.sp)
@@ -1780,6 +1839,46 @@ private fun EditorScreen(
                     playheadMs = (offset + newLocal).coerceIn(0L, timelineTotalDuration(clips))
                 }
             )
+
+            Text(
+                if (language == AppLanguage.ARABIC) "أدوات التحرير" else "Editing tools",
+                fontWeight = FontWeight.Bold,
+                fontSize = 14.sp,
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp)
+            )
+            LazyRow(
+                Modifier.fillMaxWidth().padding(horizontal = 10.dp),
+                horizontalArrangement = Arrangement.spacedBy(7.dp),
+                contentPadding = PaddingValues(bottom = 5.dp)
+            ) {
+                val tools = listOf(
+                    Triple("edit", Icons.Default.Edit, if(language==AppLanguage.ARABIC)"تحرير" else "Edit"),
+                    Triple("text", Icons.Default.TextFields, if(language==AppLanguage.ARABIC)"النص" else "Text"),
+                    Triple("audio", Icons.Default.MusicNote, if(language==AppLanguage.ARABIC)"الصوت" else "Audio"),
+                    Triple("effects", Icons.Default.AutoAwesome, if(language==AppLanguage.ARABIC)"المؤثرات" else "Effects"),
+                    Triple("filters", Icons.Default.FilterVintage, if(language==AppLanguage.ARABIC)"الفلاتر" else "Filters"),
+                    Triple("adjust", Icons.Default.Tune, if(language==AppLanguage.ARABIC)"الضبط" else "Adjust"),
+                    Triple("canvas", Icons.Default.CropFree, if(language==AppLanguage.ARABIC)"المقاس" else "Canvas"),
+                    Triple("transition", Icons.Default.SwapHoriz, if(language==AppLanguage.ARABIC)"الانتقال" else "Transition"),
+                    Triple("subtitles", Icons.Default.Subtitles, if(language==AppLanguage.ARABIC)"الترجمة" else "Subtitles"),
+                    Triple("layers", Icons.Default.Layers, if(language==AppLanguage.ARABIC)"الطبقات" else "Layers"),
+                    Triple("videoKeyframes", Icons.Default.Timeline, if(language==AppLanguage.ARABIC)"الحركة" else "Motion"),
+                    Triple("more", Icons.Default.MoreHoriz, if(language==AppLanguage.ARABIC)"المزيد" else "More")
+                )
+                items(tools,key={it.first}){(id,icon,label)->
+                    Column(
+                        Modifier.width(76.dp).clip(RoundedCornerShape(13.dp))
+                            .background(Color(0xFF0D1724))
+                            .clickable{tool=id}
+                            .padding(vertical=9.dp),
+                        horizontalAlignment=Alignment.CenterHorizontally
+                    ) {
+                        Icon(icon,null,tint=Color(0xFFD09CFF),modifier=Modifier.size(24.dp))
+                        Spacer(Modifier.height(4.dp))
+                        Text(label,fontSize=9.sp,maxLines=1)
+                    }
+                }
+            }
 
             Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 7.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(onClick = { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly)) }, modifier = Modifier.weight(1f)) {
@@ -2013,7 +2112,16 @@ onDuplicate = {
 }
 
 @Composable
-private fun EditorPreview(clip: Clip?, settings: EditorSettings, playheadMs: Long, clipOffsetMs: Long = 0L, onSettingsChange: (EditorSettings) -> Unit) {
+private fun EditorPreview(
+    clip: Clip?,
+    settings: EditorSettings,
+    playheadMs: Long,
+    clipOffsetMs: Long = 0L,
+    onSettingsChange: (EditorSettings) -> Unit,
+    onPlaybackPosition: (Long) -> Unit = {},
+    onPlaybackStateChanged: (Boolean) -> Unit = {},
+    onPlaybackError: (String) -> Unit = {}
+) {
     val context = LocalContext.current
     val ratio = when (settings.aspect) { "9:16" -> 9f/16f; "1:1" -> 1f; "4:5" -> 4f/5f; "2:3" -> 2f/3f; "3:4" -> 3f/4f; "3:2" -> 3f/2f; "21:9" -> 21f/9f; else -> 16f/9f }
     BoxWithConstraints(Modifier.fillMaxWidth().padding(horizontal = 10.dp)) {
@@ -2031,6 +2139,9 @@ private fun EditorPreview(clip: Clip?, settings: EditorSettings, playheadMs: Lon
                         MediaItem.fromUri(clip.uri)
                     }
                     setMediaItem(item)
+                    // Initialize the Media3 effects pipeline before prepare so the preview
+                    // decoder can render reliably even when effects are changed later.
+                    setVideoEffects(emptyList())
                     prepare()
                     playWhenReady = false
                 }
@@ -2045,6 +2156,26 @@ private fun EditorPreview(clip: Clip?, settings: EditorSettings, playheadMs: Lon
                     playWhenReady = false
                 }
             }
+            DisposableEffect(player) {
+                val listener = object : androidx.media3.common.Player.Listener {
+                    override fun onIsPlayingChanged(isPlaying: Boolean) {
+                        onPlaybackStateChanged(isPlaying)
+                    }
+                    override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+                        onPlaybackError(error.message ?: "Playback error")
+                        onPlaybackStateChanged(false)
+                    }
+                    override fun onPlaybackStateChanged(state: Int) {
+                        if (state == androidx.media3.common.Player.STATE_ENDED) onPlaybackStateChanged(false)
+                    }
+                }
+                player.addListener(listener)
+                onDispose {
+                    player.removeListener(listener)
+                    onPlaybackStateChanged(false)
+                }
+            }
+
             fun interpolateVolume(keys: List<ClipAudioKeyframe>, timeMs: Long, fallback: Float): Float {
                 if (keys.isEmpty()) return fallback
                 val sorted = keys.sortedBy { it.timeMs }
@@ -2194,11 +2325,35 @@ private fun EditorPreview(clip: Clip?, settings: EditorSettings, playheadMs: Lon
                             if (kotlin.math.abs(musicPlayer.currentPosition - target) > 500L) musicPlayer.seekTo(target)
                         }
                     }
+                    onPlaybackPosition(
+                        (clipOffsetMs + localNow).coerceIn(
+                            clipOffsetMs,
+                            clipOffsetMs + clipTimelineDuration(clip)
+                        )
+                    )
                     delay(80L)
                 }
             }
-            DisposableEffect(player, musicPlayer) { onDispose { player.release(); musicPlayer.release() } }
-            AndroidView(factory = { ctx -> PlayerView(ctx).apply { this.player = player; useController = true } }, modifier = Modifier.fillMaxSize())
+            DisposableEffect(player, musicPlayer) {
+                onDispose {
+                    player.pause()
+                    musicPlayer.pause()
+                    player.release()
+                    musicPlayer.release()
+                }
+            }
+            AndroidView(
+                factory = { ctx ->
+                    val view = android.view.LayoutInflater.from(ctx)
+                        .inflate(R.layout.view_editor_player, null, false) as PlayerView
+                    view.setEnableComposeSurfaceSyncWorkaround(true)
+                    view.player = player
+                    view.keepScreenOn = true
+                    view
+                },
+                update = { view -> view.player = player },
+                modifier = Modifier.fillMaxSize()
+            )
             Box(
                 Modifier.fillMaxSize().pointerInput(clip.uri, playheadMs, settings.videoKeyframes, settings.cropZoom, settings.cropX, settings.cropY, settings.rotation) {
                     detectTransformGestures { _, pan, zoom, rotation ->
