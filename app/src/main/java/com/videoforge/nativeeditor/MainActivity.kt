@@ -2064,6 +2064,13 @@ private fun EditorPreview(clip: Clip?, settings: EditorSettings, playheadMs: Lon
                 val effects = mutableListOf<Effect>()
                 if (settings.brightness != 0f) effects += Brightness(settings.brightness.coerceIn(-1f, 1f))
                 if (settings.blurRadius > 0.01f) effects += GaussianBlur(settings.blurRadius.coerceIn(0.1f, 20f))
+                if (settings.mosaicEnabled) effects += MosaicEffect(
+                    settings.mosaicX.coerceIn(0f, 1f),
+                    settings.mosaicY.coerceIn(0f, 1f),
+                    settings.mosaicWidth.coerceIn(0.01f, 1f),
+                    settings.mosaicHeight.coerceIn(0.01f, 1f),
+                    settings.mosaicBlockSize.coerceIn(0.005f, 0.25f)
+                )
                 if (settings.contrast != 1f) effects += Contrast(((settings.contrast - 1f) * 0.5f).coerceIn(-1f, 1f))
                 if (settings.saturation != 1f || settings.hue != 0f || settings.temperature != 0f || settings.tint != 0f) effects += HslAdjustment.Builder().adjustSaturation(((settings.saturation - 1f) * 100f + settings.temperature * 0.10f).coerceIn(-100f, 100f)).adjustHue((settings.hue + settings.temperature * 0.12f + settings.tint * 0.08f).coerceIn(-180f, 180f)).build()
                 when (settings.filter) {
