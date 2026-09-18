@@ -560,7 +560,7 @@ private fun HomeScreen(
             HeroCard(language = language, onNewProject = onNewProject)
             Spacer(Modifier.height(16.dp))
 
-            ActionCards(onImport = onImport, onTemplates = onOpenTemplates, onCapture = {
+            ActionCards(onImport = onNewProject, onTemplates = onOpenTemplates, onCapture = {
                 val intent = Intent(MediaStore.ACTION_VIDEO_CAPTURE)
                 try { context.startActivity(intent) } catch (_: Exception) { }
             })
@@ -893,34 +893,34 @@ private fun HeroCard(language: AppLanguage, onNewProject: () -> Unit) {
                 .fillMaxSize()
                 .background(
                     Brush.verticalGradient(
-                        listOf(Color.Transparent, Color.Transparent, Color(0xC9000815))
+                        listOf(Color.Transparent, Color(0x18000815), Color(0xD9000815))
                     )
                 )
         )
 
         Column(
             Modifier
-                .align(alignment)
-                .widthIn(max = 300.dp)
-                .padding(horizontal = 22.dp),
-            horizontalAlignment = if (language == AppLanguage.ARABIC) Alignment.End else Alignment.Start
+                .align(Alignment.TopCenter)
+                .widthIn(max = 340.dp)
+                .padding(horizontal = 22.dp, vertical = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
                 stringResource(R.string.turn_ideas),
-                fontSize = 24.sp,
-                lineHeight = 28.sp,
+                fontSize = 27.sp,
+                lineHeight = 32.sp,
                 fontWeight = FontWeight.ExtraBold,
-                textAlign = textAlign
+                textAlign = TextAlign.Center
             )
-            Spacer(Modifier.height(6.dp))
+            Spacer(Modifier.height(7.dp))
             Text(
                 stringResource(R.string.professional_tools),
                 color = Color.White.copy(alpha = .9f),
-                fontSize = 12.sp,
-                lineHeight = 17.sp,
-                textAlign = textAlign
+                fontSize = 14.sp,
+                lineHeight = 20.sp,
+                textAlign = TextAlign.Center
             )
-            Spacer(Modifier.height(15.dp))
+            Spacer(Modifier.height(16.dp))
             Button(
                 onClick = onNewProject,
                 shape = RoundedCornerShape(28.dp),
@@ -928,7 +928,7 @@ private fun HeroCard(language: AppLanguage, onNewProject: () -> Unit) {
                 contentPadding = PaddingValues(horizontal = 17.dp, vertical = 8.dp)
             ) {
                 if (language == AppLanguage.ARABIC) {
-                    Text(stringResource(R.string.new_project), fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    Text(stringResource(R.string.new_project), fontWeight = FontWeight.Bold, fontSize = 14.sp)
                     Spacer(Modifier.width(6.dp))
                     Icon(Icons.Default.Add, null, Modifier.size(18.dp))
                     Spacer(Modifier.width(2.dp))
@@ -1013,9 +1013,9 @@ private fun HomeActionCard(
             Icon(icon, null, Modifier.size(27.dp), tint = Color.White)
         }
         Spacer(Modifier.height(8.dp))
-        Text(title, fontWeight = FontWeight.Bold, fontSize = 11.sp, maxLines = 2, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+        Text(title, fontWeight = FontWeight.Bold, fontSize = 13.sp, lineHeight = 16.sp, maxLines = 2, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
         Spacer(Modifier.height(3.dp))
-        Text(subtitle, color = Color.White.copy(alpha = .7f), fontSize = 8.sp, maxLines = 2, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+        Text(subtitle, color = Color.White.copy(alpha = .9f), fontSize = 10.sp, lineHeight = 13.sp, maxLines = 2, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
     }
 }
 
@@ -1028,10 +1028,10 @@ private fun SectionHeader(title: String, action: String?, onAction: (() -> Unit)
         verticalAlignment = Alignment.CenterVertically
     ) {
         if (action != null) {
-            Text(action, color = Color(0xFF9D70FF), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.clickable { onAction?.invoke() })
+            Text(action, color = Color(0xFF9D70FF), fontSize = 13.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.clickable { onAction?.invoke() })
             Spacer(Modifier.weight(1f))
         }
-        Text(title, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+        Text(title, fontSize = 20.sp, fontWeight = FontWeight.Bold)
     }
 }
 
@@ -1058,17 +1058,17 @@ private fun QuickTools() {
             val label = tool.label
             Column(
                 Modifier
-                    .width(67.dp)
-                    .height(76.dp)
+                    .width(74.dp)
+                    .height(82.dp)
                     .clip(RoundedCornerShape(13.dp))
                     .background(Color(0xFF0E1725))
                     .padding(vertical = 9.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
-                Icon(icon, null, tint = Color(0xFFD09CFF), modifier = Modifier.size(24.dp))
-                Spacer(Modifier.height(5.dp))
-                Text(label, fontSize = 9.sp, maxLines = 1)
+                Icon(icon, null, tint = Color(0xFFD09CFF), modifier = Modifier.size(26.dp))
+                Spacer(Modifier.height(6.dp))
+                Text(label, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
             }
         }
     }
@@ -1131,8 +1131,8 @@ private fun RecentProjects(
                     }
                 }
                 Spacer(Modifier.height(7.dp))
-                Text(project.name, color = Color(0xFF172033), fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1)
-                Text(formatProjectDate(project.dateModifiedSeconds), color = Color(0xFF667085), fontSize = 8.sp, maxLines = 1)
+                Text(project.name, color = Color(0xFF101828), fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                Text(formatProjectDate(project.dateModifiedSeconds), color = Color(0xFF475467), fontSize = 10.sp, maxLines = 1)
             }
         }
     }
@@ -1164,8 +1164,8 @@ private fun PremiumBanner() {
         }
         Spacer(Modifier.width(9.dp))
         Column(Modifier.weight(1f)) {
-            Text(stringResource(R.string.premium_features), fontWeight = FontWeight.Bold, color = Color(0xFFFFD36B), fontSize = 13.sp)
-            Text(stringResource(R.string.premium_description), fontSize = 8.sp, color = Color.LightGray, maxLines = 2)
+            Text(stringResource(R.string.premium_features), fontWeight = FontWeight.Bold, color = Color(0xFFFFD36B), fontSize = 15.sp)
+            Text(stringResource(R.string.premium_description), fontSize = 10.sp, lineHeight = 14.sp, color = Color.White.copy(alpha = 0.88f), maxLines = 2)
         }
         Button(
             onClick = {},
@@ -1173,14 +1173,14 @@ private fun PremiumBanner() {
             contentPadding = PaddingValues(horizontal = 11.dp, vertical = 5.dp),
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF7041FF))
         ) {
-            Text(stringResource(R.string.upgrade_now), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.upgrade_now), fontSize = 12.sp, fontWeight = FontWeight.Bold)
         }
     }
 }
 
 @Composable
 private fun HomeBottomBar(selected: Int, onSelected: (Int) -> Unit, onNewProject: () -> Unit) {
-    NavigationBar(containerColor = Color.White, tonalElevation = 2.dp, modifier = Modifier.height(72.dp)) {
+    NavigationBar(containerColor = Color.White, tonalElevation = 2.dp, modifier = Modifier.height(78.dp)) {
         NavigationBarItem(
             selected = selected == 0, onClick = { onSelected(0) },
             icon = { Icon(Icons.Default.Home, null) },
@@ -1194,12 +1194,12 @@ private fun HomeBottomBar(selected: Int, onSelected: (Int) -> Unit, onNewProject
         NavigationBarItem(
             selected = false, onClick = onNewProject,
             icon = {
-                Box(Modifier.size(50.dp).offset(y = (-8).dp).clip(RoundedCornerShape(50))
+                Box(Modifier.size(56.dp).offset(y = (-2).dp).clip(androidx.compose.foundation.shape.CircleShape)
                     .background(Brush.linearGradient(listOf(Color(0xFF8A45FF), Color(0xFF216DFF)))),
                     contentAlignment = Alignment.Center
                 ) { Icon(Icons.Default.Add, null, Modifier.size(30.dp), tint = Color.White) }
             },
-            label = { Text(stringResource(R.string.new_project), fontSize = 9.sp) }
+            label = { Text(stringResource(R.string.new_project), fontSize = 11.sp, fontWeight = FontWeight.SemiBold) }
         )
     }
 }
