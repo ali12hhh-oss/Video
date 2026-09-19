@@ -182,3 +182,10 @@
 - Fixed a Kotlin/Compose syntax error in `EditorDialogs.kt` inside `LayerManagerDialog` that caused `:app:compileDebugKotlin` to fail in GitHub Actions run `35456115407`.
 - Preserved the layer ordering, visibility, and delete controls; only the malformed dialog structure was corrected.
 - Fix commit: `b2d3e598ef3eb73d611560c666c332d6470aa71e`.
+
+
+## 2026-09-19 — Text keyframe controls
+- Improved the text keyframe dialog so users can select the exact text layer instead of always editing the first layer.
+- Added bilingual layer selection, position controls, and easing selection (`linear`, `easeIn`, `easeOut`, `easeInOut`, `hold`).
+- Existing keyframes at the same timeline position are replaced deterministically.
+- Commit: `da7a39321aad5c160ef87205edb8820dbc24f63b`.
