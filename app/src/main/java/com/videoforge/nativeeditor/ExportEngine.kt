@@ -572,16 +572,25 @@ class ExportEngine(private val context: Context, private val resolver: ContentRe
             ) else emptyList()
         }
         pipLayers.filter { it.visible && it.uri.isNotBlank() }.forEach { pip ->
-            runCatching {
-                val overlaySettings = StaticOverlaySettings.Builder()
-                    .setBackgroundFrameAnchor(pip.x.coerceIn(-1f, 1f), pip.y.coerceIn(-1f, 1f))
-                    .setOverlayFrameAnchor(0f, 0f)
-                    .setScale(pip.scale.coerceIn(0.05f, 1.5f), pip.scale.coerceIn(0.05f, 1.5f))
-                    .setRotationDegrees(pip.rotation)
-                    .setAlphaScale(pip.alpha.coerceIn(0f, 1f))
-                    .build()
-                overlays += BitmapOverlay.createStaticBitmapOverlay(context, Uri.parse(pip.uri), overlaySettings)
-            }
+            val pipUri = Uri.parse(pip.uri)
+            val readable = runCatching {
+                if (pipUri.scheme.equals("file", ignoreCase = true)) {
+                    val path = pipUri.path ?: return@runCatching false
+                    File(path).takeIf { it.isFile && it.length() > 0L } != null
+                } else {
+                    resolver.openInputStream(pipUri)?.use { it.read() >= 0 } == true
+                }
+            }.getOrDefault(false)
+            require(readable) { "PIP layer cannot be read: ${pip.uri}" }
+
+            val overlaySettings = StaticOverlaySettings.Builder()
+                .setBackgroundFrameAnchor(pip.x.coerceIn(-1f, 1f), pip.y.coerceIn(-1f, 1f))
+                .setOverlayFrameAnchor(0f, 0f)
+                .setScale(pip.scale.coerceIn(0.05f, 1.5f), pip.scale.coerceIn(0.05f, 1.5f))
+                .setRotationDegrees(pip.rotation)
+                .setAlphaScale(pip.alpha.coerceIn(0f, 1f))
+                .build()
+            overlays += BitmapOverlay.createStaticBitmapOverlay(context, pipUri, overlaySettings)
         }
         if (includeWatermark) {
             runCatching {
