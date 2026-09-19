@@ -211,3 +211,11 @@
 - **الوصف:** تم إصلاح تحميل إعدادات الموزايك من تخزين المشروع. كانت قيم `mosaicEnabled` و`mosaicBlockSize` وموضع/حجم منطقة الموزايك تُحفظ، لكن لا تُقرأ عند إعادة فتح المشروع؛ أصبحت الآن تُستعاد مع باقي إعدادات المحرر.
 - **الملف:** app/src/main/java/com/videoforge/nativeeditor/EditorSettings.kt.
 - **Commit:** 4dd4d2a201093143da58718ea0778d3d737bb397.
+
+
+## 2026-09-19 — Home page cleanup and media import
+- Removed the hero heading/subtitle that presented the home page as “turn ideas into videos”, keeping the primary new-project action.
+- Removed the Premium/Pro upgrade banner from the home page; the current app presentation is free and ad-supported.
+- Changed the home bottom-bar + import flow to Android's document picker with explicit image/* + video/* MIME types and multi-select support (up to 20 items), so both photos and videos can be selected.
+- The picker remains system-owned; its typography/colors are controlled by Android/OEM and are not overridden by VideoForge.
+- Commit: a716853b34c0faddab163eba2ef6ecfc182fbd9f
