@@ -296,3 +296,7 @@
 - Crop dialog now provides zoom and X/Y framing controls.
 - Layer manager now allows visibility changes and layer deletion.
 - Changes use the existing `EditorSettingsRepository` autosave/restore path.
+
+
+## 2026-09-19 — Layer workflow refinement
+- Layer manager now supports reordering text layers in addition to visibility and deletion.
