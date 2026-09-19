@@ -195,7 +195,20 @@ fun AiStudioScreen(isArabic: Boolean, onBack: () -> Unit, onOpenInEditor: (Uri) 
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showOutputChoice = false; onOpenInEditor(resultUri!!) }) {
+                TextButton(onClick = {
+                    val bitmap = resultBitmap!!
+                    scope.launch {
+                        val editorUri = withContext(Dispatchers.IO) {
+                            AiPhotoProcessor.saveForEditor(context, bitmap, "VideoForge_AI_${System.currentTimeMillis()}")
+                        }
+                        if (editorUri != null) {
+                            showOutputChoice = false
+                            onOpenInEditor(editorUri)
+                        } else {
+                            errorText = if (isArabic) "تعذر تجهيز الصورة للمحرر." else "Could not prepare the image for the editor."
+                        }
+                    }
+                }) {
                     Icon(Icons.Default.VideoLibrary, null); Spacer(Modifier.width(6.dp))
                     Text(if (isArabic) "فتح في المحرر" else "Open in editor")
                 }
