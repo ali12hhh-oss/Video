@@ -228,15 +228,13 @@ fun AiStudioScreen(isArabic: Boolean, onBack: () -> Unit, onOpenInEditor: (Uri) 
         isProcessing = true
         scope.launch {
             try {
-                val generated = LocalAiImageGenerator.generate(
-                    context = context,
+                val composed = LocalDreamInpaintingClient.inpaint(
                     source = source,
+                    mask = mask,
                     prompt = prompt,
-                    iterations = 16
+                    denoiseStrength = 0.78f,
+                    steps = 20
                 ).getOrThrow()
-                val composed = withContext(Dispatchers.Default) {
-                    AiRealEditEngine.compositeByMask(source, generated, mask)
-                }
                 resultBitmap = composed
                 resultUri = withContext(Dispatchers.IO) {
                     val file = File(context.cacheDir, "ai_masked_edit_${System.currentTimeMillis()}.jpg")
