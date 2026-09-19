@@ -69,7 +69,11 @@ fun AiStudioScreen(isArabic: Boolean, onBack: () -> Unit, onOpenInEditor: (Uri) 
     var showOutputChoice by remember { mutableStateOf(false) }
     var isProcessing by remember { mutableStateOf(false) }
     var errorText by remember { mutableStateOf<String?>(null) }
-    var comparePosition by remember { mutableFloatStateOf(0.5f) }\n    var aiPrompt by remember { mutableStateOf("") }\n    var aiModelReady by remember { mutableStateOf(LocalAiImageGenerator.isReady(context)) }\n    var aiDownloadProgress by remember { mutableIntStateOf(0) }\n    var aiStatus by remember { mutableStateOf<String?>(null) }
+    var comparePosition by remember { mutableFloatStateOf(0.5f) }
+    var aiPrompt by remember { mutableStateOf("") }
+    var aiModelReady by remember { mutableStateOf(LocalAiImageGenerator.isReady(context)) }
+    var aiDownloadProgress by remember { mutableIntStateOf(0) }
+    var aiStatus by remember { mutableStateOf<String?>(null) }
 
     val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) {
