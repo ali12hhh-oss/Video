@@ -108,6 +108,8 @@ fun AiStudioScreen(isArabic: Boolean, onBack: () -> Unit, onOpenInEditor: (Uri) 
     var aiModelReady by remember { mutableStateOf(LocalAiImageGenerator.isReady(context)) }
     var aiDownloadProgress by remember { mutableIntStateOf(0) }
     var aiStatus by remember { mutableStateOf<String?>(null) }
+    var showMaskEditor by remember { mutableStateOf(false) }
+    var maskBitmap by remember { mutableStateOf<Bitmap?>(null) }
 
     val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) {
@@ -205,6 +207,47 @@ fun AiStudioScreen(isArabic: Boolean, onBack: () -> Unit, onOpenInEditor: (Uri) 
             } catch (t: Throwable) {
                 errorText = t.localizedMessage
                     ?: if (isArabic) "تعذر استبدال الخلفية بالذكاء الاصطناعي." else "AI background replacement failed."
+            } finally {
+                isProcessing = false
+            }
+        }
+    }
+
+    fun applyMaskedAiEdit() {
+        val source = sourceBitmap ?: return
+        val mask = maskBitmap ?: return
+        val prompt = aiPrompt.ifBlank {
+            if (isArabic) "عدّل المنطقة المحددة فقط بشكل واقعي ومتناسق مع الصورة" else "Edit only the selected region realistically and consistently with the photo"
+        }
+        if (!LocalAiImageGenerator.isReady(context)) {
+            aiStatus = if (isArabic) "جهّز محرك AI أولًا." else "Prepare the AI engine first."
+            return
+        }
+        chosenStyle = null
+        errorText = null
+        isProcessing = true
+        scope.launch {
+            try {
+                val generated = LocalAiImageGenerator.generate(
+                    context = context,
+                    source = source,
+                    prompt = prompt,
+                    iterations = 16
+                ).getOrThrow()
+                val composed = withContext(Dispatchers.Default) {
+                    AiRealEditEngine.compositeByMask(source, generated, mask)
+                }
+                resultBitmap = composed
+                resultUri = withContext(Dispatchers.IO) {
+                    val file = File(context.cacheDir, "ai_masked_edit_${System.currentTimeMillis()}.jpg")
+                    file.outputStream().use { composed.compress(Bitmap.CompressFormat.JPEG, 95, it) }
+                    Uri.fromFile(file)
+                }
+                comparePosition = 0.5f
+                showOutputChoice = true
+            } catch (t: Throwable) {
+                errorText = t.localizedMessage
+                    ?: if (isArabic) "تعذر تنفيذ تعديل المنطقة المحددة." else "Masked AI edit failed."
             } finally {
                 isProcessing = false
             }
@@ -352,6 +395,27 @@ fun AiStudioScreen(isArabic: Boolean, onBack: () -> Unit, onOpenInEditor: (Uri) 
                         Spacer(Modifier.width(8.dp))
                         Text(if (isArabic) "استبدال الخلفية بالـAI" else "Replace background with AI")
                     }
+
+                    OutlinedButton(
+                        enabled = sourceBitmap != null && !isProcessing,
+                        onClick = { showMaskEditor = true },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.LayersClear, null)
+                        Spacer(Modifier.width(8.dp))
+                        Text(if (isArabic) "تحديد منطقة للتعديل بالفرشاة" else "Paint a region for AI editing")
+                    }
+                    if (maskBitmap != null) {
+                        Button(
+                            enabled = !isProcessing,
+                            onClick = ::applyMaskedAiEdit,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(Icons.Default.AutoAwesome, null)
+                            Spacer(Modifier.width(8.dp))
+                            Text(if (isArabic) "تطبيق AI على المنطقة المحددة" else "Apply AI to selected region")
+                        }
+                    }
                 }
             }
 
@@ -485,6 +549,22 @@ fun AiStudioScreen(isArabic: Boolean, onBack: () -> Unit, onOpenInEditor: (Uri) 
             }
             errorText?.let { Text(it, color = MaterialTheme.colorScheme.error) }
         }
+    }
+
+    if (showMaskEditor && sourceBitmap != null) {
+        AiMaskEditorDialog(
+            source = sourceBitmap!!,
+            isArabic = isArabic,
+            onDismiss = { showMaskEditor = false },
+            onApply = { mask ->
+                maskBitmap = mask
+                showMaskEditor = false
+                aiStatus = if (isArabic)
+                    "تم حفظ التحديد. اكتب وصف التعديل ثم طبّقه على المنطقة المحددة."
+                else
+                    "Mask saved. Describe the change, then apply it to the selected region."
+            }
+        )
     }
 
     if (showOutputChoice && resultUri != null && resultBitmap != null) {
