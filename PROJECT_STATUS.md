@@ -1,107 +1,194 @@
-# VideoForgeNative — Current Project Status
+# VideoForgeNative Professional — وثيقة المشروع الرئيسية
 
-## Current focus: video editing
-This project remains a single continuous project (not split into versions).
+> **حالة الوثيقة:** إعادة صياغة منظمة لما هو موثق ومفحوص حتى الآن. هذه الوثيقة ليست شهادة اكتمال نهائي؛ كل ميزة تحتاج اختبارًا على جهاز فعلي وبناءً ناجحًا قبل إعلان اكتمالها.
+>
+> **المستودع:** https://github.com/ali12hhh-oss/Video  
+> **الحزمة:** `com.videoforge.nativeeditor`  
+> **طبيعة المنتج:** تطبيق Android أصلي لتحرير الفيديو، يُطوّر باستمرار كمشروع واحد متصل، دون تقسيمه إلى نسخ أو مشاريع بديلة.
 
-### Video editing implemented / continued
-- Native Android Kotlin + Jetpack Compose editor.
-- Multi-clip timeline with global playhead and draggable playhead.
-- Trim handles with minimum-duration protection.
-- Video transform preview: zoom, pan, rotation and gesture control.
-- Horizontal/vertical flip controls with persistent project settings.
-- Reframe/aspect controls: 16:9, 9:16, 1:1 and 4:5; preview and fixed-resolution export use the selected aspect ratio.
-- Video motion keyframes for X/Y/scale/rotation.
-- Motion keyframe easing: linear, ease-in, ease-out and ease-in-out.
-- Speed presets plus speed-ramping keyframes with easing; export now applies the ramp through Media3 SpeedProvider instead of exporting only the base speed.
-- Color controls: brightness, contrast, saturation and hue.
-- Filter presets: warm, cool, grayscale, sepia, inverted and vivid.
-- Export resolution, FPS, quality and H.264/H.265 controls.
-- Media3 Transformer export pipeline for trims, transforms, color effects, overlays and speed changes.
-- Sticker editor: selectable sticker presets with position, scale, rotation and opacity controls; the same settings are persisted and applied to preview/export.
-- Video settings persist per project, including motion/speed keyframes, easing and flips.
+---
 
-### Important verification note
-A local Android build has not been run in this environment because the project does not include a Gradle wrapper and a `gradle` executable is unavailable here. The source was inspected and updated statically; device/build verification still needs to be performed in Android Studio or GitHub Actions.
+## 1. الرؤية والهدف
 
-## Next editing areas
-After the video pass, continue with the remaining editor areas such as advanced audio/music UX, text/subtitles polish, transitions, export UX and final polish.
+تطوير **VideoForgeNative Professional** إلى محرر فيديو محمول متكامل، سريع ومستقر، بواجهة عربية/إنجليزية وتجربة استخدام احترافية. المطلوب ليس واجهات تجريبية أو أزرارًا شكلية؛ كل أداة يجب أن تكون موصولة بمسار البيانات والمعاينة والحفظ والتصدير، أو أن تُعلَّم بوضوح بأنها غير منفذة بعد.
 
-### Reliability / export safety pass
-- Export now performs preflight validation for clip duration settings and source URI readability before starting Media3 Transformer.
-- Export rejects HEVC requests when no HEVC encoder is available and rejects H.264 requests when no AVC encoder is available.
-- Background music source is validated before export.
-- Content URIs selected through the media/music pickers request persistent read access where supported, reducing broken-project references after restart.
+الأهداف الأساسية:
+- تحرير غير هدّام يحافظ على ملفات المستخدم الأصلية.
+- معاينة متوافقة قدر الإمكان مع النتيجة النهائية المصدّرة.
+- حفظ المشاريع وإعادة فتحها دون فقد إعدادات أو مراجع الوسائط.
+- أدوات تحرير منظمة وقابلة للتوسع، مع معالجة أخطاء مفهومة.
+- واجهة متجاوبة، تدعم العربية RTL والإنجليزية LTR.
+- جودة تصدير موثوقة مع فحص مسبق للمصادر وإمكانات الترميز.
+- الحفاظ على الميزات الموجودة وعدم إزالة أي ميزة عند تطوير أخرى.
 
-## Latest completed editor work
-- Added persistent text-layer name, visibility, and lock state.
-- Added a layer manager with reorder, hide/show, lock/unlock, rename, duplicate, add, and delete actions.
-- Hidden text layers are excluded from preview and export; locked layers reject direct gesture edits.
-- Added SRT subtitle import and export with timed parsing and bilingual controls.
-- Fixed legacy text export fallback so `plus()` is no longer used without assigning its result.
-- Added static structural checks after these changes. Android Gradle build/Lint still requires an Android SDK/Gradle environment and remains intentionally deferred to the final GitHub build stage.
+## 2. التقنية والبنية المعروفة
 
-## Audio enhancement pass — 2026-09-17
-- Added configurable music-ducking attack/release times.
-- Persisted duck attack/release settings with backward-compatible defaults.
-- Preview applies the same ducking ramp as export.
-- Export music automation now generates attack/release transition points and supports overlapping audible clips.
-- Static Kotlin delimiter scan passed.
-- Gradle/Lint runtime build remains intentionally deferred to final GitHub stage.
+- Kotlin وAndroid Native.
+- Jetpack Compose لبناء الواجهات.
+- AndroidX Media3 Transformer لمسار التصدير.
+- MediaStore للتعامل مع الملفات الناتجة حيث يلزم.
+- ML Kit Subject Segmentation لأداة إزالة خلفية الصور.
+- تخزين إعدادات التحرير بصيغة JSON في SharedPreferences، مع دعم ترحيل بعض الحقول القديمة.
+- ملفات أساسية تمت مراجعتها جزئيًا أو كليًا: `MainActivity.kt`, `Timeline.kt`, `EditorSettings.kt`, `ExportEngine.kt`, `ExportModels.kt`, `ProjectRepository.kt`, `EditorDialogs.kt`, `MediaToolsScreen.kt`, `AiStudioScreen.kt`, `AudioExtractor.kt`, `LanguageManager.kt`, `MosaicEffect.kt`، وملف CI.
 
-## Multi-layer PIP pass — 2026-09-18
-- Replaced the single-image PIP export path with a persistent multi-layer PIP model while keeping backward compatibility with existing projects.
-- Multiple image/PIP layers can now be added from the existing image picker; each layer stores its own position, scale, rotation, opacity and visibility.
-- PIP layers are persisted with the project and restored after reopening.
-- All visible PIP layers are included in Media3 Transformer export, instead of only one image overlay.
-- PIP layers are also rendered in the editor preview.
+**تنبيه معماري:** لا تُعد قائمة الملفات أعلاه حصرًا نهائيًا لكل المستودع؛ مراجعة بقية المصدر والموارد والاعتماديات والاختبارات ما زالت مطلوبة.
 
-## Multi-layer PIP controls — 2026-09-18
-- Added an in-editor PIP layer manager for the multi-layer model.
-- Layers can be selected, reordered up/down, duplicated, hidden/shown, edited, or deleted.
-- Selected-layer controls now expose position, scale, rotation, and opacity.
-- Added remove-all-PIP action while preserving the existing legacy single-overlay fields for backward compatibility.
-- PIP ordering remains consistent with the persisted layer list used by preview/export.
+## 3. الميزات الموثقة في الشيفرة حتى الآن
 
-## Professional crop presets — 2026-09-18
-- Added 2:3, 3:4, 3:2 and ultra-wide 21:9 canvas presets.
-- Preview aspect handling supports the new ratios.
-- Media3 export presentation now maps the new ratios and keeps the selected export quality as the long-edge bound.
-- Existing 16:9, 9:16, 1:1 and 4:5 presets remain supported.
+### 3.1 استيراد المشاريع والوسائط
+- اختيار عدة صور/فيديوهات من منتقي الوسائط (الحد الظاهر في المسار المفحوص يصل إلى 20 عنصرًا).
+- استخدام مراجع URI للوسائط المختارة، مع طلب صلاحية قراءة مستمرة حيث تدعم المنصة ذلك.
+- إدارة مشاريع عبر `ProjectRepository`، مع ضرورة استكمال تدقيق دورة الحفظ والاستعادة لجميع أنواع الطبقات والإعدادات.
 
-## Audio extraction foundation — 2026-09-18
-- Added a non-destructive `AudioExtractor` engine.
-- It detects the first audio track and extracts AAC (`audio/mp4a-latm`) without re-encoding into an M4A file under `Music/VideoForge`.
-- The original video is never modified.
-- The engine reports extraction progress and cleans up partial MediaStore output on failure.
-- UI wiring remains part of the next integration pass; final Gradle/Lint verification is still intentionally deferred.
-## Audio extraction UI integration — 2026-09-18
-- Added a direct **Extract audio / استخراج الصوت** action to the editor.
-- The action extracts the selected clip's AAC audio non-destructively through `AudioExtractor` and saves the resulting M4A in `Music/VideoForge`.
-- Progress is shown in the editor status area and failures are surfaced without modifying the source video.
-- Commit: `38fe3ca409fe6557d41ae819f874dbbca84488ab`.
-## Freeze frame — 2026-09-18
-- Added non-destructive freeze-frame creation at the current playhead position.
-- The editor captures the source frame, inserts it as a timed 1-second image clip, and splits the source clip around the freeze point when needed.
-- Freeze-frame metadata is persisted with projects.
-- Media3 export now treats freeze frames as timed image inputs and removes their audio.
-- Editor preview supports timed image playback for freeze-frame clips.
-- Commits: `600fbabca2ebc3e31b84a6d2de94b51a5eb3d8d0`, `3827ab8e41f5d14753805242b38c09015b2742e2`, `23c38e841352d8bede86bf666936ca8a0eba0451`.
+### 3.2 الخط الزمني والتحرير الأساسي
+- خط زمني متعدد المقاطع مع مؤشر تشغيل عام قابل للسحب.
+- أدوات مقاطع موثقة تشمل القص (Trim)، التقسيم (Split)، التحريك/إعادة الترتيب والحذف.
+- توجد أدوات في الواجهة تحتاج تدقيقًا إضافيًا للتأكد من أن كل نافذة أو زر ينفذ تغييرًا فعليًا ويحدّث حالة المشروع.
+- الشكل المفحوص سابقًا يعرض المقاطع كبطاقات أفقية؛ لم يثبت بعد اكتمال تجربة مسارات احترافية مستقلة متعددة كما في برامج سطح المكتب.
 
-## Professional licensed font expansion — 2026-09-18
-- Added four additional Arabic + Latin font families from the official Google Fonts repository: Cairo, Tajawal, IBM Plex Sans Arabic, and Readex Pro.
-- Bundled font files under `app/src/main/res/font/` and documented their SIL Open Font License 1.1 sources in `FONT_LICENSES.md`.
-- Added all four families to the text editor font picker and wired them into Media3 export.
-- Variable-font families are also normalized through Typeface weight handling so Bold remains available in preview/export.
-- Commits: `bd647acf7b5fb39f96cc852bd6b5bcebd90c6d0c`, `7d6cd7ccffbc58ae4b03f48c47edcb74667c4ebe`, `a3af0f411ea52d7e6ed8acd52e4392f1f29f9abc`, `2feff3c9523c0e4b0182bca3265f50cdbdbac9ba`.
+### 3.3 تحويل الفيديو والحركة
+- تحكم في التكبير والإزاحة والدوران والقلب الأفقي/العمودي.
+- نسب إطار موثقة: 16:9، 9:16، 1:1، 4:5، 2:3، 3:4، 3:2، و21:9.
+- إطارات مفتاحية لحركة الفيديو، تشمل X/Y/Scale/Rotation، مع استيفاء وحركات easing: Linear وEase-in وEase-out وEase-in-out.
+- إعدادات السرعة المسبقة ومفاتيح تغيير السرعة تدريجيًا؛ مسار التصدير يستخدم `SpeedProvider` في Media3 وفق ما هو موثق.
+- إنشاء Freeze Frame غير هدّام عند موضع التشغيل، وإدراجه كمقطع صورة مؤقت، مع حفظ بياناته ودعم معاينته وتصديره وإزالة صوته.
 
+### 3.4 اللون والتأثيرات
+- تحكمات السطوع والتباين والتشبع ودرجة اللون (Hue).
+- مرشحات موثقة: Warm، Cool، Grayscale، Sepia، Inverted، Vivid.
+- تأثير Mosaic عبر معالجة GPU، وتأثيرات blur/brightness/contrast/HSL وغيرها ضمن مسار التصدير المفحوص.
+- ما زال مطلوبًا التحقق من تطابق المعاينة والتصدير لكل تأثير، وترتيب تكديس التأثيرات، والتعامل مع الأداء والذاكرة.
 
-## Expanded Arabic calligraphic and decorative font library — 2026-09-18
-- Added eight additional SIL OFL-licensed Arabic/Latin families from the official Google Fonts repository: Aref Ruqaa, El Messiri, Changa, Jomhuria, Lalezar, Katibeh, Lemonada, and Markazi Text.
-- Added calligraphic/display choices alongside the existing Noto, Amiri, Cairo, Tajawal, IBM Plex Sans Arabic, and Readex Pro families.
-- Bundled the font binaries under `app/src/main/res/font/` and wired every family into the editor preview and export font resolver.
-- Variable-weight families use the existing runtime Typeface weight handling; regular-only decorative families can still render synthesized bold when Bold is enabled.
+### 3.5 النصوص والخطوط والترجمات
+- طبقات نصية متعددة وإطارات مفتاحية للنص تشمل الموضع والحجم والدوران والشفافية وفق الوثائق/الشيفرة المفحوصة.
+- مدير طبقات نص موثق: إعادة ترتيب، إظهار/إخفاء، قفل/فتح، إعادة تسمية، تكرار، إضافة وحذف.
+- استيراد وتصدير SRT مع تحليل توقيت الترجمة، وواجهة تحكم ثنائية اللغة.
+- مكتبة خطوط عربية/لاتينية مضمّنة تشمل Noto وAmiri وCairo وTajawal وIBM Plex Sans Arabic وReadex Pro وAref Ruqaa وEl Messiri وChanga وJomhuria وLalezar وKatibeh وLemonada وMarkazi Text وLateef وHarmattan وMada وScheherazade New وReem Kufi وRubik. ملفات الترخيص موثقة في `FONT_LICENSES.md` وفق ما ورد في حالة المشروع.
+- يلزم اختبار النصوص العربية المركبة، اتجاه RTL، التشكيل، الالتفاف، الخطوط، ومطابقة التصدير على أجهزة وإصدارات Android متعددة.
 
-## More Arabic script styles — 2026-09-18
-- Added six further OFL-licensed families: Lateef, Harmattan, Mada, Scheherazade New, Reem Kufi, and Rubik.
-- The library now includes additional Naskh-style, flowing calligraphic, Kufi, modern sans, and display-oriented options for Arabic/English captions.
-- Each new family is bundled locally and connected to both the Compose preview picker and export resolver.
+### 3.6 الملصقات وطبقات الصورة/PIP
+- محرر ملصقات بإعدادات الموضع والحجم والدوران والشفافية، مع حفظ الإعدادات وتطبيقها في المعاينة والتصدير وفق ما هو موثق.
+- نموذج PIP متعدد الطبقات بدل مسار صورة واحدة، مع حفظ واستعادة الطبقات، وإظهارها في المعاينة والتصدير.
+- مدير PIP موثق لاختيار الطبقة وترتيبها ونسخها وإخفائها/إظهارها وتعديلها وحذفها، مع تحكمات الموضع والحجم والدوران والشفافية.
+- الإبقاء على حقول التوافق القديمة للطبقة الواحدة مهم عند فتح المشاريع القديمة.
+
+### 3.7 الصوت والموسيقى
+- إعدادات مستوى الصوت وأتمتة مستوى الصوت وإعدادات خفض الموسيقى (ducking)، بما فيها زمن الهجوم والتحرير، وفق تحديث 2026-09-17.
+- توثيق دعم نقاط أتمتة وتداخل المقاطع المسموعة في التصدير.
+- أداة استخراج الصوت `AudioExtractor`: تستخرج مسار AAC الأول إذا كان بترميز `audio/mp4a-latm` إلى M4A دون إعادة ترميز، وتحفظ الناتج في `Music/VideoForge`، وتعرض التقدم وتنظف الناتج الجزئي عند الفشل.
+- إجراء استخراج الصوت موصول بواجهة المحرر وفق تحديث 2026-09-18.
+- يلزم استكمال تدقيق مزج عدة مسارات صوتية، القص والتلاشي، المزامنة، معاينة الصوت، صيغ الترميز غير المدعومة، وواجهات إدارة الموسيقى.
+
+### 3.8 التصدير
+- مسار تصدير مبني على Media3 Transformer.
+- خيارات MP4، الدقة الأصلية و360p/480p/720p/1080p/1440p/2160p، ومعدلات 24/25/30/50/60 FPS، ومستويات الجودة AUTO/LOW/MEDIUM/HIGH/MAX، وH.264/H.265 وفق نماذج التصدير المفحوصة.
+- فحص مسبق لإمكانية قراءة مصادر المقاطع والموسيقى، والتحقق من توفر مرمّز AVC أو HEVC المطلوب.
+- يتضمن مسار التصدير المفحوص القص والتحويلات وبعض المؤثرات والطبقات والسرعة والصوت.
+- توجد قيود موثقة: الانتقالات المتقاطعة الحقيقية (cross-fades) لم يثبت دعمها كمسار كامل؛ بعض الانتقالات تعتمد حركات GPU عند حدود المقاطع. يجب وصف أي قيد في الواجهة بدل الإيحاء بوجود ميزة غير مكتملة.
+- لا بد من تدقيق نهائي شامل لمخرجات الصوت والنصوص والترجمات والطبقات، أخطاء الإلغاء، التقدم، مساحة التخزين، أسماء الملفات، ومشاركة الناتج.
+
+### 3.9 أدوات مساعدة وذكاء اصطناعي
+- شاشة Media Tools تستخدم ML Kit Subject Segmentation لإزالة خلفية الصور، وتحفظ PNG في cache وتعيد URI وفق الملف المفحوص.
+- شاشة AI Studio تعرض أنماطًا مثل Anime وCartoon وCinematic و3D وOil وManga وStudio وFantasy، لكن المعالجة الفعلية **غير موصولة بحسب الكود المفحوص**؛ لذلك تعد واجهة/تصورًا غير مكتمل ولا يجوز تسويقها كتحويل AI عامل قبل دمج محرك فعلي واختباره.
+
+### 3.10 اللغة والهوية
+- دعم العربية والإنجليزية عبر `LanguageManager` مع حفظ اختيار اللغة وتحديث Locale.
+- يجب تدقيق RTL/LTR في جميع الشاشات والحوار والتنبيهات والمحرر، لا الاكتفاء بوجود مدير لغة.
+- تفضيل أصول الصور النقطية PNG/WebP للرسومات والواجهات عند الحاجة، وتجنب SVG في تصميم التطبيق وفق توجيه المشروع.
+
+## 4. ما يحتاج إلى تعديل أو استكمال
+
+هذه البنود قائمة عمل وليست ادعاءً بأن جميعها معطوب؛ يجب تتبع كل عنصر من الواجهة إلى الحالة والحفظ والمعاينة والتصدير قبل تصنيفه نهائيًا.
+
+1. **إكمال التدقيق الوظيفي:** تتبع كل زر وأداة وحوار في `MainActivity.kt` وبقية الشاشات، والتأكد من أن الإجراء يغيّر بيانات المشروع فعلًا، ويُعرض في المعاينة، ويُحفظ، ويصل إلى التصدير عند انطباق ذلك.
+2. **الحوارات:** إعادة فحص `SubtitleDialog` و`TrimDialog` و`LayerManagerDialog` و`HistoryDialog` و`EditToolsDialog`؛ الفحص السابق رصد عناصر تستقبل callbacks أو تعرض حقولًا دون أن يتضح أنها تطبق التغيير بالكامل. يلزم إصلاح أي إجراء شكلي أو غير موصول.
+3. **حفظ واستعادة متكاملان:** اختبار جميع خصائص المشروع، مراجع URI، ترتيب الطبقات، الإخفاء والقفل، keyframes، الموسيقى، النصوص، PIP، Freeze Frame، ونسب الإطار بعد إغلاق التطبيق وإعادة فتحه. تدقيق التوافق والترحيل من بيانات الإصدارات السابقة.
+4. **تراجع/إعادة (Undo/Redo):** التحقق من اكتمال سجل الأوامر، شمول كل أنواع التعديلات، صحة التراجع المركب، وحدود الذاكرة؛ لا يُعلن الاكتمال قبل اختبارات فعلية.
+5. **المعاينة:** مزامنة إطار الفيديو والصوت ومؤشر الزمن؛ اختبار Seek سريع، تبديل المقاطع، الصور المجمدة، طبقات النص/PIP والملصقات، نسب الإطار، والتحويلات، ومعالجة حالات فك الترميز الفاشلة.
+6. **الخط الزمني الاحترافي:** تقييم الانتقال من عرض البطاقات إلى مسارات واضحة للفيديو والصوت والنصوص/PIP، مع تكبير وتصغير الزمن، سحب دقيق، snapping، تحديد متعدد، موجات صوتية، ومؤشرات keyframes، دون إزالة الأدوات الحالية.
+7. **الصوت:** إكمال تجربة إدارة الموسيقى والمقاطع، إضافة/حذف/قص/تحريك، التلاشي، التحكم بالمستوى، ducking، مزامنة المعاينة والتصدير، ومعالجة تنسيقات الصوت المختلفة. دعم استخراج صيغ أخرى فقط إذا أمكن تنفيذه واختباره بشكل موثوق.
+8. **النصوص والترجمات:** تدقيق إدخال وتعديل وحفظ كل حقل، توقيت SRT، تنسيق النص، محاذاة، خلفيات/حدود/ظلال عند توفرها، اتجاه العربية، ومنع اختلاف المعاينة عن التصدير.
+9. **الانتقالات والمؤثرات:** تحديد قائمة القدرات الحقيقية، تنفيذ الانتقالات المفقودة أو توضيح قيودها، وضمان ترتيب ثابت للمؤثرات وتوافقها مع الأجهزة.
+10. **التصدير:** تجربة ملفات قصيرة وطويلة، مصادر متعددة، نسب وأحجام مختلفة، AVC/HEVC، نقص مساحة التخزين، فقد الصلاحية، إلغاء التصدير، فشل Transformer، وإظهار أخطاء مفهومة. التحقق من سلامة الصوت والصورة ومدة الناتج.
+11. **AI Studio:** إما وصل كل نمط بمحرك معالجة حقيقي مناسب ومسموح الترخيص مع بيان الاتصال/التكلفة والخصوصية، أو إبقاءه معلّمًا بوضوح كميزة قيد التطوير وعدم تقديمه كميزة عاملة.
+12. **إزالة الخلفية:** اختبار الأداء والذاكرة ودقة الحواف والصور الكبيرة، وتوضيح توافق الأجهزة، وإضافة حالات فشل وإلغاء مناسبة.
+13. **واجهة احترافية:** مراجعة الشاشة الرئيسية والتنقل، حالات المشروع الفارغ/الأخطاء/التحميل، تصميم الأدوات، إمكانية الوصول، الشاشات الصغيرة والكبيرة، وتناسق RTL/LTR. التصميم المرجعي المعتمد يُستخدم لتوجيه إعادة تصميم المحرر مع المحافظة على الوظائف.
+14. **الأداء والاستقرار:** معالجة الذاكرة والملفات المؤقتة، تحرير الموارد، عدم تجميد الواجهة، التعامل مع ملفات ضخمة، واستعادة الحالة بعد تدوير الجهاز أو قتل العملية حيث يلزم.
+15. **الاختبارات:** إضافة اختبارات وحدات وتكامل للموديلات والتوقيت والاستيفاء والحفظ والترحيل والتصدير، وفحوص واجهة أساسية.
+16. **البناء والتوزيع:** تنفيذ Gradle build وLint في بيئة Android صالحة، ثم تثبيت APK وتجربة الاستخدام الفعلي. سجل المشروع يشير إلى أن البناء المحلي لم يكن متاحًا في بيئة الفحص لغياب Gradle wrapper/تنفيذي Gradle؛ لذلك لا يُستنتج نجاح البناء من الفحص الساكن.
+17. **الأمان والخصوصية والتراخيص:** مراجعة الصلاحيات، URI، التخزين المؤقت، بيانات المستخدم، تراخيص الخطوط والمكتبات، وسياسة الخصوصية المطلوبة قبل النشر.
+18. **الإعلانات:** تبقى Google AdMob مرحلة لاحقة فقط بعد اكتمال المحرر واختباره النهائي، ولا تُقدَّم على إصلاح الوظائف الأساسية.
+
+## 5. ما لم يثبت اكتماله بعد
+
+- لا توجد في هذه الوثيقة نتيجة اختبار شامل على جهاز حقيقي لجميع الوظائف.
+- لا يوجد إثبات هنا بأن كل الأزرار والحوارات موصولة بالكامل.
+- AI Studio يعرض أنماطًا، لكن المعالجة غير موصولة وفق الفحص السابق.
+- الانتقالات المتقاطعة الحقيقية غير مثبتة؛ توجد قيود تنفيذ موثقة.
+- لم تكتمل مراجعة جميع ملفات المستودع والموارد وملفات Gradle وManifest والاختبارات.
+- لم يُثبت تطابق كل ما يظهر في المعاينة مع الناتج النهائي في جميع الحالات.
+- لا تُعتبر أي ميزة مكتملة لمجرد وجود اسمها أو عنصر تحكم لها؛ معيار الاكتمال هو تنفيذ فعلي واختبار ناجح.
+
+## 6. معايير قبول الميزة
+
+تُعد الميزة مكتملة فقط عندما تتحقق جميع النقاط المنطبقة:
+1. تنفيذ حقيقي دون زر وهمي أو رسالة نجاح مضللة.
+2. تحديث حالة المشروع بشكل صحيح.
+3. ظهور النتيجة في المعاينة عند الحاجة.
+4. حفظ واستعادة البيانات دون فقد.
+5. وصول التأثير إلى التصدير إذا كان جزءًا من الفيديو النهائي.
+6. معالجة الأخطاء والإلغاء والحالات الحدّية.
+7. اختبارات مناسبة ناجحة، بما فيها تجربة جهاز عند الحاجة.
+8. تحديث هذه الوثيقة وREADME بعد التحقق، لا قبله.
+
+## 7. خطة العمل ذات الأولوية
+
+### المرحلة A — جرد وتدقيق شامل
+- جرد كل ملفات المصدر والموارد والاعتماديات وManifest والاختبارات وCI.
+- بناء خريطة: الشاشة ← الإجراء ← الحالة ← التخزين ← المعاينة ← التصدير.
+- تصنيف كل وظيفة: مكتملة ومختبرة / موجودة جزئيًا / واجهة غير موصولة / غير موجودة / متعطلة.
+
+### المرحلة B — إصلاح الوظائف والحفظ
+- إصلاح الحوارات والإجراءات غير الموصولة.
+- ضمان الحفظ والاستعادة والترحيل والتراجع/الإعادة.
+- إكمال الصوت والنصوص والطبقات وفق خريطة التدقيق.
+
+### المرحلة C — تجربة تحرير احترافية
+- تطوير الخط الزمني والمعاينة والتفاعل الدقيق.
+- تحسين أدوات القص والحركة والطبقات والانتقالات دون كسر المشاريع القديمة.
+- توحيد واجهة العربية والإنجليزية وتحسين سهولة الاستخدام.
+
+### المرحلة D — التصدير والجودة
+- استكمال فحص Media3 ومسارات الصوت/النصوص/الطبقات.
+- تحسين التقدم والإلغاء والأخطاء والملفات الناتجة.
+- اختبارات متنوعة للأجهزة والصيغ والأحجام.
+
+### المرحلة E — الذكاء الاصطناعي والتلميع
+- اتخاذ قرار تنفيذي واضح بشأن AI Studio وتوصيل المعالجة الفعلية.
+- تحسين إزالة الخلفية والأداء وإمكانية الوصول والخصوصية والتراخيص.
+
+### المرحلة F — التحقق والإصدار
+- بناء Gradle وLint ناجحان في CI.
+- تثبيت واختبار APK على أجهزة فعلية.
+- توثيق القيود المعروفة وإصدار قائمة قبول نهائية.
+- إضافة AdMob بعد اجتياز اكتمال المحرر واختباره، وفق ترتيب المشروع.
+
+## 8. سياسة الحفاظ على المشروع
+
+- الاستمرار في مستودع واحد ومشروع واحد متصل.
+- عدم حذف أي ميزة قائمة لمجرد إعادة تصميم الواجهة.
+- الحفاظ على التوافق مع المشاريع القديمة عند تعديل نماذج البيانات.
+- تنفيذ التغييرات تدريجيًا مع بناء واختبارات بعد كل مجموعة منطقية.
+- عدم وصف أي ميزة بأنها مجانية أو بلا تكلفة تشغيلية قبل التحقق من الاعتماديات والخدمات والترخيص.
+- عدم الادعاء بأن المشروع احترافي مكتمل قبل اجتياز معايير القبول والاختبارات.
+
+## 9. سجل التحقق المعروف
+
+- تحديثات الميزات المذكورة في الأقسام أعلاه مستندة إلى ملفات المشروع وملاحظات المراجعة المتاحة حتى 2026-09-19.
+- ورد في السجل أن أحد تشغيلات GitHub Actions الأخيرة كان ناجحًا، لكن نجاح CI لا يثبت وحده اكتمال الوظائف أو جودتها على الجهاز.
+- البناء المحلي لم يكن متاحًا في بيئة المراجعة السابقة لعدم توفر Gradle wrapper/تنفيذي Gradle.
+- حالة المراجعة الحالية: **مستمرة؛ لم يكتمل تدقيق المستودع بالكامل بعد**.
+
+---
+
+**هذه الوثيقة هي المرجع الجديد لحالة المشروع وخطة استكماله. يجب تحديثها مع كل تغيير تم التحقق منه، مع الفصل بين ما هو موجود في الشيفرة وما تم اختباره فعليًا.**
