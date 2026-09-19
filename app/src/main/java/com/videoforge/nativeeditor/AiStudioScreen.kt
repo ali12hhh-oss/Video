@@ -137,11 +137,9 @@ fun AiStudioScreen(isArabic: Boolean, onBack: () -> Unit, onOpenInEditor: (Uri) 
                 if (generated != null) {
                     resultBitmap = generated
                     resultUri = withContext(Dispatchers.IO) {
-                        val file = File(context.cacheDir, "ai_background_removed_${System.currentTimeMillis()}.png")
-                        file.outputStream().use {
-                            generated.compress(Bitmap.CompressFormat.PNG, 100, it)
-                        }
-                        Uri.fromFile(file)
+                        AiPhotoProcessor.saveForEditor(
+                            context, generated, "VideoForge_AI_BackgroundRemoved_${System.currentTimeMillis()}"
+                        )
                     }
                     comparePosition = 0.5f
                     showOutputChoice = true
@@ -196,11 +194,9 @@ fun AiStudioScreen(isArabic: Boolean, onBack: () -> Unit, onOpenInEditor: (Uri) 
                 }
                 resultBitmap = composed
                 resultUri = withContext(Dispatchers.IO) {
-                    val file = File(context.cacheDir, "ai_background_replaced_${System.currentTimeMillis()}.jpg")
-                    file.outputStream().use {
-                        composed.compress(Bitmap.CompressFormat.JPEG, 95, it)
-                    }
-                    Uri.fromFile(file)
+                    AiPhotoProcessor.saveForEditor(
+                        context, composed, "VideoForge_AI_Background_${System.currentTimeMillis()}"
+                    )
                 }
                 comparePosition = 0.5f
                 showOutputChoice = true
@@ -218,10 +214,6 @@ fun AiStudioScreen(isArabic: Boolean, onBack: () -> Unit, onOpenInEditor: (Uri) 
         val mask = maskBitmap ?: return
         val prompt = aiPrompt.ifBlank {
             if (isArabic) "عدّل المنطقة المحددة فقط بشكل واقعي ومتناسق مع الصورة" else "Edit only the selected region realistically and consistently with the photo"
-        }
-        if (!LocalAiImageGenerator.isReady(context)) {
-            aiStatus = if (isArabic) "جهّز محرك AI أولًا." else "Prepare the AI engine first."
-            return
         }
         chosenStyle = null
         errorText = null
@@ -241,9 +233,9 @@ fun AiStudioScreen(isArabic: Boolean, onBack: () -> Unit, onOpenInEditor: (Uri) 
                 ).getOrThrow()
                 resultBitmap = composed
                 resultUri = withContext(Dispatchers.IO) {
-                    val file = File(context.cacheDir, "ai_masked_edit_${System.currentTimeMillis()}.jpg")
-                    file.outputStream().use { composed.compress(Bitmap.CompressFormat.JPEG, 95, it) }
-                    Uri.fromFile(file)
+                    AiPhotoProcessor.saveForEditor(
+                        context, composed, "VideoForge_AI_Masked_${System.currentTimeMillis()}"
+                    )
                 }
                 comparePosition = 0.5f
                 showOutputChoice = true
@@ -284,11 +276,9 @@ fun AiStudioScreen(isArabic: Boolean, onBack: () -> Unit, onOpenInEditor: (Uri) 
                     onSuccess = { generated ->
                         resultBitmap = generated
                         resultUri = withContext(Dispatchers.IO) {
-                            val file = File(context.cacheDir, "ai_style_${System.currentTimeMillis()}.jpg")
-                            file.outputStream().use {
-                                generated.compress(Bitmap.CompressFormat.JPEG, 95, it)
-                            }
-                            Uri.fromFile(file)
+                            AiPhotoProcessor.saveForEditor(
+                            context, generated, "VideoForge_AI_Style_${System.currentTimeMillis()}"
+                        )
                         }
                         comparePosition = 0.5f
                         showOutputChoice = true
@@ -498,9 +488,9 @@ fun AiStudioScreen(isArabic: Boolean, onBack: () -> Unit, onOpenInEditor: (Uri) 
                                         onSuccess = { generated ->
                                             resultBitmap = generated
                                             resultUri = withContext(Dispatchers.IO) {
-                                                val file = File(context.cacheDir, "ai_generated_${System.currentTimeMillis()}.jpg")
-                                                file.outputStream().use { generated.compress(Bitmap.CompressFormat.JPEG, 95, it) }
-                                                Uri.fromFile(file)
+                                                AiPhotoProcessor.saveForEditor(
+                                                context, generated, "VideoForge_AI_Generated_${System.currentTimeMillis()}"
+                                            )
                                             }
                                             comparePosition = 0.5f
                                             showOutputChoice = true
@@ -614,6 +604,8 @@ fun AiStudioScreen(isArabic: Boolean, onBack: () -> Unit, onOpenInEditor: (Uri) 
                             }
                             if (saved == null) {
                                 errorText = if (isArabic) "تعذر حفظ الصورة في الهاتف." else "Could not save the image."
+                            } else {
+                                aiStatus = if (isArabic) "تم حفظ الصورة في مجلد VideoForge داخل الصور." else "Image saved to the VideoForge folder in Pictures."
                             }
                         }
                     }
