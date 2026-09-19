@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
@@ -28,7 +27,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AddPhotoAlternate
 import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -53,39 +51,40 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 
-private data class AiPhotoStyle(val titleAr: String, val titleEn: String, val detailAr: String, val detailEn: String, val premium: Boolean = false)
+private data class AiPhotoStyle(val titleAr: String, val titleEn: String, val detailAr: String, val detailEn: String)
 
 private val aiPhotoStyles = listOf(
-    AiPhotoStyle("أنمي", "Anime", "حوّل الصورة إلى أسلوب أنمي", "Transform a photo into an anime style", true),
-    AiPhotoStyle("كرتون", "Cartoon", "مظهر كرتوني مرسوم", "Create a cartoon look", true),
-    AiPhotoStyle("صورة سينمائية", "Cinematic", "ألوان وإضاءة بطابع سينمائي", "Cinematic color and lighting", true),
-    AiPhotoStyle("صورة ثلاثية الأبعاد", "3D Portrait", "أسلوب شخصية ثلاثية الأبعاد", "A stylized 3D character look", true),
-    AiPhotoStyle("رسم زيتي", "Oil Painting", "محاكاة الرسم الزيتي", "Oil-painting inspired treatment", true),
-    AiPhotoStyle("مانغا", "Manga", "أسلوب صفحات المانغا", "Manga-inspired treatment", true),
-    AiPhotoStyle("صورة احترافية", "Studio Portrait", "مظهر صورة استوديو", "Studio portrait treatment", true),
-    AiPhotoStyle("خيالي", "Fantasy", "طابع فني خيالي", "Fantasy-inspired treatment", true)
+    AiPhotoStyle("أنمي", "Anime", "حوّل الصورة إلى أسلوب أنمي", "Transform a photo into an anime style"),
+    AiPhotoStyle("كرتون", "Cartoon", "مظهر كرتوني مرسوم", "Create a cartoon look"),
+    AiPhotoStyle("صورة سينمائية", "Cinematic", "ألوان وإضاءة بطابع سينمائي", "Cinematic color and lighting"),
+    AiPhotoStyle("صورة ثلاثية الأبعاد", "3D Portrait", "أسلوب شخصية ثلاثية الأبعاد", "A stylized 3D character look"),
+    AiPhotoStyle("رسم زيتي", "Oil Painting", "محاكاة الرسم الزيتي", "Oil-painting inspired treatment"),
+    AiPhotoStyle("مانغا", "Manga", "أسلوب صفحات المانغا", "Manga-inspired treatment"),
+    AiPhotoStyle("صورة احترافية", "Studio Portrait", "مظهر صورة استوديو", "Studio portrait treatment"),
+    AiPhotoStyle("خيالي", "Fantasy", "طابع فني خيالي", "Fantasy-inspired treatment")
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AiStudioScreen(
-    isArabic: Boolean,
-    onBack: () -> Unit
-) {
+fun AiStudioScreen(isArabic: Boolean, onBack: () -> Unit) {
     val context = LocalContext.current
     var selectedImage by remember { mutableStateOf<Uri?>(null) }
     var showNotReady by remember { mutableStateOf(false) }
     var chosenStyle by remember { mutableStateOf<AiPhotoStyle?>(null) }
-    var previewBitmap by remember(selectedImage) {
-        mutableStateOf(selectedImage?.let { uri ->
-            runCatching { context.contentResolver.openInputStream(uri)?.use(BitmapFactory::decodeStream) }.getOrNull()
-        })
+    val previewBitmap = remember(selectedImage) {
+        selectedImage?.let { uri ->
+            runCatching {
+                context.contentResolver.openInputStream(uri)?.use { stream -> BitmapFactory.decodeStream(stream) }
+            }.getOrNull()
+        }
     }
     val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         selectedImage = uri
+    }
+    val choosePhoto = {
+        imagePicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
     }
 
     Scaffold(
@@ -110,16 +109,14 @@ fun AiStudioScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Card(
-                modifier = Modifier.fillMaxWidth().height(190.dp).clickable {
-                    imagePicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-                },
+                modifier = Modifier.fillMaxWidth().height(190.dp).clickable(onClick = choosePhoto),
                 shape = RoundedCornerShape(20.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
             ) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     if (previewBitmap != null) {
                         Image(
-                            bitmap = previewBitmap!!.asImageBitmap(),
+                            bitmap = previewBitmap.asImageBitmap(),
                             contentDescription = if (isArabic) "الصورة المختارة" else "Selected photo",
                             modifier = Modifier.fillMaxSize(),
                             contentScale = androidx.compose.ui.layout.ContentScale.Crop
@@ -132,11 +129,7 @@ fun AiStudioScreen(
                     }
                 }
             }
-            Button(
-                onClick = { imagePicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
-                modifier = Modifier.fillMaxWidth(),
-                contentPadding = PaddingValues(vertical = 12.dp)
-            ) {
+            Button(onClick = choosePhoto, modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(vertical = 12.dp)) {
                 Icon(Icons.Default.AddPhotoAlternate, contentDescription = null)
                 Spacer(Modifier.size(8.dp))
                 Text(if (isArabic) "اختيار صورة" else "Select photo")
@@ -181,7 +174,7 @@ fun AiStudioScreen(
             title = { Text(if (isArabic) "المعالجة غير مفعّلة بعد" else "Processing not connected yet") },
             text = {
                 Text(
-                    if (isArabic) "${chosenStyle?.titleAr.orEmpty()} معروض كخيار واجهة أولي. يلزم ربط محرك تحويل صور بالذكاء الاصطناعي قبل تطبيق التأثير أو حفظ نتيجة." 
+                    if (isArabic) "${chosenStyle?.titleAr.orEmpty()} معروض كخيار واجهة أولي. يلزم ربط محرك تحويل صور بالذكاء الاصطناعي قبل تطبيق التأثير أو حفظ نتيجة."
                     else "${chosenStyle?.titleEn.orEmpty()} is currently a UI preview option. An AI image transformation engine must be connected before this effect can be applied or saved."
                 )
             },
