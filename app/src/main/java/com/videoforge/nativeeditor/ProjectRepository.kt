@@ -79,6 +79,8 @@ object ProjectRepository {
 
     fun save(context: Context, id: String, clips: List<Clip>, name: String? = null) {
         if (clips.isEmpty()) return
+        // Keep project metadata bounded and deterministic; media files themselves remain external.
+
         val projects = load(context).toMutableList()
         val projectName = name?.takeIf { it.isNotBlank() } ?: clips.first().name
         val saved = SavedProject(id, projectName, clips, System.currentTimeMillis())
