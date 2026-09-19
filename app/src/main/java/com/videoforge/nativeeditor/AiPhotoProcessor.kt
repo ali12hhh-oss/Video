@@ -67,6 +67,17 @@ internal object AiPhotoProcessor {
     private fun cool(v:Int,d:Int)=(v+d).coerceIn(0,255)
     private fun poster(v:Int,step:Int)=((v/step)*step+step/2).coerceIn(0,255)
 
+    /** Stores a durable private copy for the editor/project instead of relying on cacheDir. */
+    fun saveForEditor(context: Context, bitmap: Bitmap, displayName: String): Uri? {
+        val safe = displayName.replace(Regex("[^A-Za-z0-9._-]"), "_").ifBlank { "VideoForge_AI" }
+        return runCatching {
+            val dir = File(context.filesDir, "ai_photos").apply { mkdirs() }
+            val file = File(dir, "$safe.jpg")
+            file.outputStream().use { bitmap.compress(Bitmap.CompressFormat.JPEG, 95, it) }
+            Uri.fromFile(file)
+        }.getOrNull()
+    }
+
     fun saveToGallery(context: Context, bitmap: Bitmap, displayName: String): Uri? {
         val name = displayName.replace(Regex("[^A-Za-z0-9._-]"), "_").ifBlank { "VideoForge_AI" } + ".jpg"
         return runCatching {
