@@ -37,6 +37,38 @@ import java.io.File
 
 private data class AiPhotoStyle(val id: String, val titleAr: String, val titleEn: String, val detailAr: String, val detailEn: String)
 
+private object AiStylePrompts {
+    fun prompt(styleId: String, isArabic: Boolean): String {
+        val base = when (styleId) {
+            "anime" -> "anime character illustration, expressive anime eyes, clean line art, detailed cel shading, stylized anime clothing"
+            "cartoon" -> "high quality 3D cartoon character, polished animated-film look, expressive face, clean shapes, stylized clothing"
+            "cinematic" -> "cinematic film still, dramatic professional lighting, realistic skin and materials, rich depth, cinematic color grading"
+            "3d" -> "high-end 3D character render, detailed realistic materials, studio-quality lighting, polished 3D clothing and hair"
+            "oil" -> "traditional oil painting, visible painterly brushwork, rich layered pigments, museum-quality portrait composition"
+            "manga" -> "black and white manga illustration, precise ink linework, screentone shading, expressive manga composition"
+            "studio" -> "professional studio portrait photography, softbox lighting, realistic skin texture, premium portrait retouching"
+            "fantasy" -> "epic fantasy character portrait, magical atmosphere, detailed fantasy costume, cinematic lighting, rich environment"
+            "watercolor" -> "delicate watercolor painting, translucent washes, natural paper texture, elegant hand-painted details"
+            "pencil" -> "detailed graphite pencil portrait, realistic pencil strokes, fine cross-hatching, monochrome paper drawing"
+            "pixel" -> "high quality pixel art, crisp pixel clusters, limited retro palette, detailed game character sprite aesthetic"
+            "cyberpunk" -> "cyberpunk portrait, neon city lighting, futuristic fashion, glowing accents, detailed sci-fi atmosphere"
+            "vintage" -> "classic vintage portrait photography, authentic film grain, period color palette, timeless wardrobe styling"
+            "clay" -> "stylized 3D clay figure, handcrafted clay materials, soft studio lighting, miniature diorama aesthetic"
+            "color_manga" -> "high quality full-color manga illustration, clean ink lines, vibrant cel shading, detailed character design"
+            "editorial" -> "luxury editorial fashion photograph, premium magazine photography, sophisticated lighting, high-fashion wardrobe styling"
+            else -> "high quality artistic portrait transformation"
+        }
+
+        val preservation = "Preserve the subject's identity, facial structure, pose, body proportions, camera composition and important scene elements. Transform the visual style coherently."
+        val wardrobe = when (styleId) {
+            "anime", "cartoon", "3d", "fantasy", "cyberpunk", "clay", "editorial" ->
+                "Adapt the clothing and hair styling to match the chosen visual world while keeping the person recognizable."
+            else -> "Keep the clothing recognizable while harmonizing its materials, colors and rendering with the chosen style."
+        }
+        return "$base. $wardrobe $preservation. High detail, coherent anatomy, clean hands, consistent lighting."
+    }
+}
+
 private val aiPhotoStyles = listOf(
     AiPhotoStyle("anime","أنمي","Anime","تحويل فني بطابع أنمي","Anime-inspired transformation"),
     AiPhotoStyle("cartoon","كرتون","Cartoon","مظهر كرتوني ناعم","Soft cartoon look"),
@@ -90,20 +122,52 @@ fun AiStudioScreen(isArabic: Boolean, onBack: () -> Unit, onOpenInEditor: (Uri) 
     fun applyStyle(style: AiPhotoStyle) {
         val source = sourceBitmap ?: run { choosePhoto(); return }
         chosenStyle = style
-        isProcessing = true
         errorText = null
+        aiStatus = null
+
+        if (!LocalAiImageGenerator.isReady(context)) {
+            aiStatus = if (isArabic)
+                "هذا النمط يستخدم توليد AI حقيقيًا. جهّز محرك AI أولًا من قسم تعديل AI."
+            else
+                "This style uses real generative AI. Prepare the AI engine first from the AI editing section."
+            return
+        }
+
+        isProcessing = true
         scope.launch {
             try {
-                val processed = withContext(Dispatchers.Default) { AiPhotoProcessor.apply(source, style.id) }
-                val file = File(context.cacheDir, "ai_result_${System.currentTimeMillis()}.jpg")
-                withContext(Dispatchers.IO) { file.outputStream().use { processed.compress(Bitmap.CompressFormat.JPEG, 95, it) } }
-                resultBitmap = processed
-                resultUri = Uri.fromFile(file)
-                comparePosition = 0.5f
-                showOutputChoice = true
-            } catch (_: Throwable) {
-                errorText = if (isArabic) "تعذر معالجة الصورة." else "Could not process the image."
-            } finally { isProcessing = false }
+                val prompt = AiStylePrompts.prompt(style.id, isArabic)
+                val result = LocalAiImageGenerator.generate(
+                    context = context,
+                    source = source,
+                    prompt = prompt,
+                    iterations = 16
+                )
+                result.fold(
+                    onSuccess = { generated ->
+                        resultBitmap = generated
+                        resultUri = withContext(Dispatchers.IO) {
+                            val file = File(context.cacheDir, "ai_style_${System.currentTimeMillis()}.jpg")
+                            file.outputStream().use {
+                                generated.compress(Bitmap.CompressFormat.JPEG, 95, it)
+                            }
+                            Uri.fromFile(file)
+                        }
+                        comparePosition = 0.5f
+                        showOutputChoice = true
+                    },
+                    onFailure = {
+                        errorText = it.localizedMessage
+                            ?: if (isArabic) "تعذر تشغيل نمط AI على هذا الجهاز."
+                            else "The AI style could not run on this device."
+                    }
+                )
+            } catch (t: Throwable) {
+                errorText = t.localizedMessage
+                    ?: if (isArabic) "تعذر معالجة الصورة." else "Could not process the image."
+            } finally {
+                isProcessing = false
+            }
         }
     }
 
@@ -160,9 +224,9 @@ fun AiStudioScreen(isArabic: Boolean, onBack: () -> Unit, onOpenInEditor: (Uri) 
                     )
                     Text(
                         if (isArabic)
-                            "اكتب ما تريد تغييره. يستخدم التطبيق نموذج انتشار محليًا، ويمكنه إعادة توليد الصورة اعتمادًا على بنيتها، بدون API مدفوع."
+                            "اكتب ما تريد تغييره. يستخدم التطبيق نموذج توليد صور محليًا فعليًا، ويمكن أيضًا اختيار أحد الأنماط الـ16 أدناه. لا يعتمد الاستدلال على API مدفوع."
                         else
-                            "Describe the change. The app uses a local diffusion model and the selected photo as visual guidance, with no paid API.",
+                            "Describe the change. The app uses a real local image-generation model, and the 16 styles below use the same generative backend with the selected photo as visual guidance.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
