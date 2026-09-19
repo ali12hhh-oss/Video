@@ -164,3 +164,11 @@
 - أوضحت في `ProjectRepository.save()` أن التخزين المحلي يحتفظ ببيانات المشروع بينما تبقى الوسائط ملفات خارجية، مع حد 50 مشروعًا كما هو مطبق سابقًا.
 - **الحالة:** منفذ في الشيفرة؛ يحتاج CI واختبار تشغيل قبل اعتباره مغلقًا نهائيًا.
 - **Commits:** `833edabb9c6be3267e37279493475e583f66c553`, `ce261ef2420914672f82f10af451a1f666ba0b74`.
+
+
+## 2026-09-19 — Editor controls completion pass
+- Upgraded `EditorDialogs.kt` so subtitle editing now creates/updates/removes subtitles at the playhead and supports duration control.
+- Trim dialog now exposes editable start/end sliders with a minimum gap instead of only displaying current values.
+- Crop dialog now exposes zoom and X/Y framing controls and persists changes through `EditorSettings`.
+- Layer manager now supports per-layer visibility toggling and deletion while preserving the existing editor state flow.
+- Existing import/export, undo/redo, autosave, and bilingual flows remain connected.
