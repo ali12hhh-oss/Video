@@ -31,7 +31,8 @@ import kotlin.math.max
 
 private data class MaskStroke(
     val points: List<Offset>,
-    val erase: Boolean
+    val erase: Boolean,
+    val size: Float
 )
 
 @Composable
@@ -60,7 +61,7 @@ internal fun AiMaskEditorDialog(
                 )
 
                 Box(
-                    Modifier.fillMaxWidth().height(330.dp).then(
+                    Modifier.fillMaxWidth().height(330.dp).onSizeChanged { canvasSize = it }.then(
                         Modifier.pointerInput(erase, brushSize) {
                             detectDragGestures(
                                 onDragStart = { start ->
@@ -92,7 +93,7 @@ internal fun AiMaskEditorDialog(
                             if (stroke.points.size == 1) {
                                 drawCircle(
                                     color = if (stroke.erase) Color.Red.copy(alpha = 0.35f) else Color.Green.copy(alpha = 0.38f),
-                                    radius = brushSize / 2f,
+                                    radius = stroke.size / 2f,
                                     center = stroke.points.first()
                                 )
                             } else {
@@ -103,7 +104,7 @@ internal fun AiMaskEditorDialog(
                                 drawPath(
                                     path = path,
                                     color = if (stroke.erase) Color.Red.copy(alpha = 0.38f) else Color.Green.copy(alpha = 0.42f),
-                                    style = Stroke(width = brushSize)
+                                    style = Stroke(width = stroke.size)
                                 )
                             }
                         }
@@ -149,8 +150,8 @@ internal fun AiMaskEditorDialog(
                         buildMaskBitmap(
                             source = source,
                             strokes = strokes,
-                            viewWidth = 1f,
-                            viewHeight = 1f
+                            viewWidth = canvasSize.width.toFloat().coerceAtLeast(1f),
+                            viewHeight = canvasSize.height.toFloat().coerceAtLeast(1f)
                         )
                     )
                 }
@@ -193,7 +194,6 @@ private fun buildMaskFromStrokes(
     val canvas = AndroidCanvas(mask)
     canvas.drawColor(android.graphics.Color.TRANSPARENT)
 
-    val scale = max(width.toFloat(), height.toFloat())
     val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         strokeCap = Paint.Cap.ROUND
