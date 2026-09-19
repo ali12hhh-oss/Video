@@ -78,10 +78,8 @@ object InterstitialAdManager {
         }
 
         interstitialAd = null
-        var dismissed = false
         ad.fullScreenContentCallback = object : FullScreenContentCallback() {
             override fun onAdDismissedFullScreenContent() {
-                dismissed = true
                 load(activity)
                 onFinished()
             }
