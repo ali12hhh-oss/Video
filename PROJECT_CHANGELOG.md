@@ -176,3 +176,9 @@
 
 ## 2026-09-19 — Layer workflow refinement
 - Added layer ordering controls to the editor layer manager, allowing text layers to move up/down while retaining visibility and deletion controls.
+
+
+## 2026-09-19 — Build fix
+- Fixed a Kotlin/Compose syntax error in `EditorDialogs.kt` inside `LayerManagerDialog` that caused `:app:compileDebugKotlin` to fail in GitHub Actions run `35456115407`.
+- Preserved the layer ordering, visibility, and delete controls; only the malformed dialog structure was corrected.
+- Fix commit: `b2d3e598ef3eb73d611560c666c332d6470aa71e`.
