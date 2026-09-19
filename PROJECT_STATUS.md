@@ -333,3 +333,11 @@
 - يشمل ذلك التفعيل، حجم البلوكات، الموضع، والعرض والارتفاع.
 - **Commit:** 4dd4d2a201093143da58718ea0778d3d737bb397.
 - **الاختبار:** لم يُشغّل CI بعد لهذا commit.
+
+
+## 2026-09-19 — Home page cleanup and media import
+- Home hero text that advertised “turn ideas into videos” was removed.
+- Premium/Pro upgrade presentation was removed because the current release stage is free and ad-supported.
+- Bottom-bar + now launches an explicit Android document picker for both images and videos, with multi-select support up to 20 items.
+- System picker appearance remains controlled by Android/OEM; app-level text contrast was not changed inside the system picker.
+- Main implementation commit: a716853b34c0faddab163eba2ef6ecfc182fbd9f
