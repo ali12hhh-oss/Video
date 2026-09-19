@@ -970,12 +970,11 @@ private fun HeroCard(language: AppLanguage, onNewProject: () -> Unit) {
 
         Column(
             Modifier
-                .align(Alignment.TopCenter)
+                .align(Alignment.BottomCenter)
                 .widthIn(max = 340.dp)
-                .padding(horizontal = 22.dp, vertical = 24.dp),
+                .padding(horizontal = 22.dp, vertical = 18.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(Modifier.height(30.dp))
             Button(
                 onClick = onNewProject,
                 shape = RoundedCornerShape(28.dp),
