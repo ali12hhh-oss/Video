@@ -300,3 +300,10 @@
 
 ## 2026-09-19 — Layer workflow refinement
 - Layer manager now supports reordering text layers in addition to visibility and deletion.
+
+
+## 2026-09-19 — Build fix
+- GitHub Actions run `35456115407` failed during `:app:compileDebugKotlin` because `EditorDialogs.kt` had malformed Compose/Kotlin nesting in `LayerManagerDialog`.
+- Corrected the dialog structure without removing the layer management features.
+- Fix commit: `b2d3e598ef3eb73d611560c666c332d6470aa71e`.
+- A fresh workflow run is required to verify the fix; the failed run itself cannot validate the new commit.
