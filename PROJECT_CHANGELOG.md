@@ -189,3 +189,9 @@
 - Added bilingual layer selection, position controls, and easing selection (`linear`, `easeIn`, `easeOut`, `easeInOut`, `hold`).
 - Existing keyframes at the same timeline position are replaced deterministically.
 - Commit: `da7a39321aad5c160ef87205edb8820dbc24f63b`.
+
+
+## 2026-09-19 — تحسين إطارات حركة الفيديو
+- تم تطوير نافذة Video Keyframe لتصبح قابلة للتحكم الفعلي: الموضع X/Y، التكبير، الدوران، والتسارع.
+- تم حفظ الإطار بشكل حتمي عند نفس التوقيت مع استبدال الإطار السابق، مع دعم Arabic/English.
+- هذا يكمل واجهة التحكم بما يتوافق مع معالجة VideoKeyframe الموجودة في مسار التصدير.
