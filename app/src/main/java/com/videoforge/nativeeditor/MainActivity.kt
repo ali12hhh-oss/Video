@@ -579,19 +579,32 @@ private fun HomeScreen(
         )
     ) {
     Scaffold(
-        containerColor = Color(0xFFF5F7FB),
+        containerColor = Color.Transparent,
         topBar = { HomeTopBar(language, onLanguageSelected, onOpenSettings) },
         bottomBar = {
             HomeBottomBar(selected = selected, onSelected = onSelected, onImport = onImport)
         }
     ) { pad ->
-        Column(
-            Modifier
+        Box(
+            modifier = Modifier
                 .fillMaxSize()
-                .padding(pad)
-                .verticalScroll(scroll)
-                .padding(bottom = 8.dp)
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            Color(0xFFF8F6FC),
+                            Color(0xFFF2F3FA),
+                            Color(0xFFEEF6F5)
+                        )
+                    )
+                )
         ) {
+            Column(
+                Modifier
+                    .fillMaxSize()
+                    .padding(pad)
+                    .verticalScroll(scroll)
+                    .padding(bottom = 8.dp)
+            ) {
             Spacer(Modifier.height(6.dp))
             HeroCard(language = language, onNewProject = onNewProject)
             Spacer(Modifier.height(16.dp))
@@ -614,7 +627,8 @@ private fun HomeScreen(
             )
             Spacer(Modifier.height(16.dp))
 
-            Spacer(Modifier.height(10.dp))
+                Spacer(Modifier.height(10.dp))
+            }
         }
     }
     }
