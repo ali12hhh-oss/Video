@@ -9,6 +9,8 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -182,12 +184,24 @@ fun AiStudioScreen(isArabic: Boolean, onBack: () -> Unit, onOpenInEditor: (Uri) 
                     errorText = if (isArabic) "تعذر فصل العنصر الأمامي." else "Could not separate the foreground subject."
                     return@launch
                 }
+                // Generate the new background from a neutral canvas rather than the
+                // original photo edges. This makes the user's background description
+                // control the generated scene instead of preserving the old background.
+                val backgroundCanvas = Bitmap.createBitmap(
+                    source.width.coerceAtLeast(256),
+                    source.height.coerceAtLeast(256),
+                    Bitmap.Config.ARGB_8888
+                )
+                val canvas = android.graphics.Canvas(backgroundCanvas)
+                canvas.drawColor(android.graphics.Color.rgb(238, 240, 246))
+                canvas.setBitmap(null)
                 val generatedBackground = LocalAiImageGenerator.generate(
                     context = context,
-                    source = source,
+                    source = backgroundCanvas,
                     prompt = prompt,
                     iterations = 16
                 ).getOrThrow()
+                backgroundCanvas.recycle()
                 val composed = withContext(Dispatchers.Default) {
                     AiRealEditEngine.composeForegroundOverBackground(foreground, generatedBackground)
                 }
@@ -305,7 +319,14 @@ fun AiStudioScreen(isArabic: Boolean, onBack: () -> Unit, onOpenInEditor: (Uri) 
             )
         }
     ) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(
+            Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(horizontal = 16.dp)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
             Text(
                 if (isArabic) "حوّل صورك إلى أنماط فنية ثم احفظ النتيجة أو أرسلها مباشرة إلى محرر الفيديو."
                 else "Transform your photo, then save the result or send it directly to the video editor.",
@@ -538,7 +559,7 @@ fun AiStudioScreen(isArabic: Boolean, onBack: () -> Unit, onOpenInEditor: (Uri) 
 
             Text(if (isArabic) "الأنماط" else "Styles", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             LazyVerticalGrid(
-                columns = GridCells.Fixed(2), modifier = Modifier.weight(1f), contentPadding = PaddingValues(bottom = 20.dp),
+                columns = GridCells.Fixed(2), modifier = Modifier.height(560.dp), contentPadding = PaddingValues(bottom = 20.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 items(aiPhotoStyles) { style ->
