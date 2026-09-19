@@ -55,6 +55,8 @@ import androidx.compose.ui.unit.dp
 
 private data class AiPhotoStyle(val titleAr: String, val titleEn: String, val detailAr: String, val detailEn: String)
 
+// Catalog only: these are selectable style concepts, not a claim that an image-generation
+// model is bundled or connected. The processing backend must be integrated separately.
 private val aiPhotoStyles = listOf(
     AiPhotoStyle("أنمي", "Anime", "حوّل الصورة إلى أسلوب أنمي", "Transform a photo into an anime style"),
     AiPhotoStyle("كرتون", "Cartoon", "مظهر كرتوني مرسوم", "Create a cartoon look"),
@@ -63,7 +65,15 @@ private val aiPhotoStyles = listOf(
     AiPhotoStyle("رسم زيتي", "Oil Painting", "محاكاة الرسم الزيتي", "Oil-painting inspired treatment"),
     AiPhotoStyle("مانغا", "Manga", "أسلوب صفحات المانغا", "Manga-inspired treatment"),
     AiPhotoStyle("صورة احترافية", "Studio Portrait", "مظهر صورة استوديو", "Studio portrait treatment"),
-    AiPhotoStyle("خيالي", "Fantasy", "طابع فني خيالي", "Fantasy-inspired treatment")
+    AiPhotoStyle("خيالي", "Fantasy", "طابع فني خيالي", "Fantasy-inspired treatment"),
+    AiPhotoStyle("ألوان مائية", "Watercolor", "لوحة ناعمة بألوان مائية", "Soft watercolor illustration"),
+    AiPhotoStyle("رسم بقلم", "Pencil Sketch", "رسم بخطوط قلم رصاص", "Hand-drawn pencil sketch"),
+    AiPhotoStyle("فن البكسل", "Pixel Art", "تحويل إلى فن البكسل", "Retro pixel-art interpretation"),
+    AiPhotoStyle("سايبربانك", "Cyberpunk", "نيون وأجواء مستقبلية", "Neon-lit futuristic atmosphere"),
+    AiPhotoStyle("ريترو", "Vintage", "ألوان وملمس بطابع قديم", "Vintage colors and texture"),
+    AiPhotoStyle("طين ثلاثي الأبعاد", "3D Clay", "مظهر مجسمات الطين", "A playful 3D clay-figure look"),
+    AiPhotoStyle("مانغا ملونة", "Color Manga", "أسلوب مانغا بألوان زاهية", "Vibrant colored manga style"),
+    AiPhotoStyle("أزياء تحريرية", "Editorial Fashion", "إضاءة وتكوين تصوير الأزياء", "Editorial fashion-photo aesthetic")
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -171,11 +181,11 @@ fun AiStudioScreen(isArabic: Boolean, onBack: () -> Unit) {
     if (showNotReady) {
         AlertDialog(
             onDismissRequest = { showNotReady = false },
-            title = { Text(if (isArabic) "المعالجة غير مفعّلة بعد" else "Processing not connected yet") },
+            title = { Text(if (isArabic) "محرك التحويل غير موصول" else "Transformation engine not connected") },
             text = {
                 Text(
-                    if (isArabic) "${chosenStyle?.titleAr.orEmpty()} معروض كخيار واجهة أولي. يلزم ربط محرك تحويل صور بالذكاء الاصطناعي قبل تطبيق التأثير أو حفظ نتيجة."
-                    else "${chosenStyle?.titleEn.orEmpty()} is currently a UI preview option. An AI image transformation engine must be connected before this effect can be applied or saved."
+                    if (isArabic) "${chosenStyle?.titleAr.orEmpty()} نمط مضاف إلى قائمة الواجهة فقط. لا يمكن تطبيق التأثير أو حفظ نتيجة حتى دمج محرك معالجة صور فعلي."
+                    else "${chosenStyle?.titleEn.orEmpty()} is currently a catalog option only. A real image-processing engine must be integrated before applying or saving the effect."
                 )
             },
             confirmButton = { TextButton(onClick = { showNotReady = false }) { Text(if (isArabic) "حسنًا" else "OK") } }
