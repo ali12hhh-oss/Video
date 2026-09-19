@@ -307,3 +307,9 @@
 - Corrected the dialog structure without removing the layer management features.
 - Fix commit: `b2d3e598ef3eb73d611560c666c332d6470aa71e`.
 - A fresh workflow run is required to verify the fix; the failed run itself cannot validate the new commit.
+
+
+## 2026-09-19 — Text keyframe controls
+- Text animation keyframes can now target a selected text layer rather than implicitly modifying the first layer.
+- Added easing controls and bilingual labels while preserving the existing keyframe model and export interpolation.
+- Commit: `da7a39321aad5c160ef87205edb8820dbc24f63b`.
