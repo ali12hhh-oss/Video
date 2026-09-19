@@ -7,6 +7,7 @@
 package com.videoforge.nativeeditor
 
 import android.net.Uri
+import android.app.Activity
 import android.os.Bundle
 import android.content.Intent
 import android.provider.MediaStore
@@ -314,19 +315,41 @@ private fun VideoForgeApp() {
         showBrandSplash = false
     }
 
+    // Use the system document picker with explicit image + video MIME types so the
+    // bottom + button consistently offers both media categories instead of image-only mode.
     val picker = rememberLauncherForActivityResult(
-        ActivityResultContracts.PickMultipleVisualMedia(20)
-    ) { uris ->
-        if (uris.isNotEmpty()) {
-            projectId = ProjectRepository.newId()
-            clips = uris.mapIndexed { i, uri ->
-                persistUriAccess(context, uri)
-                Clip(uri, context.getString(R.string.clip_number, i + 1))
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val data = result.data
+            val uris = buildList {
+                data?.data?.let(::add)
+                data?.clipData?.let { clipData ->
+                    for (i in 0 until clipData.itemCount) add(clipData.getItemAt(i).uri)
+                }
+            }.distinct()
+            if (uris.isNotEmpty()) {
+                projectId = ProjectRepository.newId()
+                clips = uris.take(20).mapIndexed { i, uri ->
+                    persistUriAccess(context, uri)
+                    Clip(uri, context.getString(R.string.clip_number, i + 1))
+                }
+                projectName = clips.firstOrNull()?.name ?: context.getString(R.string.new_project)
+                ProjectRepository.save(context, projectId, clips, projectName)
+                showEditor = true
             }
-            projectName = clips.firstOrNull()?.name ?: context.getString(R.string.new_project)
-            ProjectRepository.save(context, projectId, clips, projectName)
-            showEditor = true
         }
+    }
+
+    fun launchMediaPicker() {
+        picker.launch(
+            Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                addCategory(Intent.CATEGORY_OPENABLE)
+                type = "*/*"
+                putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("image/*", "video/*"))
+                putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
+            }
+        )
     }
 
     val direction = if (language == AppLanguage.ARABIC) LayoutDirection.Rtl else LayoutDirection.Ltr
@@ -402,11 +425,7 @@ private fun VideoForgeApp() {
                     onSelected = { selected = it },
                     onNewProject = { projectId = ProjectRepository.newId(); projectName = context.getString(R.string.new_project); clips = emptyList(); showEditor = true },
                     onImport = {
-                        picker.launch(
-                            PickVisualMediaRequest(
-                                ActivityResultContracts.PickVisualMedia.ImageAndVideo
-                            )
-                        )
+                        launchMediaPicker()
                     },
                     onOpenTemplates = { showTemplates = true },
                     onOpenProject = { project ->
@@ -595,7 +614,6 @@ private fun HomeScreen(
             )
             Spacer(Modifier.height(16.dp))
 
-            PremiumBanner()
             Spacer(Modifier.height(10.dp))
         }
     }
@@ -943,22 +961,7 @@ private fun HeroCard(language: AppLanguage, onNewProject: () -> Unit) {
                 .padding(horizontal = 22.dp, vertical = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(
-                stringResource(R.string.turn_ideas),
-                fontSize = 27.sp,
-                lineHeight = 32.sp,
-                fontWeight = FontWeight.ExtraBold,
-                textAlign = TextAlign.Center
-            )
-            Spacer(Modifier.height(7.dp))
-            Text(
-                stringResource(R.string.professional_tools),
-                color = Color.White.copy(alpha = .9f),
-                fontSize = 14.sp,
-                lineHeight = 20.sp,
-                textAlign = TextAlign.Center
-            )
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(30.dp))
             Button(
                 onClick = onNewProject,
                 shape = RoundedCornerShape(28.dp),
@@ -1172,46 +1175,6 @@ private fun RecentProjects(
                 Text(project.name, color = Color(0xFF101828), fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 1)
                 Text(formatProjectDate(project.dateModifiedSeconds), color = Color(0xFF475467), fontSize = 10.sp, maxLines = 1)
             }
-        }
-    }
-}
-
-@Composable
-private fun PremiumBanner() {
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 12.dp)
-            .clip(RoundedCornerShape(16.dp))
-            .background(
-                Brush.horizontalGradient(
-                    listOf(Color(0xFF24175F), Color(0xFF4220A3), Color(0xFF17296D))
-                )
-            )
-            .padding(horizontal = 12.dp, vertical = 11.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(
-            Modifier
-                .size(40.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(Color(0xFF2F326A)),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(Icons.Default.WorkspacePremium, null, Modifier.size(25.dp), tint = Color(0xFFFFC857))
-        }
-        Spacer(Modifier.width(9.dp))
-        Column(Modifier.weight(1f)) {
-            Text(stringResource(R.string.premium_features), fontWeight = FontWeight.Bold, color = Color(0xFFFFD36B), fontSize = 15.sp)
-            Text(stringResource(R.string.premium_description), fontSize = 10.sp, lineHeight = 14.sp, color = Color.White.copy(alpha = 0.88f), maxLines = 2)
-        }
-        Button(
-            onClick = {},
-            shape = RoundedCornerShape(23.dp),
-            contentPadding = PaddingValues(horizontal = 11.dp, vertical = 5.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF7041FF))
-        ) {
-            Text(stringResource(R.string.upgrade_now), fontSize = 12.sp, fontWeight = FontWeight.Bold)
         }
     }
 }
