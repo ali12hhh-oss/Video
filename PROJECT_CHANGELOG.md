@@ -172,3 +172,7 @@
 - Crop dialog now exposes zoom and X/Y framing controls and persists changes through `EditorSettings`.
 - Layer manager now supports per-layer visibility toggling and deletion while preserving the existing editor state flow.
 - Existing import/export, undo/redo, autosave, and bilingual flows remain connected.
+
+
+## 2026-09-19 — Layer workflow refinement
+- Added layer ordering controls to the editor layer manager, allowing text layers to move up/down while retaining visibility and deletion controls.
