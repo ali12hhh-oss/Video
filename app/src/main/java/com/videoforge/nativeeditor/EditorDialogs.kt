@@ -94,8 +94,63 @@ fun KeyframeDialog(
         }
     )
 }
-@Composable fun VideoKeyframeDialog(s:EditorSettings,clips:List<Clip>,clip:Clip?,playheadMs:Long,language:AppLanguage,onChange:(EditorSettings)->Unit,onDismiss:()->Unit){
- AlertDialog(onDismissRequest=onDismiss,title={Text("Video keyframe")},text={Text(formatTimelineTime(playheadMs))},confirmButton={TextButton(onClick={onChange(s.copy(videoKeyframes=s.videoKeyframes.filterNot{it.timeMs==playheadMs}+VideoKeyframe(playheadMs,s.cropX,s.cropY,s.cropZoom,s.rotation.toFloat())));onDismiss()}){Text("Save")}},dismissButton={TextButton(onClick=onDismiss){Text("Close")}})
+@Composable
+fun VideoKeyframeDialog(
+    s: EditorSettings,
+    clips: List<Clip>,
+    clip: Clip?,
+    playheadMs: Long,
+    language: AppLanguage,
+    onChange: (EditorSettings) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val ar = language == AppLanguage.ARABIC
+    val existing = s.videoKeyframes.firstOrNull { it.timeMs == playheadMs }
+    var x by remember(playheadMs, existing) { mutableFloatStateOf(existing?.x ?: s.cropX) }
+    var y by remember(playheadMs, existing) { mutableFloatStateOf(existing?.y ?: s.cropY) }
+    var scale by remember(playheadMs, existing) { mutableFloatStateOf(existing?.scale ?: s.cropZoom) }
+    var rotation by remember(playheadMs, existing) { mutableFloatStateOf(existing?.rotation ?: s.rotation.toFloat()) }
+    var easing by remember(playheadMs, existing) { mutableStateOf(existing?.easing ?: "easeInOut") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(if (ar) "إطار حركة الفيديو" else "Video keyframe") },
+        text = {
+            Column(
+                Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Text(formatTimelineTime(playheadMs), fontSize = 11.sp)
+                Text(if (ar) "الموضع الأفقي" else "Horizontal position", fontSize = 11.sp)
+                Slider(value = x, onValueChange = { x = it }, valueRange = -1f..1f)
+                Text(if (ar) "الموضع العمودي" else "Vertical position", fontSize = 11.sp)
+                Slider(value = y, onValueChange = { y = it }, valueRange = -1f..1f)
+                Text(if (ar) "التكبير: %.2fx".format(scale) else "Scale: %.2fx".format(scale), fontSize = 11.sp)
+                Slider(value = scale, onValueChange = { scale = it }, valueRange = 0.1f..6f)
+                Text(if (ar) "الدوران: %.1f°".format(rotation) else "Rotation: %.1f°".format(rotation), fontSize = 11.sp)
+                Slider(value = rotation, onValueChange = { rotation = it }, valueRange = -360f..360f)
+                Text(if (ar) "التسارع" else "Easing", fontSize = 11.sp)
+                listOf("linear", "easeIn", "easeOut", "easeInOut", "hold").forEach { mode ->
+                    FilterChip(
+                        selected = easing == mode,
+                        onClick = { easing = mode },
+                        label = { Text(mode) }
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                val next = (s.videoKeyframes.filterNot { it.timeMs == playheadMs } +
+                    VideoKeyframe(playheadMs, x, y, scale, rotation, easing)).sortedBy { it.timeMs }
+                onChange(s.copy(videoKeyframes = next))
+                onDismiss()
+            }) { Text(if (ar) "حفظ" else "Save") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(if (ar) "إغلاق" else "Close") }
+        }
+    )
 }
 @Composable fun SubtitleDialog(s:EditorSettings,playheadMs:Long,language:AppLanguage,onChange:(EditorSettings)->Unit,onImport:()->Unit,onExport:()->Unit,onDismiss:()->Unit){
  val ar=language==AppLanguage.ARABIC
