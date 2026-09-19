@@ -34,7 +34,6 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.File
 
 private data class AiPhotoStyle(val id: String, val titleAr: String, val titleEn: String, val detailAr: String, val detailEn: String)
 
