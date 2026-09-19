@@ -16,14 +16,11 @@ android {
         versionName = "0.1.0"
     }
 
-    // Keep Java and Kotlin compilation on the same JVM target.
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    // This native library does not contain symbols that the Android strip tool
-    // can process. Preserve it as-is instead of emitting a packaging warning.
     packaging {
         jniLibs {
             keepDebugSymbols += "**/libandroidx.graphics.path.so"
@@ -47,8 +44,13 @@ dependencies {
     implementation("androidx.media3:media3-ui:1.9.0")
     implementation("androidx.media3:media3-transformer:1.9.0")
     implementation("androidx.media3:media3-effect:1.9.0")
-    // Google ML Kit Subject Segmentation (beta): optional AI image cutout/background removal.
     implementation("com.google.android.gms:play-services-mlkit-subject-segmentation:16.0.0-beta1")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.9.0")
+
+    // Existing AdMob dependency is intentionally retained; ad activation remains deferred.
     implementation("com.google.android.gms:play-services-ads:23.6.0")
+
+    // Free, on-device generative image runtime. The model weights are downloaded on demand,
+    // not bundled into the APK.
+    implementation("com.google.mediapipe:tasks-vision-image-generator:0.10.26.1")
 }
