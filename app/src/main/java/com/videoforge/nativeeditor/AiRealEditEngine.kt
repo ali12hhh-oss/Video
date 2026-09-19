@@ -52,4 +52,33 @@ internal object AiRealEditEngine {
         canvas.setBitmap(null)
         return output
     }
+
+    /**
+     * Composites only the selected mask region from a generated image over the
+     * original image. This is a local masked-generation foundation: the current
+     * MediaPipe backend does not expose true mask-conditioned inpainting.
+     */
+    fun compositeByMask(original: Bitmap, generated: Bitmap, mask: Bitmap): Bitmap {
+        val width = original.width
+        val height = original.height
+        val output = original.copy(Bitmap.Config.ARGB_8888, true)
+        val generatedScaled = Bitmap.createScaledBitmap(generated, width, height, true)
+        val maskScaled = Bitmap.createScaledBitmap(mask, width, height, true)
+        val canvas = android.graphics.Canvas(output)
+        val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
+        val layer = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        val layerCanvas = android.graphics.Canvas(layer)
+        layerCanvas.drawBitmap(generatedScaled, 0f, 0f, null)
+        paint.xfermode = android.graphics.PorterDuffXfermode(android.graphics.PorterDuff.Mode.DST_IN)
+        layerCanvas.drawBitmap(maskScaled, 0f, 0f, paint)
+        paint.xfermode = null
+        canvas.drawBitmap(layer, 0f, 0f, null)
+        canvas.setBitmap(null)
+        layerCanvas.setBitmap(null)
+        if (generatedScaled !== generated) generatedScaled.recycle()
+        if (maskScaled !== mask) maskScaled.recycle()
+        layer.recycle()
+        return output
+    }
+
 }
