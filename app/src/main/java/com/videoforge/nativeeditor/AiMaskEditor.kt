@@ -195,39 +195,56 @@ private fun buildMaskFromStrokes(
     val canvas = AndroidCanvas(mask)
     canvas.drawColor(android.graphics.Color.TRANSPARENT)
 
+    // ContentScale.Fit letterboxes the source image. Map finger coordinates
+    // back through that exact displayed image rectangle so the mask aligns
+    // with the real pixels rather than the dialog bounds.
+    val fitScale = minOf(viewWidth / width.toFloat(), viewHeight / height.toFloat())
+    val displayedWidth = width * fitScale
+    val displayedHeight = height * fitScale
+    val left = (viewWidth - displayedWidth) / 2f
+    val top = (viewHeight - displayedHeight) / 2f
+
     val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         strokeCap = Paint.Cap.ROUND
         strokeJoin = Paint.Join.ROUND
-        strokeWidth = 1f
         color = android.graphics.Color.WHITE
     }
 
+    fun mapX(x: Float) = ((x - left) / fitScale).coerceIn(0f, width.toFloat())
+    fun mapY(y: Float) = ((y - top) / fitScale).coerceIn(0f, height.toFloat())
+
     strokes.forEach { stroke ->
-        paint.strokeWidth = stroke.size / viewWidth * width
-        if (stroke.erase) {
-            paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.CLEAR)
+        paint.strokeWidth = stroke.size / fitScale
+        paint.xfermode = if (stroke.erase) {
+            PorterDuffXfermode(PorterDuff.Mode.CLEAR)
         } else {
-            paint.xfermode = null
+            null
         }
+
         if (stroke.points.size == 1) {
-            canvas.drawCircle(
-                stroke.points[0].x / viewWidth * width,
-                stroke.points[0].y / viewHeight * height,
-                paint.strokeWidth / 2f,
-                paint
-            )
+            val p = stroke.points.first()
+            if (p.x in left..(left + displayedWidth) && p.y in top..(top + displayedHeight)) {
+                canvas.drawCircle(
+                    mapX(p.x),
+                    mapY(p.y),
+                    paint.strokeWidth / 2f,
+                    paint
+                )
+            }
         } else {
             val path = android.graphics.Path()
             val first = stroke.points.first()
-            path.moveTo(first.x / viewWidth * width, first.y / viewHeight * height)
+            path.moveTo(mapX(first.x), mapY(first.y))
             stroke.points.drop(1).forEach { p ->
-                path.lineTo(p.x / viewWidth * width, p.y / viewHeight * height)
+                path.lineTo(mapX(p.x), mapY(p.y))
             }
             canvas.drawPath(path, paint)
         }
     }
+
     paint.xfermode = null
     canvas.setBitmap(null)
     return mask
+}
 }
