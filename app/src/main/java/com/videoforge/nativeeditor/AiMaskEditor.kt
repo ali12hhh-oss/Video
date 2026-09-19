@@ -247,4 +247,3 @@ private fun buildMaskFromStrokes(
     canvas.setBitmap(null)
     return mask
 }
-}
