@@ -521,6 +521,29 @@ fun AiStudioScreen(isArabic: Boolean, onBack: () -> Unit, onOpenInEditor: (Uri) 
                         }
                     }
                     aiStatus?.let { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall) }
+                    if (maskBitmap != null) {
+                        OutlinedButton(
+                            enabled = !isProcessing,
+                            onClick = {
+                                val intent = context.packageManager.getLaunchIntentForPackage("io.github.xororz.localdream")
+                                if (intent != null) {
+                                    context.startActivity(intent)
+                                    aiStatus = if (isArabic)
+                                        "تم فتح محرك AI. اختر نموذجًا محليًا ثم ارجع إلى VideoForgeNative لتطبيق التعديل."
+                                    else
+                                        "AI engine opened. Select a local model, then return to VideoForgeNative to apply the edit."
+                                } else {
+                                    aiStatus = if (isArabic)
+                                        "محرك Inpainting المحلي غير مثبت على الجهاز."
+                                    else
+                                        "The local inpainting engine is not installed on this device."
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(if (isArabic) "فتح محرك Inpainting المحلي" else "Open local Inpainting engine")
+                        }
+                    }
                 }
             }
 
