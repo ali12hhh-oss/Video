@@ -26,8 +26,9 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
-import kotlin.math.max
 
 private data class MaskStroke(
     val points: List<Offset>,
@@ -46,6 +47,7 @@ internal fun AiMaskEditorDialog(
     var currentPoints by remember { mutableStateOf(emptyList<Offset>()) }
     var erase by remember { mutableStateOf(false) }
     var brushSize by remember { mutableFloatStateOf(42f) }
+    var canvasSize by remember { mutableStateOf(IntSize.Zero) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -73,7 +75,7 @@ internal fun AiMaskEditorDialog(
                                 },
                                 onDragEnd = {
                                     if (currentPoints.isNotEmpty()) {
-                                        strokes = strokes + MaskStroke(currentPoints, erase)
+                                        strokes = strokes + MaskStroke(currentPoints, erase, brushSize)
                                         currentPoints = emptyList()
                                     }
                                 },
@@ -109,7 +111,7 @@ internal fun AiMaskEditorDialog(
                             }
                         }
                         strokes.forEach(::drawStroke)
-                        if (currentPoints.isNotEmpty()) drawStroke(MaskStroke(currentPoints, erase))
+                        if (currentPoints.isNotEmpty()) drawStroke(MaskStroke(currentPoints, erase, brushSize))
                     }
                 }
 
@@ -198,12 +200,12 @@ private fun buildMaskFromStrokes(
         style = Paint.Style.STROKE
         strokeCap = Paint.Cap.ROUND
         strokeJoin = Paint.Join.ROUND
-        strokeWidth = scale * 0.04f
+        strokeWidth = 1f
         color = android.graphics.Color.WHITE
     }
 
     strokes.forEach { stroke ->
-        paint.strokeWidth = scale * 0.04f
+        paint.strokeWidth = stroke.size / viewWidth * width
         if (stroke.erase) {
             paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.CLEAR)
         } else {
