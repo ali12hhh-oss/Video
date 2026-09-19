@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.SaveAlt
 import androidx.compose.material.icons.filled.VideoLibrary
 import androidx.compose.material3.*
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -69,7 +70,7 @@ fun AiStudioScreen(isArabic: Boolean, onBack: () -> Unit, onOpenInEditor: (Uri) 
     var showOutputChoice by remember { mutableStateOf(false) }
     var isProcessing by remember { mutableStateOf(false) }
     var errorText by remember { mutableStateOf<String?>(null) }
-    var comparePosition by remember { mutableFloatStateOf(0.5f) }
+    var comparePosition by remember { mutableFloatStateOf(0.5f) }\n    var aiPrompt by remember { mutableStateOf("") }\n    var aiModelReady by remember { mutableStateOf(LocalAiImageGenerator.isReady(context)) }\n    var aiDownloadProgress by remember { mutableIntStateOf(0) }\n    var aiStatus by remember { mutableStateOf<String?>(null) }
 
     val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) {
@@ -145,6 +146,109 @@ fun AiStudioScreen(isArabic: Boolean, onBack: () -> Unit, onOpenInEditor: (Uri) 
                     }
                 }
                 Slider(value = comparePosition, onValueChange = { comparePosition = it }, valueRange = 0.05f..0.95f)
+            }
+
+            Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp)) {
+                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        if (isArabic) "تعديل AI حقيقي على الجهاز" else "Real on-device AI editing",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        if (isArabic)
+                            "اكتب ما تريد تغييره. يستخدم التطبيق نموذج انتشار محليًا، ويمكنه إعادة توليد الصورة اعتمادًا على بنيتها، بدون API مدفوع."
+                        else
+                            "Describe the change. The app uses a local diffusion model and the selected photo as visual guidance, with no paid API.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    OutlinedTextField(
+                        value = aiPrompt,
+                        onValueChange = { aiPrompt = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        minLines = 2,
+                        maxLines = 4,
+                        placeholder = {
+                            Text(if (isArabic) "مثال: حوّل المشهد إلى غروب سينمائي مع سماء برتقالية" else "Example: Turn the scene into a cinematic sunset with an orange sky")
+                        },
+                        label = { Text(if (isArabic) "وصف التعديل" else "Edit prompt") }
+                    )
+                    if (!aiModelReady) {
+                        Text(
+                            if (isArabic) "محرك AI يحتاج تنزيل نموذج محلي كبير (~1.9 GB) مرة واحدة. بعد ذلك يعمل الاستدلال على الجهاز."
+                            else "The AI engine needs a large local model download (~1.9 GB) once. Inference then runs on-device.",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        Button(
+                            enabled = !isProcessing,
+                            onClick = {
+                                isProcessing = true
+                                aiStatus = null
+                                scope.launch {
+                                    val result = LocalAiImageGenerator.ensureModels(context) { aiDownloadProgress = it }
+                                    aiModelReady = result.isSuccess && LocalAiImageGenerator.isReady(context)
+                                    isProcessing = false
+                                    aiStatus = result.exceptionOrNull()?.localizedMessage
+                                        ?: if (isArabic) "تم تجهيز محرك AI." else "AI engine is ready."
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                if (isArabic) "تنزيل وتجهيز محرك AI المجاني"
+                                else "Download and prepare free AI engine"
+                            )
+                        }
+                        if (isProcessing && aiDownloadProgress > 0) {
+                            LinearProgressIndicator(
+                                progress = { aiDownloadProgress / 100f },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            Text("$aiDownloadProgress%")
+                        }
+                    } else {
+                        Button(
+                            enabled = sourceBitmap != null && aiPrompt.isNotBlank() && !isProcessing,
+                            onClick = {
+                                val source = sourceBitmap ?: return@Button
+                                isProcessing = true
+                                aiStatus = null
+                                scope.launch {
+                                    val result = LocalAiImageGenerator.generate(
+                                        context = context,
+                                        source = source,
+                                        prompt = aiPrompt,
+                                        iterations = 12
+                                    )
+                                    result.fold(
+                                        onSuccess = { generated ->
+                                            resultBitmap = generated
+                                            resultUri = withContext(Dispatchers.IO) {
+                                                val file = File(context.cacheDir, "ai_generated_${System.currentTimeMillis()}.jpg")
+                                                file.outputStream().use { generated.compress(Bitmap.CompressFormat.JPEG, 95, it) }
+                                                Uri.fromFile(file)
+                                            }
+                                            comparePosition = 0.5f
+                                            showOutputChoice = true
+                                        },
+                                        onFailure = {
+                                            aiStatus = it.localizedMessage
+                                                ?: if (isArabic) "تعذر تشغيل نموذج AI على هذا الجهاز." else "The on-device AI model could not run on this device."
+                                        }
+                                    )
+                                    isProcessing = false
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(Icons.Default.AutoAwesome, null)
+                            Spacer(Modifier.width(8.dp))
+                            Text(if (isArabic) "تطبيق تعديل AI فعلي" else "Apply real AI edit")
+                        }
+                    }
+                    aiStatus?.let { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall) }
+                }
             }
 
             Text(if (isArabic) "الأنماط" else "Styles", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
