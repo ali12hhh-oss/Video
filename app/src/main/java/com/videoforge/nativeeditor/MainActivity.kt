@@ -591,9 +591,9 @@ private fun HomeScreen(
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(
-                            Color(0xFFF8F6FC),
-                            Color(0xFFF2F3FA),
-                            Color(0xFFEEF6F5)
+                            Color(0xFFF7F0FF),
+                            Color(0xFFEAF3FF),
+                            Color(0xFFE7FAF6)
                         )
                     )
                 )
