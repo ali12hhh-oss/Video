@@ -29,4 +29,27 @@ internal object AiRealEditEngine {
             segmenter.close()
         }
     }
+
+    fun composeForegroundOverBackground(foreground: Bitmap, background: Bitmap): Bitmap {
+        val output = Bitmap.createBitmap(
+            background.width,
+            background.height,
+            Bitmap.Config.ARGB_8888
+        )
+        val canvas = android.graphics.Canvas(output)
+        canvas.drawBitmap(background, 0f, 0f, null)
+
+        val scale = minOf(
+            background.width.toFloat() / foreground.width.toFloat(),
+            background.height.toFloat() / foreground.height.toFloat()
+        )
+        val drawWidth = foreground.width * scale
+        val drawHeight = foreground.height * scale
+        val left = (background.width - drawWidth) / 2f
+        val top = (background.height - drawHeight) / 2f
+        val destination = android.graphics.RectF(left, top, left + drawWidth, top + drawHeight)
+        canvas.drawBitmap(foreground, null, destination, null)
+        canvas.setBitmap(null)
+        return output
+    }
 }
