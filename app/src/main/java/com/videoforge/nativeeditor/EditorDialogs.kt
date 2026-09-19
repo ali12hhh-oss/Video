@@ -104,6 +104,38 @@ fun ExportDialog(
 @Composable fun RotateDialog(s:EditorSettings,language:AppLanguage,onChange:(EditorSettings)->Unit,onDismiss:()->Unit){AlertDialog(onDismissRequest=onDismiss,title={Text("Rotate")},text={Row{listOf(0,90,180,270).forEach{v->TextButton(onClick={onChange(s.copy(rotation=v))}){Text(v.toString()+"°")}}}},confirmButton={TextButton(onClick=onDismiss){Text("Close")}})}
 @Composable fun FlipDialog(s:EditorSettings,language:AppLanguage,onChange:(EditorSettings)->Unit,onDismiss:()->Unit){AlertDialog(onDismissRequest=onDismiss,title={Text("Flip")},text={Column{Row{Text("Horizontal",Modifier.weight(1f));Switch(s.flipHorizontal,{onChange(s.copy(flipHorizontal=it))})};Row{Text("Vertical",Modifier.weight(1f));Switch(s.flipVertical,{onChange(s.copy(flipVertical=it))})}}},confirmButton={TextButton(onClick=onDismiss){Text("Close")}})}
 @Composable fun CropDialog(s:EditorSettings,language:AppLanguage,onChange:(EditorSettings)->Unit,onDismiss:()->Unit){AlertDialog(onDismissRequest=onDismiss,title={Text("Crop")},text={Text("Zoom "+s.cropZoom)},confirmButton={TextButton(onClick=onDismiss){Text("Close")}})}
-@Composable fun HistoryDialog(language:AppLanguage,undoCount:Int,redoCount:Int,onUndo:()->Unit,onRedo:()->Unit,onClear:()->Unit,onDismiss:()->Unit){AlertDialog(onDismissRequest=onDismiss,title={Text("History")},text={Text("Undo "+undoCount+" • Redo "+redoCount)},confirmButton={TextButton(onClick=onUndo){Text("Undo")}},dismissButton={TextButton(onClick=onDismiss){Text("Close")}})}
-@Composable fun EditToolsDialog(language:AppLanguage,clips:List<Clip>,current:Clip?,onTrim:()->Unit,onSplit:()->Unit,onDelete:()->Unit,onMoveLeft:()->Unit,onMoveRight:()->Unit,onReplace:()->Unit,onDuplicate:()->Unit,onDismiss:()->Unit){AlertDialog(onDismissRequest=onDismiss,title={Text("Edit tools")},text={Column{Button(onClick=onTrim){Text("Trim")};Button(onClick=onSplit){Text("Split")};Button(onClick=onDuplicate){Text("Duplicate")};Button(onClick=onReplace){Text("Replace")};Button(onClick=onDelete){Text("Delete")}}},confirmButton={TextButton(onClick=onDismiss){Text("Close")}})}
+@Composable fun HistoryDialog(language:AppLanguage,undoCount:Int,redoCount:Int,onUndo:()->Unit,onRedo:()->Unit,onClear:()->Unit,onDismiss:()->Unit){
+    val ar = language == AppLanguage.ARABIC
+    AlertDialog(
+        onDismissRequest=onDismiss,
+        title={Text(if(ar) "السجل" else "History")},
+        text={
+            Column(verticalArrangement=Arrangement.spacedBy(8.dp)){
+                Text(if(ar) "تراجع: $undoCount • إعادة: $redoCount" else "Undo: $undoCount • Redo: $redoCount")
+                Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){
+                    OutlinedButton(onClick=onUndo, enabled=undoCount>0){Text(if(ar) "تراجع" else "Undo")}
+                    OutlinedButton(onClick=onRedo, enabled=redoCount>0){Text(if(ar) "إعادة" else "Redo")}
+                }
+                TextButton(onClick=onClear, enabled=undoCount>0 || redoCount>0){
+                    Text(if(ar) "مسح السجل" else "Clear history")
+                }
+            }
+        },
+        confirmButton={TextButton(onClick=onDismiss){Text(if(ar) "إغلاق" else "Close")}}
+    )
+}
+@Composable fun EditToolsDialog(language:AppLanguage,clips:List<Clip>,current:Clip?,onTrim:()->Unit,onSplit:()->Unit,onDelete:()->Unit,onMoveLeft:()->Unit,onMoveRight:()->Unit,onReplace:()->Unit,onDuplicate:()->Unit,onDismiss:()->Unit){
+    val ar=language==AppLanguage.ARABIC
+    AlertDialog(onDismissRequest=onDismiss,title={Text(if(ar) "أدوات المقطع" else "Clip tools")},text={
+        Column(Modifier.verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(6.dp)){
+            Button(onClick=onTrim,enabled=current!=null,modifier=Modifier.fillMaxWidth()){Text(if(ar) "قص" else "Trim")}
+            Button(onClick=onSplit,enabled=current!=null,modifier=Modifier.fillMaxWidth()){Text(if(ar) "تقسيم" else "Split")}
+            Button(onClick=onDuplicate,enabled=current!=null,modifier=Modifier.fillMaxWidth()){Text(if(ar) "تكرار المقطع" else "Duplicate")}
+            Button(onClick=onReplace,enabled=current!=null,modifier=Modifier.fillMaxWidth()){Text(if(ar) "استبدال الوسائط" else "Replace media")}
+            OutlinedButton(onClick=onMoveLeft,enabled=current!=null,modifier=Modifier.fillMaxWidth()){Text(if(ar) "تحريك لليسار" else "Move left")}
+            OutlinedButton(onClick=onMoveRight,enabled=current!=null,modifier=Modifier.fillMaxWidth()){Text(if(ar) "تحريك لليمين" else "Move right")}
+            Button(onClick=onDelete,enabled=current!=null && clips.size>1,modifier=Modifier.fillMaxWidth()){Text(if(ar) "حذف المقطع" else "Delete clip")}
+        }
+    },confirmButton={TextButton(onClick=onDismiss){Text(if(ar) "إغلاق" else "Close")}})
+}
 @Composable fun SimpleChoiceDialog(title:String,items:List<String>,selected:Int?,onDismiss:()->Unit,onSelect:(Int)->Unit){AlertDialog(onDismissRequest=onDismiss,title={Text(title)},text={Column(Modifier.verticalScroll(rememberScrollState())){items.forEachIndexed{i,v->FilterChip(selected==i,{onSelect(i)},label={Text(v)})}}},confirmButton={TextButton(onClick=onDismiss){Text("Close")}})}
