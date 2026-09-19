@@ -104,6 +104,7 @@ fun AiStudioScreen(isArabic: Boolean, onBack: () -> Unit, onOpenInEditor: (Uri) 
     var errorText by remember { mutableStateOf<String?>(null) }
     var comparePosition by remember { mutableFloatStateOf(0.5f) }
     var aiPrompt by remember { mutableStateOf("") }
+    var backgroundPrompt by remember { mutableStateOf("") }
     var aiModelReady by remember { mutableStateOf(LocalAiImageGenerator.isReady(context)) }
     var aiDownloadProgress by remember { mutableIntStateOf(0) }
     var aiStatus by remember { mutableStateOf<String?>(null) }
@@ -148,6 +149,62 @@ fun AiStudioScreen(isArabic: Boolean, onBack: () -> Unit, onOpenInEditor: (Uri) 
             } catch (t: Throwable) {
                 errorText = t.localizedMessage
                     ?: if (isArabic) "تعذر إزالة الخلفية بالذكاء الاصطناعي." else "AI background removal failed."
+            } finally {
+                isProcessing = false
+            }
+        }
+    }
+
+    fun replaceBackgroundWithAi() {
+        val source = sourceBitmap ?: run { choosePhoto(); return }
+        if (!LocalAiImageGenerator.isReady(context)) {
+            aiStatus = if (isArabic)
+                "جهّز محرك AI أولًا من قسم تعديل AI ثم جرّب استبدال الخلفية."
+            else
+                "Prepare the AI engine first from the AI editing section, then try background replacement."
+            return
+        }
+        val prompt = backgroundPrompt.ifBlank {
+            if (isArabic)
+                "خلفية سينمائية احترافية فقط، بدون أشخاص أو أجسام إضافية، إضاءة طبيعية متوافقة مع العنصر الأمامي"
+            else
+                "professional cinematic background only, no people or extra subjects, natural lighting matching the foreground subject"
+        }
+        chosenStyle = null
+        errorText = null
+        aiStatus = null
+        isProcessing = true
+        scope.launch {
+            try {
+                val foreground = withContext(Dispatchers.Default) {
+                    AiRealEditEngine.removeBackground(source)
+                }
+                if (foreground == null) {
+                    errorText = if (isArabic) "تعذر فصل العنصر الأمامي." else "Could not separate the foreground subject."
+                    return@launch
+                }
+                val generatedBackground = LocalAiImageGenerator.generate(
+                    context = context,
+                    source = source,
+                    prompt = prompt,
+                    iterations = 16
+                ).getOrThrow()
+                val composed = withContext(Dispatchers.Default) {
+                    AiRealEditEngine.composeForegroundOverBackground(foreground, generatedBackground)
+                }
+                resultBitmap = composed
+                resultUri = withContext(Dispatchers.IO) {
+                    val file = File(context.cacheDir, "ai_background_replaced_${System.currentTimeMillis()}.jpg")
+                    file.outputStream().use {
+                        composed.compress(Bitmap.CompressFormat.JPEG, 95, it)
+                    }
+                    Uri.fromFile(file)
+                }
+                comparePosition = 0.5f
+                showOutputChoice = true
+            } catch (t: Throwable) {
+                errorText = t.localizedMessage
+                    ?: if (isArabic) "تعذر استبدال الخلفية بالذكاء الاصطناعي." else "AI background replacement failed."
             } finally {
                 isProcessing = false
             }
@@ -271,6 +328,29 @@ fun AiStudioScreen(isArabic: Boolean, onBack: () -> Unit, onOpenInEditor: (Uri) 
                         Icon(Icons.Default.LayersClear, null)
                         Spacer(Modifier.width(8.dp))
                         Text(if (isArabic) "إزالة الخلفية بالـAI" else "Remove background with AI")
+                    }
+                    OutlinedTextField(
+                        value = backgroundPrompt,
+                        onValueChange = { backgroundPrompt = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        minLines = 2,
+                        maxLines = 3,
+                        placeholder = {
+                            Text(
+                                if (isArabic) "مثال: شاطئ استوائي عند الغروب"
+                                else "Example: tropical beach at sunset"
+                            )
+                        },
+                        label = { Text(if (isArabic) "وصف الخلفية الجديدة" else "New background prompt") }
+                    )
+                    Button(
+                        enabled = sourceBitmap != null && !isProcessing,
+                        onClick = ::replaceBackgroundWithAi,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.AutoAwesome, null)
+                        Spacer(Modifier.width(8.dp))
+                        Text(if (isArabic) "استبدال الخلفية بالـAI" else "Replace background with AI")
                     }
                 }
             }
