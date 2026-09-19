@@ -603,65 +603,94 @@ fun AiStudioScreen(isArabic: Boolean, onBack: () -> Unit, onOpenInEditor: (Uri) 
     }
 
     if (showOutputChoice && resultUri != null && resultBitmap != null) {
-        AlertDialog(
-            onDismissRequest = { showOutputChoice = false },
-            title = { Text(if (isArabic) "ماذا تريد أن تفعل بالصورة؟" else "What would you like to do with the image?") },
-            text = { Text(if (isArabic) "تمت معالجة الصورة بنجاح. يمكنك حفظها في الهاتف أو فتحها مباشرة داخل شاشة محرر الفيديو." else "The image is ready. Save it to your phone or open it directly in the video editor.") },
-            confirmButton = {
-                Button(onClick = {
-                    val bitmap = resultBitmap!!
-                    val activity = context as? android.app.Activity
-                    showOutputChoice = false
-
-                    fun saveImageToPhone() {
-                        scope.launch {
-                            val saved = withContext(Dispatchers.IO) {
-                                AiPhotoProcessor.saveToGallery(
-                                    context,
-                                    bitmap,
-                                    "VideoForge_AI_${System.currentTimeMillis()}"
-                                )
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp),
+            shape = RoundedCornerShape(20.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text(
+                    if (isArabic) "النتيجة جاهزة" else "Result ready",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Image(
+                    bitmap = resultBitmap!!.asImageBitmap(),
+                    contentDescription = null,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 360.dp)
+                        .clip(RoundedCornerShape(14.dp)),
+                    contentScale = ContentScale.Fit
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Button(
+                        modifier = Modifier.weight(1f),
+                        onClick = {
+                            val bitmap = resultBitmap!!
+                            val activity = context as? android.app.Activity
+                            fun saveImageToPhone() {
+                                scope.launch {
+                                    val saved = withContext(Dispatchers.IO) {
+                                        AiPhotoProcessor.saveToGallery(
+                                            context,
+                                            bitmap,
+                                            "VideoForge_AI_${'$'}{System.currentTimeMillis()}"
+                                        )
+                                    }
+                                    if (saved == null) {
+                                        errorText = if (isArabic) "تعذر حفظ الصورة في الهاتف." else "Could not save the image."
+                                    } else {
+                                        aiStatus = if (isArabic) "تم حفظ الصورة في مجلد VideoForge داخل الصور." else "Image saved to the VideoForge folder in Pictures."
+                                        showOutputChoice = false
+                                    }
+                                }
                             }
-                            if (saved == null) {
-                                errorText = if (isArabic) "تعذر حفظ الصورة في الهاتف." else "Could not save the image."
+                            if (activity != null) {
+                                InterstitialAdManager.showBeforeAction(activity, ::saveImageToPhone)
                             } else {
-                                aiStatus = if (isArabic) "تم حفظ الصورة في مجلد VideoForge داخل الصور." else "Image saved to the VideoForge folder in Pictures."
+                                saveImageToPhone()
                             }
                         }
+                    ) {
+                        Icon(Icons.Default.SaveAlt, null)
+                        Spacer(Modifier.width(6.dp))
+                        Text(if (isArabic) "حفظ في المعرض" else "Save to Gallery")
                     }
-
-                    if (activity != null) {
-                        InterstitialAdManager.showBeforeAction(
-                            activity = activity,
-                            onFinished = ::saveImageToPhone
-                        )
-                    } else {
-                        saveImageToPhone()
-                    }
-                }) {
-                    Icon(Icons.Default.SaveAlt, null); Spacer(Modifier.width(6.dp))
-                    Text(if (isArabic) "حفظ في الهاتف" else "Save to phone")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = {
-                    val bitmap = resultBitmap!!
-                    scope.launch {
-                        val editorUri = withContext(Dispatchers.IO) {
-                            AiPhotoProcessor.saveForEditor(context, bitmap, "VideoForge_AI_${System.currentTimeMillis()}")
+                    Button(
+                        modifier = Modifier.weight(1f),
+                        onClick = {
+                            val bitmap = resultBitmap!!
+                            scope.launch {
+                                val editorUri = withContext(Dispatchers.IO) {
+                                    AiPhotoProcessor.saveForEditor(
+                                        context,
+                                        bitmap,
+                                        "VideoForge_AI_${'$'}{System.currentTimeMillis()}"
+                                    )
+                                }
+                                if (editorUri != null) {
+                                    showOutputChoice = false
+                                    onOpenInEditor(editorUri)
+                                } else {
+                                    errorText = if (isArabic) "تعذر تجهيز الصورة للمحرر." else "Could not prepare the image for the editor."
+                                }
+                            }
                         }
-                        if (editorUri != null) {
-                            showOutputChoice = false
-                            onOpenInEditor(editorUri)
-                        } else {
-                            errorText = if (isArabic) "تعذر تجهيز الصورة للمحرر." else "Could not prepare the image for the editor."
-                        }
+                    ) {
+                        Icon(Icons.Default.VideoLibrary, null)
+                        Spacer(Modifier.width(6.dp))
+                        Text(if (isArabic) "فتح في المحرر" else "Open in Editor")
                     }
-                }) {
-                    Icon(Icons.Default.VideoLibrary, null); Spacer(Modifier.width(6.dp))
-                    Text(if (isArabic) "فتح في المحرر" else "Open in editor")
                 }
             }
-        )
+        }
     }
 }
