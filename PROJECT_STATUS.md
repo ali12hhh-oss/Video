@@ -288,3 +288,11 @@
 - EditToolsDialog أصبح يعرض Move Left/Move Right ويمنع العمليات غير المناسبة عند غياب المقطع أو محاولة حذف آخر مقطع.
 - ProjectRepository موثق بوضوح على أنه يخزن بيانات المشروع فقط، مع الاحتفاظ بحد أقصى 50 مشروعًا.
 - **الحالة:** منفذ في الشيفرة، بانتظار CI واختبار تشغيل.
+
+
+## 2026-09-19 — Editor controls completion pass
+- Subtitle dialog now writes subtitle objects at the playhead, supports editing the active subtitle, deletion through blank text, and duration adjustment.
+- Trim dialog now provides editable start/end controls with validation.
+- Crop dialog now provides zoom and X/Y framing controls.
+- Layer manager now allows visibility changes and layer deletion.
+- Changes use the existing `EditorSettingsRepository` autosave/restore path.
