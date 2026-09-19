@@ -20,6 +20,7 @@ import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.SaveAlt
 import androidx.compose.material.icons.filled.VideoLibrary
+import androidx.compose.material.icons.filled.LayersClear
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -119,6 +120,40 @@ fun AiStudioScreen(isArabic: Boolean, onBack: () -> Unit, onOpenInEditor: (Uri) 
 
     fun choosePhoto() = imagePicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
 
+    fun removeBackgroundWithAi() {
+        val source = sourceBitmap ?: run { choosePhoto(); return }
+        chosenStyle = null
+        errorText = null
+        aiStatus = null
+        isProcessing = true
+        scope.launch {
+            try {
+                val generated = withContext(Dispatchers.Default) {
+                    AiRealEditEngine.removeBackground(source)
+                }
+                if (generated != null) {
+                    resultBitmap = generated
+                    resultUri = withContext(Dispatchers.IO) {
+                        val file = File(context.cacheDir, "ai_background_removed_${System.currentTimeMillis()}.png")
+                        file.outputStream().use {
+                            generated.compress(Bitmap.CompressFormat.PNG, 100, it)
+                        }
+                        Uri.fromFile(file)
+                    }
+                    comparePosition = 0.5f
+                    showOutputChoice = true
+                } else {
+                    errorText = if (isArabic) "لم يتمكن محرك AI من فصل العنصر الأمامي." else "AI could not separate the foreground subject."
+                }
+            } catch (t: Throwable) {
+                errorText = t.localizedMessage
+                    ?: if (isArabic) "تعذر إزالة الخلفية بالذكاء الاصطناعي." else "AI background removal failed."
+            } finally {
+                isProcessing = false
+            }
+        }
+    }
+
     fun applyStyle(style: AiPhotoStyle) {
         val source = sourceBitmap ?: run { choosePhoto(); return }
         chosenStyle = style
@@ -213,6 +248,31 @@ fun AiStudioScreen(isArabic: Boolean, onBack: () -> Unit, onOpenInEditor: (Uri) 
                     }
                 }
                 Slider(value = comparePosition, onValueChange = { comparePosition = it }, valueRange = 0.05f..0.95f)
+            }
+
+            Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp)) {
+                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        if (isArabic) "أدوات AI السريعة" else "Quick AI tools",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        if (isArabic) "فصل الشخص/العنصر الأمامي يتم محليًا بواسطة نموذج ML Kit، بدون API مدفوع."
+                        else "Foreground separation runs locally with the ML Kit AI model, without a paid API.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Button(
+                        enabled = sourceBitmap != null && !isProcessing,
+                        onClick = ::removeBackgroundWithAi,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.LayersClear, null)
+                        Spacer(Modifier.width(8.dp))
+                        Text(if (isArabic) "إزالة الخلفية بالـAI" else "Remove background with AI")
+                    }
+                }
             }
 
             Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp)) {
