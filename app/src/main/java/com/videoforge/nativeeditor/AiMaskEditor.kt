@@ -14,7 +14,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Brush
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Erase
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -129,7 +128,7 @@ internal fun AiMaskEditorDialog(
                         selected = erase,
                         onClick = { erase = true },
                         label = { Text(if (isArabic) "مسح" else "Erase") },
-                        leadingIcon = { Icon(Icons.Default.Erase, null) }
+                        leadingIcon = { Icon(Icons.Default.Brush, null) }
                     )
                     IconButton(onClick = { strokes = emptyList(); currentPoints = emptyList() }) {
                         Icon(Icons.Default.Delete, if (isArabic) "مسح الكل" else "Clear")
