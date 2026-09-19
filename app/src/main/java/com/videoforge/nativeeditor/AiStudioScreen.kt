@@ -228,6 +228,10 @@ fun AiStudioScreen(isArabic: Boolean, onBack: () -> Unit, onOpenInEditor: (Uri) 
         isProcessing = true
         scope.launch {
             try {
+                check(LocalDreamInpaintingClient.isAvailable()) {
+                    if (isArabic) "محرك Inpainting المحلي غير متصل. افتح Local Dream وحمّل نموذجًا قبل التنفيذ."
+                    else "Local inpainting engine is not available. Open Local Dream and load a model first."
+                }
                 val composed = LocalDreamInpaintingClient.inpaint(
                     source = source,
                     mask = mask,
