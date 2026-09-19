@@ -600,10 +600,31 @@ fun AiStudioScreen(isArabic: Boolean, onBack: () -> Unit, onOpenInEditor: (Uri) 
             confirmButton = {
                 Button(onClick = {
                     val bitmap = resultBitmap!!
-                    scope.launch {
-                        val saved = withContext(Dispatchers.IO) { AiPhotoProcessor.saveToGallery(context, bitmap, "VideoForge_AI_${System.currentTimeMillis()}") }
-                        showOutputChoice = false
-                        if (saved == null) errorText = if (isArabic) "تعذر حفظ الصورة في الهاتف." else "Could not save the image."
+                    val activity = context as? android.app.Activity
+                    showOutputChoice = false
+
+                    fun saveImageToPhone() {
+                        scope.launch {
+                            val saved = withContext(Dispatchers.IO) {
+                                AiPhotoProcessor.saveToGallery(
+                                    context,
+                                    bitmap,
+                                    "VideoForge_AI_${System.currentTimeMillis()}"
+                                )
+                            }
+                            if (saved == null) {
+                                errorText = if (isArabic) "تعذر حفظ الصورة في الهاتف." else "Could not save the image."
+                            }
+                        }
+                    }
+
+                    if (activity != null) {
+                        InterstitialAdManager.showBeforeAction(
+                            activity = activity,
+                            onFinished = ::saveImageToPhone
+                        )
+                    } else {
+                        saveImageToPhone()
                     }
                 }) {
                     Icon(Icons.Default.SaveAlt, null); Spacer(Modifier.width(6.dp))
