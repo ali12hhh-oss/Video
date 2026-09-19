@@ -127,3 +127,12 @@
 - **اختبار CI:** لا يوجد بعد للـcommit الأخير وقت تسجيل هذا الإدخال. آخر CI معروف للدفعة السابقة `35438620039` نجح.
 - **القيود:** لا نعتبر Mask/Inpainting أو Generative Fill/Expand مكتملة بهذه الخطوة؛ تحتاج مسار قناع/backend مناسبًا.
 - **الخطوة التالية:** تشغيل CI لهذه الدفعة، ثم معالجة إدارة القناع/المنطقة لتأسيس Inpainting حقيقي بدل الادعاء بوجوده.
+
+
+### 2026-09-19 — ربط مسار Inpainting بمحرك AI محلي
+- النوع: تنفيذ/تكامل AI.
+- الوصف: إضافة LocalDreamInpaintingClient وربط التعديل الموضعي بالصورة الأصلية والقناع وPrompt، مع زر لفتح محرك Local Dream من داخل AI Studio عند الحاجة.
+- الملفات: app/src/main/java/com/videoforge/nativeeditor/LocalDreamInpaintingClient.kt، app/src/main/java/com/videoforge/nativeeditor/AiStudioScreen.kt، app/src/main/AndroidManifest.xml.
+- الحفاظ على الميزات: محرر القناع والفرشاة والممحاة والأنماط الـ16 والحفظ وفتح المحرر بقيت موجودة.
+- الحالة: منفذ في الشيفرة، وCI نجح وفق تأكيد المستخدم؛ اختبار الجهاز الفعلي لم يُجرَ من بيئة التطوير.
+- الخطوة التالية: دمج native backend داخل VideoForgeNative بدل الاعتماد على تشغيل محرك خارجي، ثم اختبار الذاكرة والأداء والتوافق.
