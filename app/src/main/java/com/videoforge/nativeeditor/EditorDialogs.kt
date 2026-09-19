@@ -9,9 +9,90 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-@Composable fun KeyframeDialog(s:EditorSettings,clips:List<Clip>,clip:Clip?,playheadMs:Long,language:AppLanguage,onChange:(EditorSettings)->Unit,onDismiss:()->Unit){
- var x by remember{mutableFloatStateOf(s.textLayers.firstOrNull()?.x?:0f)}; var y by remember{mutableFloatStateOf(s.textLayers.firstOrNull()?.y?:-.65f)}
- AlertDialog(onDismissRequest=onDismiss,title={Text("Keyframe")},text={Column(Modifier.verticalScroll(rememberScrollState())){Text(formatTimelineTime(playheadMs),fontSize=11.sp);Text("X");Slider(value = x, onValueChange = { value -> x = value }, valueRange = -1f..1f);Text("Y");Slider(value = y, onValueChange = { value -> y = value }, valueRange = -1f..1f)}},confirmButton={TextButton(onClick={val l=s.textLayers.firstOrNull();if(l!=null)onChange(s.copy(textLayers=s.textLayers.map{if(it.id==l.id)it.copy(keyframes=it.keyframes.filterNot{k->k.timeMs==playheadMs}+TextKeyframe(playheadMs,x,y,l.scale,l.rotation,l.alpha))else it}));onDismiss()}){Text("Save")}},dismissButton={TextButton(onClick=onDismiss){Text("Close")}})
+@Composable
+fun KeyframeDialog(
+    s: EditorSettings,
+    clips: List<Clip>,
+    clip: Clip?,
+    playheadMs: Long,
+    language: AppLanguage,
+    onChange: (EditorSettings) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val ar = language == AppLanguage.ARABIC
+    var selectedId by remember { mutableStateOf(s.textLayers.firstOrNull()?.id) }
+    val selected = s.textLayers.firstOrNull { it.id == selectedId } ?: s.textLayers.firstOrNull()
+    var x by remember(selected?.id, playheadMs) { mutableFloatStateOf(selected?.x ?: 0f) }
+    var y by remember(selected?.id, playheadMs) { mutableFloatStateOf(selected?.y ?: -.65f) }
+    var easing by remember(selected?.id, playheadMs) { mutableStateOf("easeInOut") }
+    LaunchedEffect(selected?.id, playheadMs) {
+        val k = selected?.keyframes?.firstOrNull { it.timeMs == playheadMs }
+        if (k != null) {
+            x = k.x
+            y = k.y
+            easing = k.easing
+        }
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(if (ar) "إطار حركة النص" else "Text keyframe") },
+        text = {
+            Column(
+                Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Text(formatTimelineTime(playheadMs), fontSize = 11.sp)
+                if (s.textLayers.isEmpty()) {
+                    Text(if (ar) "أضف طبقة نص أولاً." else "Add a text layer first.")
+                } else {
+                    Text(if (ar) "الطبقة" else "Layer", fontSize = 11.sp)
+                    s.textLayers.forEach { layer ->
+                        FilterChip(
+                            selected = (selected?.id == layer.id),
+                            onClick = { selectedId = layer.id },
+                            label = { Text(layer.name.ifBlank { layer.text.ifBlank { "Text" } }) }
+                        )
+                    }
+                    Text(if (ar) "الموضع الأفقي" else "Horizontal position", fontSize = 11.sp)
+                    Slider(value = x, onValueChange = { x = it }, valueRange = -1f..1f)
+                    Text(if (ar) "الموضع العمودي" else "Vertical position", fontSize = 11.sp)
+                    Slider(value = y, onValueChange = { y = it }, valueRange = -1f..1f)
+                    Text(if (ar) "التسارع" else "Easing", fontSize = 11.sp)
+                    listOf("linear", "easeIn", "easeOut", "easeInOut", "hold").forEach { mode ->
+                        FilterChip(
+                            selected = easing == mode,
+                            onClick = { easing = mode },
+                            label = { Text(mode) }
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                enabled = selected != null,
+                onClick = {
+                    val layer = selected ?: return@TextButton
+                    onChange(
+                        s.copy(
+                            textLayers = s.textLayers.map {
+                                if (it.id == layer.id) {
+                                    it.copy(
+                                        keyframes = it.keyframes.filterNot { k -> k.timeMs == playheadMs } +
+                                            TextKeyframe(playheadMs, x, y, layer.scale, layer.rotation, layer.alpha, easing)
+                                    )
+                                } else it
+                            }
+                        )
+                    )
+                    onDismiss()
+                }
+            ) { Text(if (ar) "حفظ" else "Save") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(if (ar) "إغلاق" else "Close") }
+        }
+    )
 }
 @Composable fun VideoKeyframeDialog(s:EditorSettings,clips:List<Clip>,clip:Clip?,playheadMs:Long,language:AppLanguage,onChange:(EditorSettings)->Unit,onDismiss:()->Unit){
  AlertDialog(onDismissRequest=onDismiss,title={Text("Video keyframe")},text={Text(formatTimelineTime(playheadMs))},confirmButton={TextButton(onClick={onChange(s.copy(videoKeyframes=s.videoKeyframes.filterNot{it.timeMs==playheadMs}+VideoKeyframe(playheadMs,s.cropX,s.cropY,s.cropZoom,s.rotation.toFloat())));onDismiss()}){Text("Save")}},dismissButton={TextButton(onClick=onDismiss){Text("Close")}})
