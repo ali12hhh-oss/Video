@@ -290,6 +290,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         LanguageManager.setLanguage(this, LanguageManager.getLanguage(this))
         WatermarkRewardManager.initialize(this)
+        InterstitialAdManager.initialize(this)
         setContent { VideoForgeApp() }
     }
 }
