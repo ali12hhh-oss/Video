@@ -154,14 +154,15 @@ fun VideoKeyframeDialog(
 }
 @Composable fun SubtitleDialog(s:EditorSettings,playheadMs:Long,language:AppLanguage,onChange:(EditorSettings)->Unit,onImport:()->Unit,onExport:()->Unit,onDismiss:()->Unit){
  val ar=language==AppLanguage.ARABIC
- var t by remember{mutableStateOf(s.subtitles.lastOrNull{playheadMs in it.startMs..it.endMs}?.text?:"")}
- var durationSec by remember{mutableFloatStateOf(2f)}
+ val existing=remember(playheadMs,s.subtitles){s.subtitles.firstOrNull{playheadMs>=it.startMs&&playheadMs<it.endMs}}
+ var t by remember(existing?.id){mutableStateOf(existing?.text?:"")}
+ var durationSec by remember(existing?.id){mutableFloatStateOf(((existing?.endMs?.minus(existing.startMs)?:2000L).coerceAtLeast(1000L)/1000f).coerceIn(1f,30f))}
  AlertDialog(onDismissRequest=onDismiss,title={Text(if(ar)"الترجمة" else "Subtitles")},text={Column(Modifier.verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(8.dp)){
+  Text(formatTimelineTime(playheadMs),fontSize=11.sp)
   OutlinedTextField(value=t,onValueChange={t=it},label={Text(if(ar)"النص" else "Text")},modifier=Modifier.fillMaxWidth(),minLines=2)
-  Text(if(ar)"مدة الترجمة: "+durationSec.toInt()+" ث" else "Subtitle duration: "+durationSec.toInt()+" s",fontSize=11.sp); Slider(value=durationSec,onValueChange={durationSec=it},valueRange=1f..30f)
+  Text(if(ar)"مدة الترجمة: "+"%.1f".format(durationSec)+" ث" else "Subtitle duration: "+"%.1f".format(durationSec)+" s",fontSize=11.sp); Slider(value=durationSec,onValueChange={durationSec=it},valueRange=1f..30f)
   Row{TextButton(onClick=onImport){Text(if(ar)"استيراد" else "Import")};TextButton(onClick=onExport){Text(if(ar)"تصدير" else "Export")}}
- }},confirmButton={TextButton(onClick={val start=playheadMs.coerceAtLeast(0L);val end=start+(durationSec*1000L).toLong().coerceAtLeast(1000L);val existing=s.subtitles.firstOrNull{playheadMs in it.startMs..it.endMs};val updated=if(t.isBlank())s.subtitles.filterNot{existing!=null&&it.id==existing.id}else if(existing!=null)s.subtitles.map{if(it.id==existing.id)it.copy(text=t,startMs=start,endMs=end)else it}else s.subtitles+(Subtitle(text=t,startMs=start,endMs=end));onChange(s.copy(subtitles=updated.sortedBy{it.startMs}));onDismiss()}){Text(if(ar)"حفظ" else "Save")}},dismissButton={TextButton(onClick=onDismiss){Text(if(ar)"إغلاق" else "Close")}})
-}
+ }},confirmButton={TextButton(onClick={val start=playheadMs.coerceAtLeast(0L);val end=start+(durationSec*1000L).toLong().coerceAtLeast(1000L);val updated=if(t.isBlank())s.subtitles.filterNot{existing!=null&&it.id==existing.id}else if(existing!=null)s.subtitles.map{if(it.id==existing.id)it.copy(text=t,startMs=start,endMs=end)else it}else s.subtitles+(Subtitle(text=t,startMs=start,endMs=end));onChange(s.copy(subtitles=updated.sortedBy{it.startMs}));onDismiss()}){Text(if(ar)"حفظ" else "Save")}},dismissButton={TextButton(onClick=onDismiss){Text(if(ar)"إغلاق" else "Close")}})}
 @Composable
 fun LayerManagerDialog(
     s: EditorSettings,
@@ -213,15 +214,18 @@ fun LayerManagerDialog(
                             Switch(
                                 checked = layer.visible,
                                 onCheckedChange = { visible ->
-                                    onChange(
-                                        s.copy(
-                                            textLayers = s.textLayers.map {
-                                                if (it.id == layer.id) it.copy(visible = visible) else it
-                                            }
-                                        )
-                                    )
+                                    onChange(s.copy(textLayers = s.textLayers.map {
+                                        if (it.id == layer.id) it.copy(visible = visible) else it
+                                    }))
                                 }
                             )
+                            IconButton(
+                                onClick = {
+                                    onChange(s.copy(textLayers = s.textLayers.map {
+                                        if (it.id == layer.id) it.copy(locked = !it.locked) else it
+                                    }))
+                                }
+                            ) { Text(if (layer.locked) "🔒" else "🔓") }
                             IconButton(
                                 onClick = {
                                     onChange(s.copy(textLayers = s.textLayers.filterNot { it.id == layer.id }))
@@ -239,7 +243,15 @@ fun LayerManagerDialog(
         }
     )
 }
-@Composable fun MarkerDialog(s:EditorSettings,playheadMs:Long,language:AppLanguage,onChange:(EditorSettings)->Unit,onSeek:(Long)->Unit,onDismiss:()->Unit){AlertDialog(onDismissRequest=onDismiss,title={Text("Markers")},text={Column{ s.markers.forEach{m->TextButton(onClick={onSeek(m.timeMs)}){Text(m.label)}}}},confirmButton={TextButton(onClick={onChange(s.copy(markers=s.markers+TimelineMarker(timeMs=playheadMs)));onDismiss()}){Text("Add")}},dismissButton={TextButton(onClick=onDismiss){Text("Close")}})}
+@Composable fun MarkerDialog(s:EditorSettings,playheadMs:Long,language:AppLanguage,onChange:(EditorSettings)->Unit,onSeek:(Long)->Unit,onDismiss:()->Unit){
+ val ar=language==AppLanguage.ARABIC
+ var newLabel by remember(playheadMs){mutableStateOf(if(ar)"علامة جديدة" else "New marker")}
+ AlertDialog(onDismissRequest=onDismiss,title={Text(if(ar)"علامات الخط الزمني" else "Timeline markers")},text={Column(Modifier.verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(7.dp)){
+  Text(if(ar)"الموضع الحالي: "+formatTimelineTime(playheadMs) else "Current position: "+formatTimelineTime(playheadMs),fontSize=11.sp)
+  OutlinedTextField(value=newLabel,onValueChange={newLabel=it},singleLine=true,label={Text(if(ar)"اسم العلامة" else "Marker label")},modifier=Modifier.fillMaxWidth())
+  if(s.markers.isEmpty()) Text(if(ar)"لا توجد علامات بعد." else "No markers yet.",fontSize=11.sp)
+  s.markers.sortedBy{it.timeMs}.forEach{m->Row(Modifier.fillMaxWidth(),verticalAlignment=androidx.compose.ui.Alignment.CenterVertically){TextButton(onClick={onSeek(m.timeMs)},modifier=Modifier.weight(1f)){Text(formatTimelineTime(m.timeMs)+"  •  "+m.label,maxLines=1)};IconButton(onClick={onChange(s.copy(markers=s.markers.filterNot{it.id==m.id}.sortedBy{it.timeMs}))}){Text("×")}}}
+ }},confirmButton={TextButton(onClick={val label=newLabel.trim().ifBlank{if(ar)"علامة" else "Marker"};val same=s.markers.firstOrNull{it.timeMs==playheadMs};val next=if(same!=null)s.markers.map{if(it.id==same.id)it.copy(label=label)else it}else s.markers+TimelineMarker(timeMs=playheadMs,label=label);onChange(s.copy(markers=next.sortedBy{it.timeMs}));onDismiss()}){Text(if(ar)"إضافة / تحديث" else "Add / update")}},dismissButton={TextButton(onClick=onDismiss){Text(if(ar)"إغلاق" else "Close")}})}
 @Composable fun TrimDialog(clip:Clip,onDismiss:()->Unit,onApply:(Long,Long)->Unit){val originalEnd=if(clip.trimEndMs==Long.MAX_VALUE)clip.durationMs else clip.trimEndMs;var start by remember{mutableFloatStateOf(clip.trimStartMs.toFloat())};var end by remember{mutableFloatStateOf(originalEnd.toFloat())};val gap=100L;val duration=clip.durationMs.coerceAtLeast(gap);AlertDialog(onDismissRequest=onDismiss,title={Text("Trim")},text={Column(Modifier.verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(6.dp)){Text(formatTimelineTime(start.toLong())+" — "+formatTimelineTime(end.toLong()),fontSize=12.sp);Text("Start");Slider(value=start,onValueChange={start=it.coerceIn(0f,(end-gap).coerceAtLeast(0f))},valueRange=0f..duration.toFloat());Text("End");Slider(value=end,onValueChange={end=it.coerceIn((start+gap).coerceAtMost(duration.toFloat()),duration.toFloat())},valueRange=0f..duration.toFloat())}},confirmButton={TextButton(onClick={onApply(start.toLong(),end.toLong())}){Text("Apply")}},dismissButton={TextButton(onClick=onDismiss){Text("Cancel")}})}
 @Composable
 fun ExportDialog(
