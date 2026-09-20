@@ -195,6 +195,29 @@ private fun mediaDurationMs(context: android.content.Context, uri: Uri): Long {
     }.getOrDefault(0L)
 }
 
+/**
+ * Still images have no DURATION metadata and no built-in playable length, so they must be
+ * detected explicitly. Media3's preview player requires an explicit image duration to display
+ * a still image at all; without this, image clips silently fail to render.
+ */
+private fun isImageUri(context: android.content.Context, uri: Uri): Boolean {
+    val type = runCatching { context.contentResolver.getType(uri) }.getOrNull()
+    if (type != null) return type.startsWith("image/")
+    val path = uri.lastPathSegment?.lowercase().orEmpty()
+    return path.endsWith(".jpg") || path.endsWith(".jpeg") || path.endsWith(".png") ||
+        path.endsWith(".webp") || path.endsWith(".heic") || path.endsWith(".heif") || path.endsWith(".gif")
+}
+
+private const val DEFAULT_IMAGE_CLIP_DURATION_MS = 3000L
+private const val FALLBACK_VIDEO_CLIP_DURATION_MS = 4000L
+
+/** Duration to assign a freshly imported clip so timeline math never divides by a zero-length clip. */
+private fun defaultClipDurationMs(context: android.content.Context, uri: Uri): Long {
+    if (isImageUri(context, uri)) return DEFAULT_IMAGE_CLIP_DURATION_MS
+    val measured = mediaDurationMs(context, uri)
+    return if (measured > 0L) measured else FALLBACK_VIDEO_CLIP_DURATION_MS
+}
+
 private fun parseSrt(raw: String): List<Subtitle> {
     val blocks = raw.replace("\r", "").trim().split(Regex("\\n\\s*\\n"))
     return blocks.mapNotNull { block ->
@@ -1965,7 +1988,14 @@ private fun EditorScreen(
         if (uris.isNotEmpty()) {
             val added = uris.mapIndexed { i, uri ->
                 persistUriAccess(context, uri)
-                Clip(uri, context.getString(R.string.clip_number, clips.size + i + 1))
+                val duration = defaultClipDurationMs(context, uri)
+                Clip(
+                    uri = uri,
+                    name = context.getString(R.string.clip_number, clips.size + i + 1),
+                    durationMs = duration,
+                    trimStartMs = 0L,
+                    trimEndMs = duration
+                )
             }
             commitClips(clips + added)
             current = added.first()
@@ -2320,7 +2350,8 @@ private fun EditorScreen(
                     settings = settings.copy(videoKeyframes = updated)
                     EditorSettingsRepository.save(context, projectId, settings)
                     playheadMs = (offset + newLocal).coerceIn(0L, timelineTotalDuration(clips))
-                }
+                },
+                onAddMedia = { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)) }
             )
 
             Text(
@@ -2658,15 +2689,21 @@ private fun EditorPreview(
     val ratio = when (settings.aspect) { "9:16" -> 9f/16f; "1:1" -> 1f; "4:5" -> 4f/5f; "2:3" -> 2f/3f; "3:4" -> 3f/4f; "3:2" -> 3f/2f; "21:9" -> 21f/9f; else -> 16f/9f }
     BoxWithConstraints(Modifier.fillMaxWidth().padding(horizontal = 10.dp)) {
         val previewWidth = maxWidth
-        val calculatedHeight = (previewWidth.value / ratio).coerceAtMost(285f).dp
+        val calculatedHeight = (previewWidth.value / ratio).coerceAtMost(620f).dp
         Box(Modifier.fillMaxWidth().height(calculatedHeight).clip(RoundedCornerShape(14.dp)).background(Color.Black), contentAlignment = Alignment.Center) {
         if (clip == null) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) { Icon(Icons.Default.VideoLibrary, null, Modifier.size(54.dp), tint = Color.Gray); Text("Add media", color = Color.Gray, fontSize = 11.sp) }
         } else {
-            val player = remember(clip.uri, clip.isFreezeFrame, clip.freezeDurationMs) {
+            val player = remember(clip.uri, clip.isFreezeFrame, clip.freezeDurationMs, clip.durationMs) {
                 ExoPlayer.Builder(context).build().apply {
-                    val item = if (clip.isFreezeFrame) {
-                        MediaItem.Builder().setUri(clip.uri).setImageDurationMs(clip.freezeDurationMs.coerceAtLeast(1L)).build()
+                    val isStillImage = clip.isFreezeFrame || isImageUri(context, clip.uri)
+                    val item = if (isStillImage) {
+                        val stillDurationMs = if (clip.isFreezeFrame) {
+                            clip.freezeDurationMs.coerceAtLeast(1L)
+                        } else {
+                            clipTimelineDuration(clip).takeIf { it > 0L } ?: DEFAULT_IMAGE_CLIP_DURATION_MS
+                        }
+                        MediaItem.Builder().setUri(clip.uri).setImageDurationMs(stillDurationMs).build()
                     } else {
                         MediaItem.fromUri(clip.uri)
                     }
