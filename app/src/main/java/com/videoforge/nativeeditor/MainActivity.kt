@@ -2191,7 +2191,7 @@ private fun EditorScreen(
             }
         }
     ) { pad ->
-        Column(Modifier.fillMaxSize().padding(pad).verticalScroll(rememberScrollState())) {
+        Column(Modifier.fillMaxSize().padding(pad)) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 7.dp), verticalAlignment = Alignment.CenterVertically) {
                 OutlinedTextField(
                     value = editingName,
@@ -2203,7 +2203,11 @@ private fun EditorScreen(
                 AssistChip(onClick = {}, label = { Text(if (language == AppLanguage.ARABIC) "محفوظ" else "Saved", fontSize = 10.sp) }, leadingIcon = { Icon(Icons.Default.CloudDone, null, Modifier.size(16.dp)) })
             }
 
-            EditorPreview(
+            // The preview gets a fixed, generous share of the actual screen height (not just
+            // whatever its aspect ratio implies from width alone) so it reads as a real, large
+            // preview like a professional editor instead of shrinking inside a scrolling column.
+            Box(Modifier.fillMaxWidth().fillMaxHeight(0.52f)) {
+                EditorPreview(
                 clip = current,
                 settings = settings,
                 playheadMs = playheadMs,
@@ -2222,7 +2226,11 @@ private fun EditorScreen(
                 onPlaybackStateChanged = { previewPlaying = it },
                 onPlaybackError = { previewError = it },
                 playbackToggleToken = previewToggleToken
-            )
+                )
+            }
+
+            Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())) {
+
 
             Row(
                 Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
@@ -2524,6 +2532,7 @@ private fun EditorScreen(
                     Text(if (language == AppLanguage.ARABIC) "مشاركة آخر فيديو" else "Share last export", fontSize = 10.sp)
                 }
             }
+            }
         }
     }
 
@@ -2687,10 +2696,21 @@ private fun EditorPreview(
 ) {
     val context = LocalContext.current
     val ratio = when (settings.aspect) { "9:16" -> 9f/16f; "1:1" -> 1f; "4:5" -> 4f/5f; "2:3" -> 2f/3f; "3:4" -> 3f/4f; "3:2" -> 3f/2f; "21:9" -> 21f/9f; else -> 16f/9f }
-    BoxWithConstraints(Modifier.fillMaxWidth().padding(horizontal = 10.dp)) {
-        val previewWidth = maxWidth
-        val calculatedHeight = (previewWidth.value / ratio).coerceAtMost(620f).dp
-        Box(Modifier.fillMaxWidth().height(calculatedHeight).clip(RoundedCornerShape(14.dp)).background(Color.Black), contentAlignment = Alignment.Center) {
+    BoxWithConstraints(Modifier.fillMaxSize().padding(horizontal = 10.dp, vertical = 4.dp)) {
+        val availableWidth = maxWidth.value
+        val availableHeight = maxHeight.value
+        val fitHeight = availableWidth / ratio
+        val displayHeight = if (availableHeight <= 0f || !availableHeight.isFinite() || fitHeight <= availableHeight) fitHeight else availableHeight
+        val displayWidth = displayHeight * ratio
+        Box(
+            Modifier
+                .width(displayWidth.dp)
+                .height(displayHeight.dp)
+                .align(Alignment.Center)
+                .clip(RoundedCornerShape(14.dp))
+                .background(Color.Black),
+            contentAlignment = Alignment.Center
+        ) {
         if (clip == null) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) { Icon(Icons.Default.VideoLibrary, null, Modifier.size(54.dp), tint = Color.Gray); Text("Add media", color = Color.Gray, fontSize = 11.sp) }
         } else {
