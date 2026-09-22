@@ -1,5 +1,10 @@
 package com.videoforge.nativeeditor
 
+import android.graphics.Bitmap
+import android.net.Uri
+import android.os.Build
+import android.util.Size
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -11,7 +16,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCut
-import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.Image as ImageIcon
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material3.AssistChip
@@ -21,19 +26,31 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlin.math.max
 
 // Professional, compact multi-track timeline. Replaces the old single fixed-width clip
-// strip (150dp per clip regardless of content, no add button, no distinct audio track)
-// with proportional clip blocks, a dedicated audio/music row, and an in-track "+" button
-// for adding more media — matching the layout pattern of CapCut / VN / InShot.
+// strip (150dp per clip regardless of content, no add button, no distinct audio track,
+// no thumbnails) with proportional clip blocks showing real frame thumbnails, a dedicated
+// audio/music row, and an in-track "+" button for adding more media — matching the layout
+// pattern of professional editors like LumaFusion / CapCut / VN.
 
 private val TrackVideoBg = Color(0xFF0D1420)
 private val ClipDefaultColor = Color(0xFF1C2A40)
@@ -47,6 +64,41 @@ private val MutedTextColor = Color(0xFF6B7893)
 private fun timelineClipDurationForUi(clip: Clip): Long {
     val end = if (clip.trimEndMs == Long.MAX_VALUE) clip.durationMs else clip.trimEndMs
     return (end - clip.trimStartMs).coerceAtLeast(0L)
+}
+
+/** Small frame/cover thumbnail for a clip block. Kept local to this file since MainActivity's
+ * loadVideoThumbnail is file-private in Kotlin (top-level `private` is per-file, not per-package). */
+private fun loadClipThumbnail(context: android.content.Context, uri: Uri): Bitmap? {
+    return try {
+        if (Build.VERSION.SDK_INT >= 29) {
+            context.contentResolver.loadThumbnail(uri, Size(200, 200), null)
+        } else {
+            val retriever = android.media.MediaMetadataRetriever()
+            retriever.setDataSource(context, uri)
+            val bitmap = retriever.getFrameAtTime(0L, android.media.MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+            retriever.release()
+            bitmap
+        }
+    } catch (_: Exception) {
+        null
+    }
+}
+
+@Composable
+private fun ClipThumbnail(uri: Uri) {
+    val context = LocalContext.current
+    var bitmap by remember(uri) { mutableStateOf<Bitmap?>(null) }
+    LaunchedEffect(uri) {
+        bitmap = withContext(Dispatchers.IO) { loadClipThumbnail(context, uri) }
+    }
+    bitmap?.let {
+        Image(
+            bitmap = it.asImageBitmap(),
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize()
+        )
+    }
 }
 
 @Composable
@@ -102,7 +154,8 @@ fun Timeline(
             modifier = Modifier.fillMaxWidth().height(20.dp)
         )
 
-        // Video / image track — compact proportional clip blocks + an in-track add button.
+        // Video / image track — compact proportional clip blocks with real thumbnails,
+        // plus an in-track add button.
         Text("Video", color = TrackLabelVideo, fontSize = 9.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(start = 2.dp))
         Row(
             Modifier
@@ -118,39 +171,53 @@ fun Timeline(
                 val selected = clip == current
                 val durationSec = (timelineClipDurationForUi(clip) / 1000f).coerceAtLeast(0.3f)
                 val blockWidth = (54f + durationSec * 14f).coerceIn(64f, 220f).dp
-                Column(
+                Box(
                     Modifier
                         .width(blockWidth)
                         .height(56.dp)
                         .clip(RoundedCornerShape(9.dp))
-                        .background(if (selected) ClipSelectedColor else if (clip.isFreezeFrame) ClipImageColor else ClipDefaultColor)
+                        .background(if (clip.isFreezeFrame) ClipImageColor else ClipDefaultColor)
                         .then(if (selected) Modifier.border(1.5.dp, Color.White, RoundedCornerShape(9.dp)) else Modifier)
                         .clickable { onSelect(clip) }
-                        .padding(horizontal = 7.dp, vertical = 5.dp),
-                    verticalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            if (clip.isFreezeFrame) Icons.Default.Image else Icons.Default.Videocam,
-                            null, tint = Color.White, modifier = Modifier.size(12.dp)
-                        )
-                        Spacer(Modifier.width(3.dp))
-                        Text(clip.name, maxLines = 1, fontSize = 9.sp, color = Color.White, modifier = Modifier.weight(1f))
-                    }
-                    Text(formatTimelineTime(timelineClipDurationForUi(clip)), color = Color(0xFFC3CEE0), fontSize = 8.sp)
+                    // Real frame/photo thumbnail behind the label, like a professional NLE.
+                    ClipThumbnail(clip.uri)
+                    // Scrim so the label stays readable over any thumbnail content.
+                    Box(
+                        Modifier
+                            .fillMaxSize()
+                            .background(Brush.verticalGradient(listOf(Color.Transparent, Color(0xCC000000))))
+                    )
                     if (selected) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
-                            IconButton(onClick = { onSplit(clip) }, modifier = Modifier.size(18.dp)) {
-                                Icon(Icons.Default.ContentCut, null, tint = Color.White, modifier = Modifier.size(11.dp))
-                            }
-                            IconButton(onClick = { onMoveLeft(clip) }, modifier = Modifier.size(18.dp)) {
-                                Text("‹", color = Color.White, fontSize = 12.sp)
-                            }
-                            IconButton(onClick = { onMoveRight(clip) }, modifier = Modifier.size(18.dp)) {
-                                Text("›", color = Color.White, fontSize = 12.sp)
-                            }
-                            IconButton(onClick = { onDelete(clip) }, modifier = Modifier.size(18.dp)) {
-                                Icon(Icons.Default.Close, null, tint = Color(0xFFFF8A80), modifier = Modifier.size(11.dp))
+                        Box(Modifier.fillMaxSize().background(ClipSelectedColor.copy(alpha = 0.22f)))
+                    }
+                    Column(
+                        Modifier.fillMaxSize().padding(horizontal = 7.dp, vertical = 5.dp),
+                        verticalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                if (clip.isFreezeFrame) Icons.Default.ImageIcon else Icons.Default.Videocam,
+                                null, tint = Color.White, modifier = Modifier.size(12.dp)
+                            )
+                            Spacer(Modifier.width(3.dp))
+                            Text(clip.name, maxLines = 1, fontSize = 9.sp, color = Color.White, modifier = Modifier.weight(1f))
+                        }
+                        Text(formatTimelineTime(timelineClipDurationForUi(clip)), color = Color(0xFFE4E9F2), fontSize = 8.sp)
+                        if (selected) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                                IconButton(onClick = { onSplit(clip) }, modifier = Modifier.size(18.dp)) {
+                                    Icon(Icons.Default.ContentCut, null, tint = Color.White, modifier = Modifier.size(11.dp))
+                                }
+                                IconButton(onClick = { onMoveLeft(clip) }, modifier = Modifier.size(18.dp)) {
+                                    Text("‹", color = Color.White, fontSize = 12.sp)
+                                }
+                                IconButton(onClick = { onMoveRight(clip) }, modifier = Modifier.size(18.dp)) {
+                                    Text("›", color = Color.White, fontSize = 12.sp)
+                                }
+                                IconButton(onClick = { onDelete(clip) }, modifier = Modifier.size(18.dp)) {
+                                    Icon(Icons.Default.Close, null, tint = Color(0xFFFF8A80), modifier = Modifier.size(11.dp))
+                                }
                             }
                         }
                     }
