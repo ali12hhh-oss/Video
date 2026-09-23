@@ -4,6 +4,7 @@ import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Build
 import android.util.Size
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -36,7 +37,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -49,17 +52,22 @@ import kotlin.math.max
 // Professional, compact multi-track timeline. Replaces the old single fixed-width clip
 // strip (150dp per clip regardless of content, no add button, no distinct audio track,
 // no thumbnails) with proportional clip blocks showing real frame thumbnails, a dedicated
-// audio/music row, and an in-track "+" button for adding more media — matching the layout
-// pattern of professional editors like LumaFusion / CapCut / VN.
+// audio/music row, a text/graphics layer strip, a volume automation curve, and an in-track
+// "+" button for adding more media — matching the layout pattern of professional editors
+// like LumaFusion / CapCut / VN.
 
 private val TrackVideoBg = Color(0xFF0D1420)
 private val ClipDefaultColor = Color(0xFF1C2A40)
 private val ClipSelectedColor = Color(0xFF3D6BFF)
 private val ClipImageColor = Color(0xFF23405C)
 private val AudioTrackBg = Color(0xFF16130D)
+private val VolumeTrackBg = Color(0xFF0F1A12)
+private val VolumeLineColor = Color(0xFF34C77B)
 private val TrackLabelVideo = Color(0xFF8DA0C4)
 private val TrackLabelAudio = Color(0xFFCBB27A)
+private val TrackLabelVolume = Color(0xFF8FD9A8)
 private val MutedTextColor = Color(0xFF6B7893)
+private val TextLayerColors = listOf(Color(0xFF6C4CD9), Color(0xFFD98A34), Color(0xFF2AA1B8), Color(0xFFC24E7A))
 
 private fun timelineClipDurationForUi(clip: Clip): Long {
     val end = if (clip.trimEndMs == Long.MAX_VALUE) clip.durationMs else clip.trimEndMs
@@ -131,7 +139,8 @@ fun Timeline(
     onSplit: (Clip) -> Unit,
     onKeyframeSeek: (Long) -> Unit,
     onVideoKeyframeMove: (Long, Long) -> Unit,
-    onAddMedia: () -> Unit = {}
+    onAddMedia: () -> Unit = {},
+    textLayerNames: List<String> = emptyList()
 ) {
     val total = clips.sumOf { timelineClipDurationForUi(it) }.coerceAtLeast(1L)
     val safePlayhead = playheadMs.coerceIn(0L, total)
@@ -153,6 +162,26 @@ fun Timeline(
             valueRange = 0f..max(1L, total).toFloat(),
             modifier = Modifier.fillMaxWidth().height(20.dp)
         )
+
+        // Thin strip above the video track showing where text/graphic layers sit, like the
+        // colored title bars in professional NLEs. Layers currently span the whole project
+        // (no per-layer time range in the data model yet), so each gets an equal-width chip.
+        if (textLayerNames.isNotEmpty()) {
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                textLayerNames.forEachIndexed { i, name ->
+                    Box(
+                        Modifier
+                            .height(20.dp)
+                            .clip(RoundedCornerShape(5.dp))
+                            .background(TextLayerColors[i % TextLayerColors.size])
+                            .padding(horizontal = 8.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(name, color = Color.White, fontSize = 8.sp, maxLines = 1)
+                    }
+                }
+            }
+        }
 
         // Video / image track — compact proportional clip blocks with real thumbnails,
         // plus an in-track add button.
@@ -254,6 +283,41 @@ fun Timeline(
                 musicUri.isNotBlank() -> Text("Music • ${(musicVolume * 100).toInt()}%", color = Color.White, fontSize = 10.sp, modifier = Modifier.weight(1f))
                 clips.isNotEmpty() -> Text("Clip audio • ${(audioBaseVolume * 100).toInt()}%", color = Color(0xFFB7C0D0), fontSize = 10.sp, modifier = Modifier.weight(1f))
                 else -> Text("No audio yet", color = MutedTextColor, fontSize = 10.sp, modifier = Modifier.weight(1f))
+            }
+        }
+
+        // Volume automation track — draws the combined audio-keyframe curve across the whole
+        // timeline as a filled line chart, like the green "Volume" row in professional NLEs.
+        Text("Volume", color = TrackLabelVolume, fontSize = 9.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(start = 2.dp, top = 2.dp))
+        Canvas(
+            Modifier
+                .fillMaxWidth()
+                .height(34.dp)
+                .clip(RoundedCornerShape(9.dp))
+                .background(VolumeTrackBg)
+        ) {
+            val w = size.width
+            val h = size.height
+            val points = (audioKeyframes.map { it.timeMs to it.volume } +
+                listOf(0L to (audioKeyframes.minByOrNull { it.timeMs }?.volume ?: audioBaseVolume)) +
+                listOf(total to (audioKeyframes.maxByOrNull { it.timeMs }?.volume ?: audioBaseVolume)))
+                .distinctBy { it.first }
+                .sortedBy { it.first }
+            if (points.size >= 2) {
+                val line = Path()
+                points.forEachIndexed { i, (t, v) ->
+                    val x = (t.toFloat() / total.toFloat()).coerceIn(0f, 1f) * w
+                    val y = h - (v.coerceIn(0f, 2f) / 2f) * h
+                    if (i == 0) line.moveTo(x, y) else line.lineTo(x, y)
+                }
+                val fill = Path().apply {
+                    addPath(line)
+                    lineTo(w, h)
+                    lineTo(0f, h)
+                    close()
+                }
+                drawPath(fill, color = VolumeLineColor.copy(alpha = 0.22f))
+                drawPath(line, color = VolumeLineColor, style = Stroke(width = 2.5f))
             }
         }
 
