@@ -1665,6 +1665,27 @@ private fun EditorFeaturePanel(
                     })},
                     valueRange=range, modifier=Modifier.padding(horizontal=12.dp)
                 )
+                Text(
+                    if (language == AppLanguage.ARABIC) "عجلات الألوان" else "Color Wheels",
+                    fontWeight = FontWeight.SemiBold, fontSize = 10.sp,
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
+                )
+                Box(Modifier.fillMaxWidth().height(110.dp)) {
+                    ColorWheelsRow(
+                        shadowsX = (settings.tint / 100f).coerceIn(-1f, 1f),
+                        shadowsY = settings.brightness.coerceIn(-1f, 1f),
+                        onShadows = { x, y -> onSettingsLiveChange(settings.copy(tint = (x * 100f).coerceIn(-100f, 100f), brightness = y.coerceIn(-1f, 1f))) },
+                        midtonesX = (settings.hue / 180f).coerceIn(-1f, 1f),
+                        midtonesY = (settings.saturation - 1f).coerceIn(-1f, 1f),
+                        onMidtones = { x, y -> onSettingsLiveChange(settings.copy(hue = (x * 180f).coerceIn(-180f, 180f), saturation = (y + 1f).coerceIn(0f, 2f))) },
+                        highlightsX = (settings.temperature / 100f).coerceIn(-1f, 1f),
+                        highlightsY = (settings.contrast - 1f).coerceIn(-1f, 1f),
+                        onHighlights = { x, y -> onSettingsLiveChange(settings.copy(temperature = (x * 100f).coerceIn(-100f, 100f), contrast = (y + 1f).coerceIn(0f, 2f))) },
+                        labelShadows = if (language == AppLanguage.ARABIC) "الظلال" else "Shadows",
+                        labelMidtones = if (language == AppLanguage.ARABIC) "المتوسطات" else "Midtones",
+                        labelHighlights = if (language == AppLanguage.ARABIC) "الإضاءات" else "Highlights"
+                    )
+                }
             }
 
             if(activeTool=="audio" && current!=null) {
@@ -2359,7 +2380,8 @@ private fun EditorScreen(
                     EditorSettingsRepository.save(context, projectId, settings)
                     playheadMs = (offset + newLocal).coerceIn(0L, timelineTotalDuration(clips))
                 },
-                onAddMedia = { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)) }
+                onAddMedia = { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)) },
+                textLayerNames = settings.textLayers.mapIndexed { i, layer -> layer.name.ifBlank { (if (language == AppLanguage.ARABIC) "نص " else "Text ") + (i + 1) } }
             )
 
             Text(
