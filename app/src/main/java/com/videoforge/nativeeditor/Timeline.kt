@@ -9,6 +9,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -23,7 +24,6 @@ import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -31,6 +31,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -40,8 +41,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -51,10 +54,11 @@ import kotlin.math.max
 
 // Professional, compact multi-track timeline. Replaces the old single fixed-width clip
 // strip (150dp per clip regardless of content, no add button, no distinct audio track,
-// no thumbnails) with proportional clip blocks showing real frame thumbnails, a dedicated
-// audio/music row, a text/graphics layer strip, a volume automation curve, and an in-track
-// "+" button for adding more media — matching the layout pattern of professional editors
-// like LumaFusion / CapCut / VN.
+// no thumbnails, no in-track trimming) with proportional clip blocks showing real frame
+// thumbnails, drag-to-trim handles on the selected clip's edges, a dedicated audio/music
+// row, a text/graphics layer strip, a volume automation curve, and an in-track "+" button
+// for adding more media — matching the layout pattern of professional editors like
+// LumaFusion / CapCut / VN.
 
 private val TrackVideoBg = Color(0xFF0D1420)
 private val ClipDefaultColor = Color(0xFF1C2A40)
@@ -68,6 +72,12 @@ private val TrackLabelAudio = Color(0xFFCBB27A)
 private val TrackLabelVolume = Color(0xFF8FD9A8)
 private val MutedTextColor = Color(0xFF6B7893)
 private val TextLayerColors = listOf(Color(0xFF6C4CD9), Color(0xFFD98A34), Color(0xFF2AA1B8), Color(0xFFC24E7A))
+
+// Drag sensitivity for the in-track trim handles: how many milliseconds one dp of drag
+// represents. Chosen so a full handle-to-handle drag across a typical block trims by a
+// few seconds, matching how CapCut/VN-style trim handles feel.
+private const val MS_PER_DP = 60L
+private const val MIN_CLIP_DURATION_MS = 300L
 
 private fun timelineClipDurationForUi(clip: Clip): Long {
     val end = if (clip.trimEndMs == Long.MAX_VALUE) clip.durationMs else clip.trimEndMs
@@ -105,6 +115,39 @@ private fun ClipThumbnail(uri: Uri) {
             contentDescription = null,
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize()
+        )
+    }
+}
+
+/** A draggable grip on one edge of the selected clip block. Dragging horizontally trims that
+ * edge in place (like the trim handles in CapCut/VN/LumaFusion) instead of using separate
+ * +/- buttons below the track. */
+@Composable
+private fun TrimHandle(alignment: Alignment, onDragMs: (Long) -> Unit) {
+    val density = LocalDensity.current
+    val onDragMsState = rememberUpdatedState(onDragMs)
+    Box(
+        Modifier
+            .align(alignment)
+            .fillMaxHeight()
+            .width(16.dp)
+            .background(Color.White.copy(alpha = 0.28f))
+            .pointerInput(Unit) {
+                detectDragGestures { change, dragAmount ->
+                    change.consume()
+                    val dp = with(density) { dragAmount.x.toDp().value }
+                    val deltaMs = (dp * MS_PER_DP).toLong()
+                    if (deltaMs != 0L) onDragMsState.value(deltaMs)
+                }
+            },
+        contentAlignment = Alignment.Center
+    ) {
+        Box(
+            Modifier
+                .width(3.dp)
+                .height(22.dp)
+                .clip(RoundedCornerShape(2.dp))
+                .background(Color.White)
         )
     }
 }
@@ -183,8 +226,9 @@ fun Timeline(
             }
         }
 
-        // Video / image track — compact proportional clip blocks with real thumbnails,
-        // plus an in-track add button.
+        // Video / image track — compact proportional clip blocks with real thumbnails. The
+        // selected clip grows drag handles on both edges so you can trim it directly in place
+        // by pulling the edges in or out, instead of separate trim buttons.
         Text("Video", color = TrackLabelVideo, fontSize = 9.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(start = 2.dp))
         Row(
             Modifier
@@ -200,6 +244,8 @@ fun Timeline(
                 val selected = clip == current
                 val durationSec = (timelineClipDurationForUi(clip) / 1000f).coerceAtLeast(0.3f)
                 val blockWidth = (54f + durationSec * 14f).coerceIn(64f, 220f).dp
+                val clipStart = clip.trimStartMs
+                val clipEnd = if (clip.trimEndMs == Long.MAX_VALUE) clip.durationMs else clip.trimEndMs
                 Box(
                     Modifier
                         .width(blockWidth)
@@ -221,7 +267,12 @@ fun Timeline(
                         Box(Modifier.fillMaxSize().background(ClipSelectedColor.copy(alpha = 0.22f)))
                     }
                     Column(
-                        Modifier.fillMaxSize().padding(horizontal = 7.dp, vertical = 5.dp),
+                        Modifier
+                            .fillMaxSize()
+                            .padding(
+                                horizontal = if (selected) 18.dp else 7.dp,
+                                vertical = 5.dp
+                            ),
                         verticalArrangement = Arrangement.SpaceBetween
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -248,6 +299,16 @@ fun Timeline(
                                     Icon(Icons.Default.Close, null, tint = Color(0xFFFF8A80), modifier = Modifier.size(11.dp))
                                 }
                             }
+                        }
+                    }
+                    if (selected) {
+                        TrimHandle(Alignment.CenterStart) { deltaMs ->
+                            val newStart = (clipStart + deltaMs).coerceIn(0L, clipEnd - MIN_CLIP_DURATION_MS)
+                            onTrimEdges(clip, newStart, clipEnd)
+                        }
+                        TrimHandle(Alignment.CenterEnd) { deltaMs ->
+                            val newEnd = (clipEnd + deltaMs).coerceIn(clipStart + MIN_CLIP_DURATION_MS, clip.durationMs)
+                            onTrimEdges(clip, clipStart, newEnd)
                         }
                     }
                 }
@@ -329,22 +390,6 @@ fun Timeline(
             ) {
                 videoKeyframes.sortedBy { it.timeMs }.forEach { key ->
                     AssistChip(onClick = { onKeyframeSeek(key.timeMs) }, label = { Text(formatTimelineTime(key.timeMs), fontSize = 8.sp) })
-                }
-            }
-        }
-
-        // Trim controls for the selected clip.
-        current?.let { clip ->
-            val start = clip.trimStartMs
-            val end = if (clip.trimEndMs == Long.MAX_VALUE) clip.durationMs else clip.trimEndMs
-            if (end > start) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    OutlinedButton(onClick = { onTrimEdges(clip, (start + 100L).coerceAtMost(end - 1L), end) }, modifier = Modifier.weight(1f)) {
-                        Text("Trim start +", fontSize = 10.sp)
-                    }
-                    OutlinedButton(onClick = { onTrimEdges(clip, start, (end - 100L).coerceAtLeast(start + 1L)) }, modifier = Modifier.weight(1f)) {
-                        Text("Trim end -", fontSize = 10.sp)
-                    }
                 }
             }
         }
