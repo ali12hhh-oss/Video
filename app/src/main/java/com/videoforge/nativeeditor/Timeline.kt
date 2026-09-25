@@ -123,7 +123,7 @@ private fun ClipThumbnail(uri: Uri) {
  * edge in place (like the trim handles in CapCut/VN/LumaFusion) instead of using separate
  * +/- buttons below the track. */
 @Composable
-private fun TrimHandle(alignment: Alignment, onDragMs: (Long) -> Unit) {
+private fun BoxScope.TrimHandle(alignment: Alignment, onDragMs: (Long) -> Unit) {
     val density = LocalDensity.current
     val onDragMsState = rememberUpdatedState(onDragMs)
     Box(
