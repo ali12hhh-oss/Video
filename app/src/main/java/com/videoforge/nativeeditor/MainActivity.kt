@@ -2178,10 +2178,7 @@ private fun EditorScreen(
                 Surface(color = Color(0xFF070B14), tonalElevation = 6.dp, shadowElevation = 8.dp) {
                     Row(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 7.dp), verticalAlignment = Alignment.CenterVertically) {
                         IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = Color.White) }
-                        Column(Modifier.weight(1f).padding(horizontal = 7.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(editingName.ifBlank { if (language == AppLanguage.ARABIC) "مشروع جديد" else "New project" }, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp, maxLines = 1)
-                            Text(if (language == AppLanguage.ARABIC) "محرر فيديو احترافي" else "Professional video editor", color = Color(0xFF8E9AAF), fontSize = 8.sp, maxLines = 1)
-                        }
+                        Spacer(Modifier.weight(1f))
                         IconButton(onClick = { undo() }, enabled = undoStack.isNotEmpty()) { Icon(Icons.AutoMirrored.Filled.Undo, null, tint = Color(0xFFB9C3D6)) }
                         IconButton(onClick = { redo() }, enabled = redoStack.isNotEmpty()) { Icon(Icons.AutoMirrored.Filled.Redo, null, tint = Color(0xFFB9C3D6)) }
                         IconButton(onClick = { tool = "history" }) { Icon(Icons.Default.History, null, tint = Color(0xFFB9C3D6)) }
@@ -2231,8 +2228,6 @@ private fun EditorScreen(
         }
     ) { pad ->
         Column(Modifier.fillMaxSize().padding(pad)) {
-            // Project identity is kept in the compact mobile top bar.
-
             // The preview gets a fixed, generous share of the actual screen height (not just
             // whatever its aspect ratio implies from width alone) so it reads as a real, large
             // preview like a professional editor instead of shrinking inside a scrolling column.
@@ -2634,19 +2629,63 @@ private fun EditorPreview(
 ) {
     val context = LocalContext.current
     val ratio = when (settings.aspect) { "9:16" -> 9f/16f; "1:1" -> 1f; "4:5" -> 4f/5f; "2:3" -> 2f/3f; "3:4" -> 3f/4f; "3:2" -> 3f/2f; "21:9" -> 21f/9f; else -> 16f/9f }
-    BoxWithConstraints(Modifier.fillMaxSize().padding(horizontal = 10.dp, vertical = 4.dp)) {
+    BoxWithConstraints(
+        Modifier
+            .fillMaxSize()
+            .padding(horizontal = 8.dp, vertical = 5.dp)
+            .clip(RoundedCornerShape(18.dp))
+            .background(Color(0xFF0B1019))
+            .border(1.dp, Color(0xFF1E2A3A), RoundedCornerShape(18.dp))
+    ) {
         val availableWidth = maxWidth.value
-        val availableHeight = maxHeight.value
+        val availableHeight = (maxHeight.value - 42f).coerceAtLeast(1f)
         val fitHeight = availableWidth / ratio
         val displayHeight = if (availableHeight <= 0f || !availableHeight.isFinite() || fitHeight <= availableHeight) fitHeight else availableHeight
         val displayWidth = displayHeight * ratio
+
+        Row(
+            Modifier.fillMaxWidth().height(36.dp).padding(horizontal = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Surface(
+                color = Color(0xFF151E2C),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Text(
+                    settings.aspect,
+                    color = Color(0xFFD5DDEA),
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp)
+                )
+            }
+            Spacer(Modifier.weight(1f))
+            Text(
+                if (settings.muted) "Muted" else "Preview",
+                color = Color(0xFF7F8CA2),
+                fontSize = 9.sp
+            )
+            IconButton(
+                onClick = { onSettingsChange(settings.copy(muted = !settings.muted)) },
+                modifier = Modifier.size(32.dp)
+            ) {
+                Icon(
+                    if (settings.muted) Icons.Default.VolumeOff else Icons.Default.VolumeUp,
+                    contentDescription = null,
+                    tint = Color(0xFFB9C3D6),
+                    modifier = Modifier.size(17.dp)
+                )
+            }
+        }
+
         Box(
             Modifier
                 .width(displayWidth.dp)
                 .height(displayHeight.dp)
                 .align(Alignment.Center)
-                .clip(RoundedCornerShape(14.dp))
-                .background(Color.Black),
+                .clip(RoundedCornerShape(12.dp))
+                .background(Color(0xFF02050A))
+                .border(1.dp, Color(0xFF253044), RoundedCornerShape(12.dp)),
             contentAlignment = Alignment.Center
         ) {
         if (clip == null) {
@@ -3073,6 +3112,7 @@ private fun EditorPreview(
         }
     }
     }
+    // Preview monitor shell
 }
 
 
