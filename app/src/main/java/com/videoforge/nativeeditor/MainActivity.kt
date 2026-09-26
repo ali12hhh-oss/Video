@@ -2257,9 +2257,8 @@ private fun EditorScreen(
             Surface(color = Color(0xFF080D17), tonalElevation = 12.dp, shadowElevation = 12.dp) {
                 CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
                     Column(Modifier.fillMaxWidth()) {
-                        // Professional mobile editing dock: primary tools stay visible, while secondary
-                        // tools remain reachable by horizontal scrolling instead of being buried in one
-                        // oversized "More" bucket.
+                        // Every main tool stays in one smooth horizontal dock. Selecting a tool
+                        // opens its contextual controls above this dock without covering the preview.
                         LazyRow(
                             modifier = Modifier.fillMaxWidth(),
                             contentPadding = PaddingValues(horizontal = 7.dp),
@@ -2272,6 +2271,12 @@ private fun EditorScreen(
                                 Triple("text", Icons.Default.TextFields, if(language==AppLanguage.ARABIC) "نص" else "Text"),
                                 Triple("effects", Icons.Default.AutoAwesome, if(language==AppLanguage.ARABIC) "مؤثرات" else "Effects"),
                                 Triple("filters", Icons.Default.FilterVintage, if(language==AppLanguage.ARABIC) "فلاتر" else "Filters"),
+                                Triple("adjust", Icons.Default.Tune, if(language==AppLanguage.ARABIC) "ضبط" else "Adjust"),
+                                Triple("canvas", Icons.Default.CropFree, if(language==AppLanguage.ARABIC) "لوحة" else "Canvas"),
+                                Triple("transition", Icons.Default.SwapHoriz, if(language==AppLanguage.ARABIC) "انتقال" else "Transition"),
+                                Triple("subtitles", Icons.Default.Subtitles, if(language==AppLanguage.ARABIC) "ترجمة" else "Subtitles"),
+                                Triple("layers", Icons.Default.Layers, if(language==AppLanguage.ARABIC) "طبقات" else "Layers"),
+                                Triple("videoKeyframes", Icons.Default.Timeline, if(language==AppLanguage.ARABIC) "حركة" else "Motion"),
                                 Triple("more", Icons.Default.MoreHoriz, if(language==AppLanguage.ARABIC) "المزيد" else "More")
                             )
                             items(dockTools, key = { it.first }) { (id, icon, label) ->
@@ -2292,18 +2297,8 @@ private fun EditorScreen(
                                     horizontalAlignment = Alignment.CenterHorizontally,
                                     verticalArrangement = Arrangement.Center
                                 ) {
-                                    Icon(
-                                        icon,
-                                        null,
-                                        tint = if(selectedTool) Color.White else Color(0xFFB9C3D6),
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                    Text(
-                                        label,
-                                        color = if(selectedTool) Color.White else Color(0xFF9BA7BB),
-                                        fontSize = 8.sp,
-                                        maxLines = 1
-                                    )
+                                    Icon(icon, null, tint = if(selectedTool) Color.White else Color(0xFFB9C3D6), modifier = Modifier.size(20.dp))
+                                    Text(label, color = if(selectedTool) Color.White else Color(0xFF9BA7BB), fontSize = 8.sp, maxLines = 1)
                                 }
                             }
                             item(key = "add-media") {
@@ -2526,12 +2521,18 @@ private fun EditorScreen(
     }
 
     if (activeEditorTool != null) {
-        ModalBottomSheet(
-            onDismissRequest = { activeEditorTool = null },
-            containerColor = Color(0xFF0B111C),
-            dragHandle = { Box(Modifier.padding(vertical = 8.dp).size(width = 38.dp, height = 4.dp).clip(RoundedCornerShape(4.dp)).background(Color(0xFF5D6B83))) }
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .heightIn(max = 190.dp)
+                .background(Color(0xFF080D17))
         ) {
-            Column(Modifier.fillMaxWidth().heightIn(max = 560.dp).verticalScroll(rememberScrollState())) {
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 190.dp)
+                    .verticalScroll(rememberScrollState())
+            ) {
                             EditorFeaturePanel(
                 activeTool = activeEditorTool,
                 settings = settings, current = current, clips = clips, language = language,
