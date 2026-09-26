@@ -3115,6 +3115,7 @@ private fun EditorPreview(
                 player.volume = clipPreviewVolume(local)
                 musicPlayer.volume = musicPreviewVolume(playheadMs)
                 if (settings.musicUri.isBlank()) musicPlayer.pause()
+                else if (settings.musicStartMs > 0L && musicPlayer.currentPosition < settings.musicStartMs) musicPlayer.seekTo(settings.musicStartMs)
                 val effects = mutableListOf<Effect>()
                 if (settings.brightness != 0f) effects += Brightness(settings.brightness.coerceIn(-1f, 1f))
                 if (settings.blurRadius > 0.01f) effects += GaussianBlur(settings.blurRadius.coerceIn(0.1f, 20f))
@@ -3162,7 +3163,8 @@ private fun EditorPreview(
                 if (kotlin.math.abs(player.currentPosition - sourcePosition) > 250L) player.seekTo(sourcePosition)
                 if (settings.musicUri.isNotBlank()) {
                     val musicLocal = (playheadMs - settings.musicStartMs).coerceAtLeast(0L)
-                    val target = if (settings.musicDurationMs > 0L) musicLocal % settings.musicDurationMs else musicLocal
+                    val targetOffset = if (settings.musicDurationMs > 0L) musicLocal % settings.musicDurationMs else musicLocal
+                    val target = (settings.musicStartMs + targetOffset).coerceAtLeast(0L)
                     if (musicLocal >= 0L && kotlin.math.abs(musicPlayer.currentPosition - target) > 350L) musicPlayer.seekTo(target)
                     musicPlayer.volume = musicPreviewVolume(playheadMs)
                 }
@@ -3190,7 +3192,8 @@ private fun EditorPreview(
                         musicPlayer.playWhenReady = active
                         musicPlayer.volume = musicPreviewVolume(globalNow)
                         if (active) {
-                            val target = if (settings.musicDurationMs > 0L) musicLocal % settings.musicDurationMs else musicLocal
+                            val targetOffset = if (settings.musicDurationMs > 0L) musicLocal % settings.musicDurationMs else musicLocal
+                            val target = (settings.musicStartMs + targetOffset).coerceAtLeast(0L)
                             if (kotlin.math.abs(musicPlayer.currentPosition - target) > 500L) musicPlayer.seekTo(target)
                         }
                     }
