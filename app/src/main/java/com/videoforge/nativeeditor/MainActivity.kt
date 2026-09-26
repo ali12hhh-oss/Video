@@ -756,7 +756,6 @@ private fun HomeScreen(
                     HomeBottomBar(
                         selected = selected,
                         onSelected = onSelected,
-                        onImport = onImport,
                         onExplore = onOpenTemplates,
                         onAccount = onOpenSettings
                     )
