@@ -1515,7 +1515,11 @@ private fun EditorFeaturePanel(
         "subtitles" -> if (language == AppLanguage.ARABIC) "الترجمة" else "Subtitles"
         "layers" -> if (language == AppLanguage.ARABIC) "الطبقات" else "Layers"
         "videoKeyframes" -> if (language == AppLanguage.ARABIC) "الحركة" else "Motion"
-        else -> if (language == AppLanguage.ARABIC) "المزيد" else "More"
+        "speed" -> if (language == AppLanguage.ARABIC) "السرعة" else "Speed"
+        "sticker" -> if (language == AppLanguage.ARABIC) "الملصقات" else "Stickers"
+        "overlay" -> if (language == AppLanguage.ARABIC) "صورة داخل صورة" else "Picture in picture"
+        "markers" -> if (language == AppLanguage.ARABIC) "العلامات" else "Markers"
+        else -> if (language == AppLanguage.ARABIC) "أدوات" else "Tools"
     }
 
     val featureItems = when (activeTool) {
@@ -1535,7 +1539,8 @@ private fun EditorFeaturePanel(
             Triple("fadeIn", Icons.Default.TrendingUp, if(language==AppLanguage.ARABIC)"تلاشي دخول" else "Fade in"),
             Triple("fadeOut", Icons.Default.TrendingDown, if(language==AppLanguage.ARABIC)"تلاشي خروج" else "Fade out"),
             Triple("keys", Icons.Default.Timeline, if(language==AppLanguage.ARABIC)"مفاتيح الصوت" else "Keyframes"),
-            Triple("music", Icons.Default.MusicNote, if(language==AppLanguage.ARABIC)"الموسيقى" else "Music")
+            Triple("music", Icons.Default.MusicNote, if(language==AppLanguage.ARABIC)"الموسيقى" else "Music"),
+            Triple("extract", Icons.Default.AudioFile, if(language==AppLanguage.ARABIC)"استخراج الصوت" else "Extract")
         )
         "text" -> listOf(
             Triple("text", Icons.Default.TextFields, if(language==AppLanguage.ARABIC)"إضافة/تعديل النص" else "Text"),
@@ -1592,6 +1597,28 @@ private fun EditorFeaturePanel(
         "videoKeyframes" -> listOf(
             Triple("video", Icons.Default.MovieFilter, if(language==AppLanguage.ARABIC)"حركة الفيديو" else "Video motion"),
             Triple("markers", Icons.Default.Bookmark, if(language==AppLanguage.ARABIC)"العلامات" else "Markers")
+        )
+        "speed" -> listOf(
+            Triple("0.5", Icons.Default.SlowMotionVideo, "0.5x"),
+            Triple("1", Icons.Default.PlayArrow, "1x"),
+            Triple("1.5", Icons.Default.Speed, "1.5x"),
+            Triple("2", Icons.Default.FastForward, "2x"),
+            Triple("custom", Icons.Default.Tune, if(language==AppLanguage.ARABIC)"مخصص" else "Custom")
+        )
+        "sticker" -> listOf(
+            Triple("emoji", Icons.Default.EmojiEmotions, if(language==AppLanguage.ARABIC)"إيموجي" else "Emoji"),
+            Triple("shape", Icons.Default.Category, if(language==AppLanguage.ARABIC)"أشكال" else "Shapes"),
+            Triple("decor", Icons.Default.AutoAwesome, if(language==AppLanguage.ARABIC)"زينة" else "Decorations")
+        )
+        "overlay" -> listOf(
+            Triple("add", Icons.Default.AddToPhotos, if(language==AppLanguage.ARABIC)"إضافة PIP" else "Add PIP"),
+            Triple("manage", Icons.Default.Layers, if(language==AppLanguage.ARABIC)"إدارة الطبقة" else "Manage layer"),
+            Triple("position", Icons.Default.OpenWith, if(language==AppLanguage.ARABIC)"الموضع" else "Position")
+        )
+        "markers" -> listOf(
+            Triple("add", Icons.Default.AddCircle, if(language==AppLanguage.ARABIC)"إضافة علامة" else "Add marker"),
+            Triple("previous", Icons.Default.SkipPrevious, if(language==AppLanguage.ARABIC)"السابقة" else "Previous"),
+            Triple("next", Icons.Default.SkipNext, if(language==AppLanguage.ARABIC)"التالية" else "Next")
         )
         else -> listOf(
             Triple("speed", Icons.Default.Speed, if(language==AppLanguage.ARABIC)"السرعة" else "Speed"),
@@ -1684,6 +1711,7 @@ private fun EditorFeaturePanel(
                                     "volume","fadeIn","fadeOut" -> audioFeature=id
                                     "mute" -> onSettingsLiveChange(settings.copy(muted=!settings.muted))
                                     "keys" -> onAudioKeyframes(); "music" -> onMusicKeyframes()
+                                    "extract" -> onExtractAudio()
                                 }
                                 "text" -> when(id) { "text" -> onOpenAdvancedTool("text"); "animation" -> onTextAnimation(); "textLayers" -> onLayersDialog() }
                                 "effects" -> effectFeature=id
@@ -1703,10 +1731,16 @@ private fun EditorFeaturePanel(
                                     "pip" -> onOpenAdvancedTool("overlay")
                                 }
                                 "videoKeyframes" -> when(id) { "video" -> onVideoKeyframes(); "markers" -> onMarkers() }
+                                "speed" -> onOpenAdvancedTool("speed")
+                                "sticker" -> onOpenAdvancedTool("sticker")
+                                "overlay" -> when(id) {
+                                    "add","position" -> onOpenAdvancedTool("overlay")
+                                    "manage" -> onLayersDialog()
+                                }
+                                "markers" -> onMarkers()
                                 else -> when(id) {
-                                    "speed","sticker","overlay","subtitles" -> onOpenAdvancedTool(id)
+                                    "subtitles" -> onOpenAdvancedTool("subtitles")
                                     "freeze" -> onFreeze()
-                                    "markers" -> onMarkers()
                                     "extract" -> onExtractAudio()
                                 }
                             }
