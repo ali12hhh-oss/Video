@@ -570,7 +570,14 @@ private fun HomeScreen(
     fun reloadRecentProjects() {
         recentProjects = ProjectRepository.load(context).mapNotNull { project ->
             val primary = project.primaryClip ?: return@mapNotNull null
-            RecentProject(project.id, primary.uri, project.name, primary.durationMs, project.updatedAtMs / 1000L, project.clips)
+            RecentProject(
+                project.id,
+                primary.uri,
+                project.name,
+                primary.durationMs,
+                project.updatedAtMs / 1000L,
+                project.clips
+            )
         }.sortedByDescending { it.dateModifiedSeconds }.take(12)
     }
 
@@ -583,145 +590,324 @@ private fun HomeScreen(
     }
     LaunchedEffect(Unit) { reloadRecentProjects() }
 
+    val arabic = language == AppLanguage.ARABIC
+
     MaterialTheme(
         colorScheme = darkColorScheme(
-            primary = Color(0xFF7C4DFF),
-            secondary = Color(0xFF18C8FF),
-            background = Color(0xFF050810),
-            surface = Color(0xFF0B1220),
-            surfaceVariant = Color(0xFF111B2C),
+            primary = Color(0xFF7447FF),
+            secondary = Color(0xFF2B7CFF),
+            background = Color(0xFF020916),
+            surface = Color(0xFF071323),
+            surfaceVariant = Color(0xFF0B1A2D),
             onBackground = Color.White,
             onSurface = Color.White,
-            onSurfaceVariant = Color(0xFF9AA8BD)
+            onSurfaceVariant = Color(0xFF9CAAC0)
         )
     ) {
         Scaffold(
-            containerColor = Color(0xFF050810),
-            topBar = { HomeTopBar(language, onLanguageSelected, onOpenSettings) },
-            bottomBar = { HomeBottomBar(selected = selected, onSelected = onSelected, onImport = onImport) }
+            containerColor = Color(0xFF020916),
+            bottomBar = {
+                HomeBottomBar(
+                    selected = selected,
+                    onSelected = onSelected,
+                    onImport = onImport,
+                    onExplore = onOpenTemplates,
+                    onAccount = onOpenSettings
+                )
+            }
         ) { pad ->
             Column(
                 Modifier
                     .fillMaxSize()
                     .padding(pad)
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 14.dp, vertical = 12.dp)
+                    .padding(horizontal = 12.dp, vertical = 8.dp)
             ) {
-                HomeHero(language = language, onNewProject = onNewProject, onImport = onImport)
-                Spacer(Modifier.height(16.dp))
-
-                Text(
-                    if (language == AppLanguage.ARABIC) "ابدأ مشروعك" else "Start creating",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
-                Spacer(Modifier.height(9.dp))
-                ActionCards(
+                HomeTopBar(
                     language = language,
-                    onImport = onImport,
-                    onTemplates = onOpenTemplates,
-                    onCapture = {
-                        runCatching {
-                            context.startActivity(Intent(MediaStore.ACTION_VIDEO_CAPTURE))
-                        }
-                    }
+                    onLanguageSelected = onLanguageSelected,
+                    onOpenSettings = onOpenSettings
                 )
-                Spacer(Modifier.height(22.dp))
 
-                SectionHeader(
-                    if (language == AppLanguage.ARABIC) "المشاريع الأخيرة" else "Recent projects",
-                    if (language == AppLanguage.ARABIC) "عرض الكل" else "View all",
-                    onViewAllProjects
+                Spacer(Modifier.height(8.dp))
+
+                // The reference uses one strong cinematic hero instead of a generic
+                // marketing card. This is an existing app asset, not the reference image.
+                HomeReferenceHero(
+                    arabic = arabic,
+                    onOpen = onImport
                 )
-                Spacer(Modifier.height(9.dp))
-                RecentProjects(
-                    projects = recentProjects,
-                    hasPermission = true,
-                    onRequestPermission = {},
-                    onOpenProject = onOpenProject
+
+                Spacer(Modifier.height(14.dp))
+
+                HomePrimaryAction(
+                    title = if (arabic) "مشروع جديد" else "New project",
+                    subtitle = if (arabic) "ابدأ تحرير فيديو جديد" else "Start a new video",
+                    icon = Icons.Default.MovieCreation,
+                    gradient = listOf(Color(0xFF6840FF), Color(0xFF8A35FF)),
+                    onClick = onNewProject
                 )
+
+                Spacer(Modifier.height(10.dp))
+
+                HomePrimaryAction(
+                    title = if (arabic) "مشاريعي" else "My projects",
+                    subtitle = if (arabic) "عرض المشاريع المحفوظة" else "Browse saved projects",
+                    icon = Icons.Default.Folder,
+                    gradient = listOf(Color(0xFFFF8A34), Color(0xFFFF2F91)),
+                    onClick = onViewAllProjects
+                )
+
+                Spacer(Modifier.height(14.dp))
+
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(9.dp)
+                ) {
+                    HomeFeatureCard(
+                        Modifier.weight(1f),
+                        icon = Icons.Default.MusicNote,
+                        title = if (arabic) "الموسيقى" else "Music",
+                        subtitle = if (arabic) "مكتبة الصوت" else "Audio library",
+                        iconGradient = listOf(Color(0xFFFF9B22), Color(0xFFFFC62E)),
+                        onClick = { onOpenTemplates() }
+                    )
+                    HomeFeatureCard(
+                        Modifier.weight(1f),
+                        icon = Icons.Default.AutoAwesome,
+                        title = if (arabic) "المؤثرات" else "Effects",
+                        subtitle = if (arabic) "فلاتر وتأثيرات" else "Filters & effects",
+                        iconGradient = listOf(Color(0xFF00C9B7), Color(0xFF2BE6D2)),
+                        onClick = { onOpenTemplates() }
+                    )
+                    HomeFeatureCard(
+                        Modifier.weight(1f),
+                        icon = Icons.Default.LocalOffer,
+                        title = if (arabic) "القوالب" else "Templates",
+                        subtitle = if (arabic) "قوالب جاهزة" else "Ready templates",
+                        iconGradient = listOf(Color(0xFF6D45FF), Color(0xFF9C38FF)),
+                        onClick = onOpenTemplates
+                    )
+                }
+
+                Spacer(Modifier.height(12.dp))
+
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(9.dp)
+                ) {
+                    HomeSecondaryCard(
+                        Modifier.weight(1f),
+                        icon = Icons.Default.HelpOutline,
+                        title = if (arabic) "التعليمات" else "Help",
+                        subtitle = if (arabic) "دليل الاستخدام" else "How to use",
+                        onClick = onOpenSettings
+                    )
+                    HomeSecondaryCard(
+                        Modifier.weight(1f),
+                        icon = Icons.Default.Settings,
+                        title = if (arabic) "الإعدادات" else "Settings",
+                        subtitle = if (arabic) "خيارات التطبيق" else "App options",
+                        onClick = onOpenSettings
+                    )
+                }
+
                 Spacer(Modifier.height(18.dp))
+
+                if (recentProjects.isNotEmpty()) {
+                    SectionHeader(
+                        if (arabic) "المشاريع الأخيرة" else "Recent projects",
+                        if (arabic) "عرض الكل" else "View all",
+                        onViewAllProjects
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    RecentProjects(
+                        projects = recentProjects,
+                        hasPermission = true,
+                        onRequestPermission = {},
+                        onOpenProject = onOpenProject
+                    )
+                    Spacer(Modifier.height(10.dp))
+                }
             }
         }
     }
 }
 
 @Composable
-private fun HomeHero(
-    language: AppLanguage,
-    onNewProject: () -> Unit,
-    onImport: () -> Unit
+private fun HomeReferenceHero(
+    arabic: Boolean,
+    onOpen: () -> Unit
 ) {
-    val arabic = language == AppLanguage.ARABIC
     Box(
         Modifier
             .fillMaxWidth()
-            .height(230.dp)
-            .clip(RoundedCornerShape(24.dp))
-            .background(Brush.linearGradient(listOf(Color(0xFF17104A), Color(0xFF0D2744), Color(0xFF07111F))))
-            .border(1.dp, Color(0x332F7BFF), RoundedCornerShape(24.dp))
+            .height(166.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .border(1.dp, Color(0x332B7CFF), RoundedCornerShape(16.dp))
+            .clickable(onClick = onOpen)
     ) {
-        Box(
-            Modifier.fillMaxSize().background(
-                Brush.radialGradient(
-                    colors = listOf(Color(0x556E3BFF), Color.Transparent),
-                    radius = 520f
-                )
-            )
+        Image(
+            painter = painterResource(R.drawable.hero_cinematic),
+            contentDescription = null,
+            contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+            modifier = Modifier.fillMaxSize()
         )
+        Box(
+            Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        listOf(
+                            Color.Transparent,
+                            Color(0x22030A14),
+                            Color(0xDD030A14)
+                        )
+                    )
+                )
+        )
+        Box(
+            Modifier
+                .align(Alignment.Center)
+                .size(48.dp)
+                .clip(androidx.compose.foundation.shape.CircleShape)
+                .background(Color(0x660A1320))
+                .border(1.dp, Color.White.copy(alpha = .75f), androidx.compose.foundation.shape.CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                Icons.Default.PlayArrow,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(28.dp)
+            )
+        }
         Column(
-            Modifier.fillMaxSize().padding(22.dp),
-            verticalArrangement = Arrangement.Center,
+            Modifier
+                .align(if (arabic) Alignment.BottomEnd else Alignment.BottomStart)
+                .padding(horizontal = 13.dp, vertical = 11.dp),
             horizontalAlignment = if (arabic) Alignment.End else Alignment.Start
         ) {
             Text(
-                if (arabic) "استوديو فيديو احترافي" else "Professional video studio",
-                color = Color.White.copy(alpha = .72f),
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Medium
-            )
-            Spacer(Modifier.height(6.dp))
-            Text(
-                if (arabic) "اصنع فيديوك من الفكرة إلى التصدير" else "Turn your idea into a finished video",
+                if (arabic) "حول لحظاتك" else "Turn your moments",
                 color = Color.White,
-                fontSize = 25.sp,
-                lineHeight = 30.sp,
+                fontSize = 18.sp,
                 fontWeight = FontWeight.ExtraBold,
                 textAlign = if (arabic) TextAlign.End else TextAlign.Start
             )
-            Spacer(Modifier.height(8.dp))
             Text(
-                if (arabic) "قص دقيق، صوت، نصوص، مؤثرات، فلاتر، انتقالات وطبقات داخل محرر واحد." else "Precise cuts, audio, text, effects, filters, transitions and layers in one editor.",
-                color = Color(0xFFB8C4D8),
-                fontSize = 11.sp,
-                lineHeight = 16.sp,
+                if (arabic) "إلى فيديوهات مذهلة" else "into amazing videos",
+                color = Color.White,
+                fontSize = 17.sp,
+                fontWeight = FontWeight.ExtraBold,
                 textAlign = if (arabic) TextAlign.End else TextAlign.Start
             )
-            Spacer(Modifier.height(17.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(
-                    onClick = onNewProject,
-                    shape = RoundedCornerShape(14.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF7547FF)),
-                    contentPadding = PaddingValues(horizontal = 15.dp, vertical = 9.dp)
-                ) {
-                    Icon(Icons.Default.Add, null, Modifier.size(18.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text(if (arabic) "مشروع جديد" else "New project", fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                }
-                OutlinedButton(
-                    onClick = onImport,
-                    shape = RoundedCornerShape(14.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x554F8BFF)),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
-                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 9.dp)
-                ) {
-                    Icon(Icons.Default.FileOpen, null, Modifier.size(17.dp))
-                    Spacer(Modifier.width(5.dp))
-                    Text(if (arabic) "استيراد" else "Import", fontSize = 12.sp)
-                }
-            }
+        }
+    }
+}
+
+@Composable
+private fun HomePrimaryAction(
+    title: String,
+    subtitle: String,
+    icon: ImageVector,
+    gradient: List<Color>,
+    onClick: () -> Unit
+) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .height(56.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(Brush.horizontalGradient(gradient))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            Modifier
+                .size(40.dp)
+                .clip(RoundedCornerShape(11.dp))
+                .background(Color.White.copy(alpha = .16f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(icon, null, tint = Color.White, modifier = Modifier.size(23.dp))
+        }
+        Spacer(Modifier.width(11.dp))
+        Column(Modifier.weight(1f)) {
+            Text(title, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.ExtraBold)
+            Text(subtitle, color = Color.White.copy(alpha = .80f), fontSize = 9.sp)
+        }
+        Icon(Icons.Default.ChevronLeft, null, tint = Color.White.copy(alpha = .88f))
+    }
+}
+
+@Composable
+private fun HomeFeatureCard(
+    modifier: Modifier,
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    iconGradient: List<Color>,
+    onClick: () -> Unit
+) {
+    Column(
+        modifier
+            .height(92.dp)
+            .clip(RoundedCornerShape(13.dp))
+            .background(Color(0xFF071426))
+            .border(1.dp, Color(0x222D7CFF), RoundedCornerShape(13.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 5.dp, vertical = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Box(
+            Modifier
+                .size(39.dp)
+                .clip(RoundedCornerShape(11.dp))
+                .background(Brush.linearGradient(iconGradient)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(icon, null, tint = Color.White, modifier = Modifier.size(23.dp))
+        }
+        Spacer(Modifier.height(6.dp))
+        Text(title, color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+        Text(subtitle, color = Color(0xFF8EA0B8), fontSize = 7.sp, maxLines = 1)
+    }
+}
+
+@Composable
+private fun HomeSecondaryCard(
+    modifier: Modifier,
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier
+            .height(74.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(Color(0xFF071426))
+            .border(1.dp, Color(0x222D7CFF), RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            Modifier
+                .size(38.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(Color(0xFF142746)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(icon, null, tint = Color(0xFFB8C8E2), modifier = Modifier.size(21.dp))
+        }
+        Spacer(Modifier.width(8.dp))
+        Column(Modifier.weight(1f)) {
+            Text(title, color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+            Text(subtitle, color = Color(0xFF8193AD), fontSize = 8.sp)
         }
     }
 }
@@ -733,24 +919,68 @@ private fun HomeTopBar(
     onOpenSettings: () -> Unit
 ) {
     var languageMenu by remember { mutableStateOf(false) }
-    Surface(color = Color(0xFF070C16), shadowElevation = 5.dp) {
-        Row(
-            Modifier.fillMaxWidth().height(66.dp).padding(horizontal = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
+    val arabic = language == AppLanguage.ARABIC
+
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .height(58.dp)
+            .padding(horizontal = 2.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        if (arabic) {
+            Box(
+                Modifier
+                    .size(38.dp)
+                    .clip(RoundedCornerShape(11.dp))
+                    .background(Brush.linearGradient(listOf(Color(0xFFFFB300), Color(0xFFFF7A00)))),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Default.EmojiEvents, null, tint = Color.White, modifier = Modifier.size(25.dp))
+            }
+            Spacer(Modifier.width(9.dp))
+        }
+
+        Column(
+            Modifier.weight(1f),
+            horizontalAlignment = if (arabic) Alignment.Start else Alignment.Start
         ) {
-            IconButton(onClick = onOpenSettings) {
-                Icon(Icons.Default.Settings, null, tint = Color(0xFFD4DCEB))
+            Text(
+                if (arabic) "محرر الفيديو" else "Video Editor",
+                color = Color.White,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.ExtraBold
+            )
+            Text(
+                if (arabic) "ابدأ - اصنع قصتك" else "Start - create your story",
+                color = Color(0xFF8B9BB4),
+                fontSize = 9.sp
+            )
+        }
+
+        if (!arabic) {
+            Box(
+                Modifier
+                    .size(38.dp)
+                    .clip(RoundedCornerShape(11.dp))
+                    .background(Brush.linearGradient(listOf(Color(0xFFFFB300), Color(0xFFFF7A00)))),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Default.EmojiEvents, null, tint = Color.White, modifier = Modifier.size(25.dp))
             }
-            Column(Modifier.weight(1f).padding(horizontal = 8.dp)) {
-                Text("VideoForge", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 18.sp)
-                Text(
-                    if (language == AppLanguage.ARABIC) "محرر فيديو احترافي" else "Professional video editor",
-                    color = Color(0xFF8492A8), fontSize = 9.sp
-                )
+            Spacer(Modifier.width(6.dp))
+        }
+
+        Box {
+            IconButton(onClick = onOpenSettings, modifier = Modifier.size(42.dp)) {
+                Icon(Icons.Default.Settings, null, tint = Color(0xFFD7E1F0), modifier = Modifier.size(23.dp))
             }
+        }
+
+        if (!arabic) {
             Box {
-                IconButton(onClick = { languageMenu = true }) {
-                    Icon(Icons.Default.Language, null, tint = Color(0xFFB7C5DA))
+                IconButton(onClick = { languageMenu = true }, modifier = Modifier.size(42.dp)) {
+                    Icon(Icons.Default.Language, null, tint = Color(0xFF9FB0C8), modifier = Modifier.size(21.dp))
                 }
                 DropdownMenu(expanded = languageMenu, onDismissRequest = { languageMenu = false }) {
                     DropdownMenuItem(
@@ -764,72 +994,6 @@ private fun HomeTopBar(
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun ActionCards(
-    language: AppLanguage,
-    onImport: () -> Unit,
-    onTemplates: () -> Unit,
-    onCapture: () -> Unit
-) {
-    val arabic = language == AppLanguage.ARABIC
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-        HomeActionCard(
-            Modifier.weight(1f),
-            Icons.Default.VideoLibrary,
-            if (arabic) "استيراد" else "Import",
-            if (arabic) "فيديو وصور" else "Video & photos",
-            Color(0xFF7445FF),
-            onImport
-        )
-        HomeActionCard(
-            Modifier.weight(1f),
-            Icons.Default.AutoAwesomeMotion,
-            if (arabic) "قوالب" else "Templates",
-            if (arabic) "ابدأ بسرعة" else "Start faster",
-            Color(0xFF00BFAF),
-            onTemplates
-        )
-        HomeActionCard(
-            Modifier.weight(1f),
-            Icons.Default.Videocam,
-            if (arabic) "تصوير" else "Camera",
-            if (arabic) "التقط الآن" else "Record now",
-            Color(0xFF287BFF),
-            onCapture
-        )
-    }
-}
-
-@Composable
-private fun HomeActionCard(
-    modifier: Modifier,
-    icon: ImageVector,
-    title: String,
-    subtitle: String,
-    accent: Color,
-    onClick: () -> Unit
-) {
-    Column(
-        modifier
-            .height(118.dp)
-            .clip(RoundedCornerShape(18.dp))
-            .background(Brush.linearGradient(listOf(accent.copy(alpha = .30f), Color(0xFF0D1625))))
-            .border(1.dp, accent.copy(alpha = .18f), RoundedCornerShape(18.dp))
-            .clickable(onClick = onClick)
-            .padding(8.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Box(
-            Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(accent.copy(alpha = .18f)),
-            contentAlignment = Alignment.Center
-        ) { Icon(icon, null, Modifier.size(23.dp), tint = Color.White) }
-        Spacer(Modifier.height(7.dp))
-        Text(title, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-        Text(subtitle, color = Color(0xFF9CAAC0), fontSize = 9.sp, maxLines = 1)
     }
 }
 
@@ -1230,27 +1394,116 @@ private fun RecentProjects(
 }
 
 @Composable
-private fun HomeBottomBar(selected: Int, onSelected: (Int) -> Unit, onImport: () -> Unit) {
-    NavigationBar(containerColor = Color.White, tonalElevation = 2.dp, modifier = Modifier.height(78.dp)) {
-        NavigationBarItem(
-            selected = selected == 0, onClick = { onSelected(0) },
-            icon = { Icon(Icons.Default.Home, null) },
-            label = { Text(stringResource(R.string.home), fontSize = 10.sp) }
+private fun HomeBottomBar(
+    selected: Int,
+    onSelected: (Int) -> Unit,
+    onImport: () -> Unit,
+    onExplore: () -> Unit,
+    onAccount: () -> Unit
+) {
+    Surface(
+        color = Color(0xFF06101E),
+        tonalElevation = 0.dp,
+        shadowElevation = 10.dp
+    ) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .height(70.dp)
+                .padding(horizontal = 7.dp, vertical = 5.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            HomeNavItem(
+                Modifier.weight(1f),
+                selected = selected == 0,
+                icon = Icons.Default.Home,
+                label = "الرئيسية",
+                onClick = { onSelected(0) }
+            )
+            HomeNavItem(
+                Modifier.weight(1f),
+                selected = selected == 1,
+                icon = Icons.Default.Folder,
+                label = "مشاريع",
+                onClick = { onSelected(1) }
+            )
+            Box(
+                Modifier
+                    .weight(1f)
+                    .fillMaxHeight(),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.clickable(onClick = onImport)
+                ) {
+                    Box(
+                        Modifier
+                            .size(46.dp)
+                            .clip(androidx.compose.foundation.shape.CircleShape)
+                            .background(
+                                Brush.linearGradient(
+                                    listOf(Color(0xFF8B45FF), Color(0xFF286DFF))
+                                )
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Default.Add, null, tint = Color.White, modifier = Modifier.size(27.dp))
+                    }
+                    Text(
+                        "جديد",
+                        color = Color(0xFF9BAAC2),
+                        fontSize = 8.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+            HomeNavItem(
+                Modifier.weight(1f),
+                selected = false,
+                icon = Icons.Default.Explore,
+                label = "استكشاف",
+                onClick = onExplore
+            )
+            HomeNavItem(
+                Modifier.weight(1f),
+                selected = false,
+                icon = Icons.Default.Person,
+                label = "حسابي",
+                onClick = onAccount
+            )
+        }
+    }
+}
+
+@Composable
+private fun HomeNavItem(
+    modifier: Modifier,
+    selected: Boolean,
+    icon: ImageVector,
+    label: String,
+    onClick: () -> Unit
+) {
+    Column(
+        modifier
+            .fillMaxHeight()
+            .clip(RoundedCornerShape(10.dp))
+            .clickable(onClick = onClick),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Icon(
+            icon,
+            contentDescription = label,
+            tint = if (selected) Color(0xFF7846FF) else Color(0xFF8B9CB5),
+            modifier = Modifier.size(22.dp)
         )
-        NavigationBarItem(
-            selected = selected == 1, onClick = { onSelected(1) },
-            icon = { Icon(Icons.Default.Folder, null) },
-            label = { Text(stringResource(R.string.drafts), fontSize = 10.sp) }
-        )
-        NavigationBarItem(
-            selected = false, onClick = onImport,
-            icon = {
-                Box(Modifier.size(56.dp).offset(y = (-2).dp).clip(androidx.compose.foundation.shape.CircleShape)
-                    .background(Brush.linearGradient(listOf(Color(0xFF8A45FF), Color(0xFF216DFF)))),
-                    contentAlignment = Alignment.Center
-                ) { Icon(Icons.Default.Add, null, Modifier.size(30.dp), tint = Color.White) }
-            },
-            label = { Text(stringResource(R.string.new_project), fontSize = 11.sp, fontWeight = FontWeight.SemiBold) }
+        Spacer(Modifier.height(2.dp))
+        Text(
+            label,
+            color = if (selected) Color(0xFF9A70FF) else Color(0xFF8B9CB5),
+            fontSize = 8.sp,
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
         )
     }
 }
