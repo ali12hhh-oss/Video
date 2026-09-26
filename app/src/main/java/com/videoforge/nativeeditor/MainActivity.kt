@@ -3105,6 +3105,29 @@ private fun EditorPreview(
                     }
                 }
             )
+            // Professional player chrome: visible resolution badges, live timecode, and an actual play/pause control.
+            Row(
+                Modifier.align(Alignment.TopStart).padding(start = 10.dp, top = 40.dp),
+                horizontalArrangement = Arrangement.spacedBy(5.dp)
+            ) {
+                Surface(color = Color(0xDD111827), shape = RoundedCornerShape(6.dp)) {
+                    Text("1080P", color = Color.White, fontSize = 8.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 7.dp, vertical = 4.dp))
+                }
+                Surface(color = Color(0xDD6C3BFF), shape = RoundedCornerShape(6.dp)) {
+                    Text("HD", color = Color.White, fontSize = 8.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 7.dp, vertical = 4.dp))
+                }
+            }
+            Surface(modifier = Modifier.align(Alignment.BottomStart).padding(start = 10.dp, bottom = 10.dp), color = Color(0xCC0B1019), shape = RoundedCornerShape(7.dp)) {
+                Text(
+                    formatTimelineTime((playheadMs - clipOffsetMs).coerceAtLeast(0L)) + " / " + formatTimelineTime(clipTimelineDuration(clip)),
+                    color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp)
+                )
+            }
+            Box(Modifier.align(Alignment.Center).size(54.dp)) {
+                FilledIconButton(onClick = { if (player.isPlaying) player.pause() else player.play() }, modifier = Modifier.fillMaxSize()) {
+                    Icon(if (player.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(28.dp))
+                }
+            }
             val tint = when (settings.filter) { "warm" -> Color(0x44FF9E5E); "cool" -> Color(0x443A8DFF); "mono" -> Color(0x66333333); "vivid" -> Color(0x2200FFAA); else -> Color.Transparent }
             if (tint.alpha > 0f) Box(Modifier.fillMaxSize().background(tint))
             if (settings.overlayOpacity > 0f) Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = settings.overlayOpacity)))
