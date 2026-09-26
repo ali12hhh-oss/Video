@@ -50,7 +50,4 @@ dependencies {
     // Existing AdMob dependency is intentionally retained; ad activation remains deferred.
     implementation("com.google.android.gms:play-services-ads:23.6.0")
 
-    // Free, on-device generative image runtime. The model weights are downloaded on demand,
-    // not bundled into the APK.
-    implementation("com.google.mediapipe:tasks-vision-image-generator:0.10.26.1")
 }
