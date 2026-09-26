@@ -2193,32 +2193,37 @@ private fun EditorScreen(
             }
         },
         bottomBar = {
-            Surface(
-                color = Color(0xFF0A0F18),
-                tonalElevation = 8.dp,
-                shadowElevation = 10.dp
-            ) {
-                Row(
-                    Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 5.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    val dockTools = listOf(
-                        Triple("edit", Icons.Default.Edit, if(language==AppLanguage.ARABIC)"تحرير" else "Edit"),
-                        Triple("audio", Icons.Default.AudioFile, if(language==AppLanguage.ARABIC)"صوت" else "Audio"),
-                        Triple("effects", Icons.Default.AutoAwesome, if(language==AppLanguage.ARABIC)"مؤثرات" else "Effects"),
-                        Triple("filters", Icons.Default.FilterVintage, if(language==AppLanguage.ARABIC)"فلتر" else "Filter"),
-                        Triple("text", Icons.Default.TextFields, if(language==AppLanguage.ARABIC)"نص" else "Text"),
-                        Triple("more", Icons.Default.MoreHoriz, if(language==AppLanguage.ARABIC)"المزيد" else "More")
-                    )
-                    dockTools.forEach { (id, icon, label) ->
-                        Column(
-                            Modifier.weight(1f).clip(RoundedCornerShape(10.dp))
-                                 .clickable { activeEditorTool = id }
-                                .padding(vertical = 4.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
+            Surface(color = Color(0xFF080D17), tonalElevation = 12.dp, shadowElevation = 12.dp) {
+                CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+                    Row(Modifier.fillMaxWidth().padding(horizontal = 7.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        val dockTools = listOf(
+                            Triple("edit", Icons.Default.ContentCut, if(language==AppLanguage.ARABIC) "قص" else "Trim"),
+                            Triple("audio", Icons.Default.MusicNote, if(language==AppLanguage.ARABIC) "صوت" else "Audio"),
+                            Triple("effects", Icons.Default.AutoAwesome, if(language==AppLanguage.ARABIC) "مؤثرات" else "Effects"),
+                            Triple("filters", Icons.Default.FilterVintage, if(language==AppLanguage.ARABIC) "فلاتر" else "Filters"),
+                            Triple("text", Icons.Default.TextFields, if(language==AppLanguage.ARABIC) "نص" else "Text"),
+                            Triple("more", Icons.Default.MoreHoriz, if(language==AppLanguage.ARABIC) "المزيد" else "More")
+                        )
+                        dockTools.forEach { (id, icon, label) ->
+                            val selectedTool = activeEditorTool == id
+                            Column(
+                                Modifier.weight(1f).clip(RoundedCornerShape(12.dp))
+                                    .background(if(selectedTool) Brush.linearGradient(listOf(Color(0xFF6C3BFF), Color(0xFF2F7BFF))) else Brush.linearGradient(listOf(Color(0xFF101827), Color(0xFF101827))))
+                                    .clickable { activeEditorTool = id }
+                                    .padding(vertical = 5.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Icon(icon, null, tint = if(selectedTool) Color.White else Color(0xFFB9C3D6), modifier = Modifier.size(20.dp))
+                                Text(label, color = if(selectedTool) Color.White else Color(0xFF9BA7BB), fontSize = 8.sp, maxLines = 1)
+                            }
+                        }
+                        Box(
+                            Modifier.size(46.dp).clip(RoundedCornerShape(14.dp))
+                                .background(Brush.linearGradient(listOf(Color(0xFF7B2CFF), Color(0xFF1677FF))))
+                                .clickable { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)) },
+                            contentAlignment = Alignment.Center
                         ) {
-                            Icon(icon, null, tint = Color.White, modifier = Modifier.size(23.dp))
-                            Text(label, color = Color(0xFFB7C0D0), fontSize = 8.sp, maxLines = 1)
+                            Icon(Icons.Default.Add, null, tint = Color.White, modifier = Modifier.size(24.dp))
                         }
                     }
                 }
@@ -2226,7 +2231,9 @@ private fun EditorScreen(
         }
     ) { pad ->
         Column(Modifier.fillMaxSize().padding(pad)) {
-            // Project identity is kept in the compact mobile top bar.\n\n            // The preview gets a fixed, generous share of the actual screen height (not just
+            // Project identity is kept in the compact mobile top bar.
+
+            // The preview gets a fixed, generous share of the actual screen height (not just
             // whatever its aspect ratio implies from width alone) so it reads as a real, large
             // preview like a professional editor instead of shrinking inside a scrolling column.
             Box(Modifier.fillMaxWidth().fillMaxHeight(0.52f)) {
@@ -2386,113 +2393,8 @@ private fun EditorScreen(
                 textLayerNames = settings.textLayers.mapIndexed { i, layer -> layer.name.ifBlank { (if (language == AppLanguage.ARABIC) "نص " else "Text ") + (i + 1) } }
             )
 
-            Text(
-                if (language == AppLanguage.ARABIC) "أدوات التحرير" else "Editing tools",
-                fontWeight = FontWeight.Bold,
-                fontSize = 14.sp,
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp)
-            )
-            LazyRow(
-                Modifier.fillMaxWidth().padding(horizontal = 10.dp),
-                horizontalArrangement = Arrangement.spacedBy(7.dp),
-                contentPadding = PaddingValues(bottom = 5.dp)
-            ) {
-                val tools = listOf(
-                    Triple("edit", Icons.Default.Edit, if(language==AppLanguage.ARABIC)"تحرير" else "Edit"),
-                    Triple("text", Icons.Default.TextFields, if(language==AppLanguage.ARABIC)"النص" else "Text"),
-                    Triple("audio", Icons.Default.MusicNote, if(language==AppLanguage.ARABIC)"الصوت" else "Audio"),
-                    Triple("effects", Icons.Default.AutoAwesome, if(language==AppLanguage.ARABIC)"المؤثرات" else "Effects"),
-                    Triple("filters", Icons.Default.FilterVintage, if(language==AppLanguage.ARABIC)"الفلاتر" else "Filters"),
-                    Triple("adjust", Icons.Default.Tune, if(language==AppLanguage.ARABIC)"الضبط" else "Adjust"),
-                    Triple("canvas", Icons.Default.CropFree, if(language==AppLanguage.ARABIC)"المقاس" else "Canvas"),
-                    Triple("transition", Icons.Default.SwapHoriz, if(language==AppLanguage.ARABIC)"الانتقال" else "Transition"),
-                    Triple("subtitles", Icons.Default.Subtitles, if(language==AppLanguage.ARABIC)"الترجمة" else "Subtitles"),
-                    Triple("layers", Icons.Default.Layers, if(language==AppLanguage.ARABIC)"الطبقات" else "Layers"),
-                    Triple("videoKeyframes", Icons.Default.Timeline, if(language==AppLanguage.ARABIC)"الحركة" else "Motion"),
-                    Triple("more", Icons.Default.MoreHoriz, if(language==AppLanguage.ARABIC)"المزيد" else "More")
-                )
-                items(tools,key={it.first}){(id,icon,label)->
-                    Column(
-                        Modifier.width(76.dp).clip(RoundedCornerShape(13.dp))
-                            .background(Color(0xFF0D1724))
-                            .clickable{tool=id}
-                            .padding(vertical=9.dp),
-                        horizontalAlignment=Alignment.CenterHorizontally
-                    ) {
-                        Icon(icon,null,tint=Color(0xFFD09CFF),modifier=Modifier.size(24.dp))
-                        Spacer(Modifier.height(4.dp))
-                        Text(label,fontSize=9.sp,maxLines=1)
-                    }
-                }
-            }
+            // Editing controls are intentionally kept in the fixed bottom dock for a clean mobile workflow.
 
-            Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 7.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly)) }, modifier = Modifier.weight(1f)) {
-                    Icon(Icons.Default.Add, null); Spacer(Modifier.width(5.dp)); Text(if (language == AppLanguage.ARABIC) "إضافة وسائط" else "Add media")
-                }
-                OutlinedButton(onClick = { if (current != null) showTrim = true }, modifier = Modifier.weight(1f)) {
-                    Icon(Icons.Default.ContentCut, null); Spacer(Modifier.width(5.dp)); Text(if (language == AppLanguage.ARABIC) "قص" else "Trim")
-                }
-            }
-
-            Row(
-                Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    if (language == AppLanguage.ARABIC) "أدوات التحرير" else "Editing tools",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp,
-                    modifier = Modifier.weight(1f)
-                )
-                OutlinedButton(
-                    onClick = { extractAudioFromCurrent() },
-                    enabled = current != null
-                ) {
-                    Icon(Icons.Default.AudioFile, null, Modifier.size(17.dp))
-                    Spacer(Modifier.width(5.dp))
-                    Text(if (language == AppLanguage.ARABIC) "استخراج الصوت" else "Extract audio", fontSize = 10.sp)
-                }
-                Spacer(Modifier.width(6.dp))
-                OutlinedButton(
-                    onClick = { createFreezeFrame() },
-                    enabled = current != null
-                ) {
-                    Icon(Icons.Default.PauseCircle, null, Modifier.size(17.dp))
-                    Spacer(Modifier.width(5.dp))
-                    Text(if (language == AppLanguage.ARABIC) "إطار ثابت" else "Freeze frame", fontSize = 10.sp)
-                }
-            }
-            Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 3.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.Tune, null, Modifier.size(18.dp), tint = Color(0xFFD09CFF))
-                Spacer(Modifier.width(5.dp))
-                Text(if (language == AppLanguage.ARABIC) "الحركة الزمنية" else "Keyframe timeline", fontSize = 11.sp, modifier = Modifier.weight(1f))
-                Text(formatTimelineTime(playheadMs), fontSize = 10.sp, color = Color.Gray)
-                Spacer(Modifier.width(6.dp))
-                OutlinedButton(onClick = { showMarkers = true }, contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)) {
-                    Icon(Icons.Default.Bookmark, null, Modifier.size(16.dp)); Spacer(Modifier.width(3.dp)); Text(if (language == AppLanguage.ARABIC) "علامة ${settings.markers.size}" else "Markers ${settings.markers.size}", fontSize = 9.sp)
-                }
-                Spacer(Modifier.width(4.dp))
-                OutlinedButton(onClick = { updateSettings(settings.copy(markers = (settings.markers + TimelineMarker(timeMs = playheadMs, label = "M${settings.markers.size + 1}" )).sortedBy { it.timeMs })) }, contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)) {
-                    Icon(Icons.Default.AddLocationAlt, null, Modifier.size(16.dp)); Spacer(Modifier.width(3.dp)); Text(if (language == AppLanguage.ARABIC) "إضافة علامة" else "Add marker", fontSize = 9.sp)
-                }
-                Spacer(Modifier.width(4.dp))
-                OutlinedButton(onClick = { showLayers = true }, enabled = settings.textLayers.isNotEmpty(), contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)) {
-                    Icon(Icons.Default.Layers, null, Modifier.size(16.dp)); Spacer(Modifier.width(3.dp)); Text(if (language == AppLanguage.ARABIC) "الطبقات" else "Layers", fontSize = 9.sp)
-                }
-                Spacer(Modifier.width(4.dp))
-                OutlinedButton(onClick = { showKeyframes = true }, enabled = settings.textLayers.isNotEmpty(), contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)) {
-                    Icon(Icons.Default.AddCircleOutline, null, Modifier.size(16.dp)); Spacer(Modifier.width(3.dp)); Text(if (language == AppLanguage.ARABIC) "نقطة حركة" else "Keyframe", fontSize = 9.sp)
-                }
-                Spacer(Modifier.width(4.dp))
-                OutlinedButton(onClick = { showVideoKeyframes = true }, enabled = clips.isNotEmpty(), contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)) {
-                    Icon(Icons.Default.MovieFilter, null, Modifier.size(16.dp)); Spacer(Modifier.width(3.dp)); Text(if (language == AppLanguage.ARABIC) "حركة الفيديو" else "Video Motion", fontSize = 9.sp)
-                }
-                Spacer(Modifier.width(4.dp))
-                OutlinedButton(onClick = { showAudioKeyframes = true }, enabled = clips.isNotEmpty(), contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)) {
-                    Icon(Icons.Default.GraphicEq, null, Modifier.size(16.dp)); Spacer(Modifier.width(3.dp)); Text(if (language == AppLanguage.ARABIC) "حركة الصوت" else "Audio Motion", fontSize = 9.sp)
-                }
-            }
             if (status.isNotBlank()) Text(status, Modifier.padding(horizontal = 14.dp, vertical = 2.dp), color = Color.Gray, fontSize = 10.sp)
             lastExportUri?.let { exportedUri ->
                 OutlinedButton(
