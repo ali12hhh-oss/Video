@@ -823,7 +823,7 @@ private fun HomeScreen(
                         )
                         HomeFeatureCard(
                             Modifier.weight(1f),
-                            icon = Icons.Default.LocalOffer,
+                            icon = Icons.Default.SentimentSatisfiedAlt,
                             title = if (arabic) "القوالب" else "Templates",
                             subtitle = if (arabic) "قوالب جاهزة" else "Ready templates",
                             iconGradient = listOf(Color(0xFF6844FF), Color(0xFF9637FF)),
@@ -1054,6 +1054,40 @@ private fun HomeSecondaryCard(
 }
 
 @Composable
+private fun HomeCrownMark() {
+    Canvas(
+        Modifier
+            .fillMaxSize()
+            .padding(7.dp)
+    ) {
+        val crown = androidx.compose.ui.graphics.Path().apply {
+            moveTo(size.width * 0.08f, size.height * 0.68f)
+            lineTo(size.width * 0.18f, size.height * 0.30f)
+            lineTo(size.width * 0.36f, size.height * 0.52f)
+            lineTo(size.width * 0.50f, size.height * 0.10f)
+            lineTo(size.width * 0.64f, size.height * 0.52f)
+            lineTo(size.width * 0.82f, size.height * 0.30f)
+            lineTo(size.width * 0.92f, size.height * 0.68f)
+            close()
+        }
+        drawPath(
+            crown,
+            brush = Brush.linearGradient(
+                listOf(Color(0xFFFFD84D), Color(0xFFFFA800))
+            )
+        )
+        drawRoundRect(
+            brush = Brush.linearGradient(
+                listOf(Color(0xFFFFD84D), Color(0xFFFFA800))
+            ),
+            topLeft = Offset(size.width * 0.10f, size.height * 0.66f),
+            size = androidx.compose.ui.geometry.Size(size.width * 0.80f, size.height * 0.17f),
+            cornerRadius = androidx.compose.ui.geometry.CornerRadius(size.width * 0.035f)
+        )
+    }
+}
+
+@Composable
 private fun HomeTopBar(
     onOpenSettings: () -> Unit
 ) {
@@ -1071,14 +1105,7 @@ private fun HomeTopBar(
                 .border(1.dp, Color(0x332E7EFF), RoundedCornerShape(12.dp)),
             contentAlignment = Alignment.Center
         ) {
-            Image(
-                painter = painterResource(R.drawable.videoforge_logo),
-                contentDescription = "VideoForge",
-                contentScale = androidx.compose.ui.layout.ContentScale.Fit,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(5.dp)
-            )
+            HomeCrownMark()
         }
 
         Spacer(Modifier.width(9.dp))
