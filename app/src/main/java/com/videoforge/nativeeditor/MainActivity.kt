@@ -1008,7 +1008,7 @@ private fun HomeSecondaryCard(
 @Composable
 private fun HomeAppIcon() {
     Image(
-        painter = painterResource(android.R.mipmap.ic_launcher),
+        painter = painterResource(R.mipmap.ic_launcher),
         contentDescription = "Video editor",
         contentScale = androidx.compose.ui.layout.ContentScale.Fit,
         modifier = Modifier
