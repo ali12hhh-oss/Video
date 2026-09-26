@@ -1594,6 +1594,10 @@ private fun EditorFeaturePanel(
             Triple("markers", Icons.Default.Bookmark, if(language==AppLanguage.ARABIC)"العلامات" else "Markers")
         )
         else -> listOf(
+            Triple("speed", Icons.Default.Speed, if(language==AppLanguage.ARABIC)"السرعة" else "Speed"),
+            Triple("sticker", Icons.Default.EmojiEmotions, if(language==AppLanguage.ARABIC)"ملصق" else "Sticker"),
+            Triple("overlay", Icons.Default.PictureInPicture, if(language==AppLanguage.ARABIC)"PIP" else "PIP"),
+            Triple("subtitles", Icons.Default.Subtitles, if(language==AppLanguage.ARABIC)"ترجمة" else "Subtitles"),
             Triple("freeze", Icons.Default.AcUnit, if(language==AppLanguage.ARABIC)"تجميد" else "Freeze"),
             Triple("markers", Icons.Default.Bookmark, if(language==AppLanguage.ARABIC)"علامة" else "Marker"),
             Triple("extract", Icons.Default.AudioFile, if(language==AppLanguage.ARABIC)"استخراج الصوت" else "Extract audio")
@@ -1657,9 +1661,18 @@ private fun EditorFeaturePanel(
                                 }
                                 "transition" -> if(id=="none") onSettingsLiveChange(settings.copy(transition="none")) else onOpenAdvancedTool("transition")
                                 "subtitles" -> when(id) { "open" -> onSubtitles(); "markers" -> onMarkers() }
-                                "layers" -> when(id) { "manage","text","pip" -> onLayersDialog() }
+                                "layers" -> when(id) {
+                                    "manage" -> onLayersDialog()
+                                    "text" -> onLayersDialog()
+                                    "pip" -> onOpenAdvancedTool("overlay")
+                                }
                                 "videoKeyframes" -> when(id) { "video" -> onVideoKeyframes(); "markers" -> onMarkers() }
-                                else -> when(id) { "freeze" -> onFreeze(); "markers" -> onMarkers(); "extract" -> onExtractAudio() }
+                                else -> when(id) {
+                                    "speed","sticker","overlay","subtitles" -> onOpenAdvancedTool(id)
+                                    "freeze" -> onFreeze()
+                                    "markers" -> onMarkers()
+                                    "extract" -> onExtractAudio()
+                                }
                             }
                         },
                         leadingIcon={Icon(icon,null,Modifier.size(16.dp))},
