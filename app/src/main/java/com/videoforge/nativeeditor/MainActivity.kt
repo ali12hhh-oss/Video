@@ -4005,7 +4005,13 @@ private fun MusicTrimDialog(
     }
     val safeDuration = durationMs.coerceAtLeast(1L)
     val minGap = minOf(300L, safeDuration)
-NaN
+    val fileName = runCatching {
+        context.contentResolver.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
+            val index = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+            if (index >= 0 && cursor.moveToFirst()) cursor.getString(index) else null
+        }
+    }.getOrNull()?.takeIf { it.isNotBlank() } ?: uri.lastPathSegment.orEmpty().ifBlank { "Audio" }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(if (language == AppLanguage.ARABIC) "اختيار مقطع صوتي" else "Choose audio segment") },
