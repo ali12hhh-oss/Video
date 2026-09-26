@@ -2257,6 +2257,70 @@ private fun EditorScreen(
             Surface(color = Color(0xFF080D17), tonalElevation = 12.dp, shadowElevation = 12.dp) {
                 CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
                     Column(Modifier.fillMaxWidth()) {
+    if (activeEditorTool != null) {
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .heightIn(max = 190.dp)
+                .background(Color(0xFF080D17))
+        ) {
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 190.dp)
+                    .verticalScroll(rememberScrollState())
+            ) {
+                            EditorFeaturePanel(
+                activeTool = activeEditorTool,
+                settings = settings, current = current, clips = clips, language = language,
+                onSettingsLiveChange = ::updateSettingsLive,
+                onCurrentClipChange = { updated -> commitClips(clips.map { if (it == current) updated else it }); current = updated },
+                onTrim = { if (current != null) showTrim = true },
+                onSplit = {
+                    val clip = current
+                    if (clip != null) {
+                        val offset = timelinePositionOf(clips, clip)
+                        val local = (playheadMs - offset).coerceIn(1L, (clipTimelineDuration(clip)-1L).coerceAtLeast(1L))
+                        val start = clip.trimStartMs
+                        val end = if (clip.trimEndMs == Long.MAX_VALUE) clip.durationMs else clip.trimEndMs
+                        if (end-start > 2L) {
+                            val cut=(start+local).coerceIn(start+1L,end-1L)
+                            val left=clip.copy(trimEndMs=cut); val right=clip.copy(trimStartMs=cut)
+                            val index=clips.indexOf(clip)
+                            commitClips(clips.toMutableList().also{it.removeAt(index);it.add(index,left);it.add(index+1,right)})
+                            current=left
+                        }
+                    }
+                },
+                onDelete = {
+                    val clip=current
+                    if(clip!=null && clips.size>1){val next=clips.filterNot{it==clip};commitClips(next);current=next.firstOrNull();playheadMs=timelinePositionOf(next,current)}
+                },
+                onDuplicate = {
+                    val clip=current
+                    if(clip!=null){val index=clips.indexOf(clip);if(index>=0){val copy=clip.copy(name=clip.name.substringBeforeLast('.').ifBlank{clip.name}+" • copy");commitClips(clips.toMutableList().also{it.add(index+1,copy)});current=copy}}
+                },
+                onReplace = { replaceLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly)) },
+                onMoveLeft = { val clip=current; if(clip!=null){val i=clips.indexOf(clip);if(i>0)commitClips(clips.toMutableList().also{it.add(i-1,it.removeAt(i))})} },
+                onMoveRight = { val clip=current; if(clip!=null){val i=clips.indexOf(clip);if(i in 0 until clips.lastIndex)commitClips(clips.toMutableList().also{it.add(i+1,it.removeAt(i))})} },
+                onFreeze = { createFreezeFrame() },
+                onExtractAudio = { extractAudioFromCurrent() },
+                onAudioKeyframes = { showAudioKeyframes=true },
+                onMusicKeyframes = { showMusicKeyframes=true },
+                onTextDialog = { tool="text" },
+                onTextAnimation = { tool="textAnimation" },
+                onSubtitles = { tool="subtitles" },
+                onLayersDialog = { showLayers=true },
+                onVideoKeyframes = { showVideoKeyframes=true },
+                onMarkers = { showMarkers=true },
+                onOpenAdvancedTool = { tool = it }
+            )
+
+
+            }
+        }
+    }
+
                         // Every main tool stays in one smooth horizontal dock. Selecting a tool
                         // opens its contextual controls above this dock without covering the preview.
                         LazyRow(
@@ -2516,70 +2580,6 @@ private fun EditorScreen(
                     Text(if (language == AppLanguage.ARABIC) "مشاركة آخر فيديو" else "Share last export", fontSize = 10.sp)
                 }
             }
-            }
-        }
-    }
-
-    if (activeEditorTool != null) {
-        Box(
-            Modifier
-                .fillMaxWidth()
-                .heightIn(max = 190.dp)
-                .background(Color(0xFF080D17))
-        ) {
-            Column(
-                Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = 190.dp)
-                    .verticalScroll(rememberScrollState())
-            ) {
-                            EditorFeaturePanel(
-                activeTool = activeEditorTool,
-                settings = settings, current = current, clips = clips, language = language,
-                onSettingsLiveChange = ::updateSettingsLive,
-                onCurrentClipChange = { updated -> commitClips(clips.map { if (it == current) updated else it }); current = updated },
-                onTrim = { if (current != null) showTrim = true },
-                onSplit = {
-                    val clip = current
-                    if (clip != null) {
-                        val offset = timelinePositionOf(clips, clip)
-                        val local = (playheadMs - offset).coerceIn(1L, (clipTimelineDuration(clip)-1L).coerceAtLeast(1L))
-                        val start = clip.trimStartMs
-                        val end = if (clip.trimEndMs == Long.MAX_VALUE) clip.durationMs else clip.trimEndMs
-                        if (end-start > 2L) {
-                            val cut=(start+local).coerceIn(start+1L,end-1L)
-                            val left=clip.copy(trimEndMs=cut); val right=clip.copy(trimStartMs=cut)
-                            val index=clips.indexOf(clip)
-                            commitClips(clips.toMutableList().also{it.removeAt(index);it.add(index,left);it.add(index+1,right)})
-                            current=left
-                        }
-                    }
-                },
-                onDelete = {
-                    val clip=current
-                    if(clip!=null && clips.size>1){val next=clips.filterNot{it==clip};commitClips(next);current=next.firstOrNull();playheadMs=timelinePositionOf(next,current)}
-                },
-                onDuplicate = {
-                    val clip=current
-                    if(clip!=null){val index=clips.indexOf(clip);if(index>=0){val copy=clip.copy(name=clip.name.substringBeforeLast('.').ifBlank{clip.name}+" • copy");commitClips(clips.toMutableList().also{it.add(index+1,copy)});current=copy}}
-                },
-                onReplace = { replaceLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly)) },
-                onMoveLeft = { val clip=current; if(clip!=null){val i=clips.indexOf(clip);if(i>0)commitClips(clips.toMutableList().also{it.add(i-1,it.removeAt(i))})} },
-                onMoveRight = { val clip=current; if(clip!=null){val i=clips.indexOf(clip);if(i in 0 until clips.lastIndex)commitClips(clips.toMutableList().also{it.add(i+1,it.removeAt(i))})} },
-                onFreeze = { createFreezeFrame() },
-                onExtractAudio = { extractAudioFromCurrent() },
-                onAudioKeyframes = { showAudioKeyframes=true },
-                onMusicKeyframes = { showMusicKeyframes=true },
-                onTextDialog = { tool="text" },
-                onTextAnimation = { tool="textAnimation" },
-                onSubtitles = { tool="subtitles" },
-                onLayersDialog = { showLayers=true },
-                onVideoKeyframes = { showVideoKeyframes=true },
-                onMarkers = { showMarkers=true },
-                onOpenAdvancedTool = { tool = it }
-            )
-
-
             }
         }
     }
