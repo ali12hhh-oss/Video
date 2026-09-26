@@ -10,7 +10,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -25,7 +24,6 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.TextFields
 import androidx.compose.material.icons.filled.Photo
 import androidx.compose.material.icons.filled.Videocam
-import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -277,13 +275,14 @@ fun Timeline(
                             .height(24.dp)
                             .padding(horizontal = 8.dp)
                             .pointerInput(total, timelineWidth) {
-                                detectTapGestures { position ->
-                                    val localX = position.x.coerceIn(0f, widthPx)
-                                    onPlayheadChange((localX / widthPx * total).toLong().coerceIn(0L, total))
-                                }
-                                detectDragGestures { change, dragAmount ->
+                                detectDragGestures(
+                                    onDragStart = { start ->
+                                        val localX = start.x.coerceIn(0f, widthPx)
+                                        onPlayheadChange((localX / widthPx * total).toLong().coerceIn(0L, total))
+                                    }
+                                ) { change, dragAmount ->
                                     change.consume()
-                                    val localX = (change.position.x + dragAmount.x).coerceIn(0f, widthPx)
+                                    val localX = change.position.x.coerceIn(0f, widthPx)
                                     onPlayheadChange((localX / widthPx * total).toLong().coerceIn(0L, total))
                                 }
                             },
