@@ -391,7 +391,7 @@ fun Timeline(
         Row(
             Modifier
                 .fillMaxWidth()
-                .height(38.dp)
+                .height(48.dp)
                 .clip(RoundedCornerShape(9.dp))
                 .background(AudioTrackBg)
                 .clickable { onAudioTrackClick() }
@@ -399,11 +399,30 @@ fun Timeline(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(Icons.Default.MusicNote, null, tint = TrackLabelAudio, modifier = Modifier.size(16.dp))
-            Spacer(Modifier.width(6.dp))
-            when {
-                musicUri.isNotBlank() -> Text("Music • ${(musicVolume * 100).toInt()}%", color = Color.White, fontSize = 10.sp, modifier = Modifier.weight(1f))
-                clips.isNotEmpty() -> Text("Clip audio • ${(audioBaseVolume * 100).toInt()}%", color = Color(0xFFB7C0D0), fontSize = 10.sp, modifier = Modifier.weight(1f))
-                else -> Text("No audio yet", color = MutedTextColor, fontSize = 10.sp, modifier = Modifier.weight(1f))
+            Spacer(Modifier.width(7.dp))
+            if (musicUri.isNotBlank()) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text("Music", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                        Text("${formatTimelineTime(musicStartMs)} → ${formatTimelineTime(musicStartMs + musicDurationMs)}", color = TrackLabelAudio, fontSize = 8.sp)
+                    }
+                    Box(Modifier.fillMaxWidth().height(16.dp).clip(RoundedCornerShape(5.dp)).background(Color(0xFF241D10))) {
+                        val activeEnd = (musicStartMs + musicDurationMs).coerceAtMost(total)
+                        val activeStart = musicStartMs.coerceIn(0L, total)
+                        val left = (activeStart.toFloat() / total.toFloat()).coerceIn(0f, 1f)
+                        val width = ((activeEnd - activeStart).coerceAtLeast(1L).toFloat() / total.toFloat()).coerceIn(0.01f, 1f)
+                        Row(Modifier.fillMaxSize()) {
+                            Spacer(Modifier.fillMaxHeight().weight(left.coerceAtLeast(0.001f)))
+                            Box(Modifier.fillMaxHeight().weight(width.coerceAtLeast(0.001f)).clip(RoundedCornerShape(5.dp)).background(Color(0xFF8E6A2F)))
+                            Spacer(Modifier.fillMaxHeight().weight((1f - left - width).coerceAtLeast(0.001f)))
+                        }
+                    }
+                }
+                Text("${(musicVolume * 100).toInt()}%", color = Color(0xFFCBB27A), fontSize = 8.sp, modifier = Modifier.padding(start = 6.dp))
+            } else if (clips.isNotEmpty()) {
+                Text("Clip audio • ${(audioBaseVolume * 100).toInt()}%", color = Color(0xFFB7C0D0), fontSize = 10.sp, modifier = Modifier.weight(1f))
+            } else {
+                Text("No audio yet", color = MutedTextColor, fontSize = 10.sp, modifier = Modifier.weight(1f))
             }
         }
 
