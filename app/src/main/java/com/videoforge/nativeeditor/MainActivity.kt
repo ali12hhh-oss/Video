@@ -2810,7 +2810,7 @@ private fun EditorScreen(
     tool?.let { active ->
         when (active) {
             "speed" -> SpeedDialog(settings, current, clips, playheadMs, language, { updateSettings(it); tool = null }, { tool = null })
-            "audio" -> AudioDialog(settings, current, language, { updateSettings(it) }, { updated -> commitClips(clips.map { if (it == current) updated else it }); current = updated }, { tool = null }, { showMusicKeyframes = true })
+            "audio" -> AudioDialog(settings, current, language, { updateSettings(it) }, { updated -> commitClips(clips.map { if (it == current) updated else it }); current = updated }, { tool = null }, { showMusicKeyframes = true }, { musicImportLauncher.launch(arrayOf("audio/*")) })
             "text" -> Unit
             "textAnimation" -> TextAnimationDialog(settings, language, { updateSettings(it) }, { tool = null })
             "layers" -> LayerManagerDialog(settings, language, { updateSettings(it) }, { tool = null })
@@ -3493,7 +3493,8 @@ private fun EditorPreview(
     onChange: (EditorSettings) -> Unit,
     onClipChange: (Clip) -> Unit,
     onDismiss: () -> Unit,
-    onMusicKeyframes: () -> Unit = {}
+    onMusicKeyframes: () -> Unit = {},
+    onPickMusic: () -> Unit = {}
 ) {
     val clipVolume = clip?.audioVolume ?: s.volume
     var volume by remember(s, clip) { mutableFloatStateOf(clipVolume) }
@@ -3510,12 +3511,6 @@ private fun EditorPreview(
     var musicDuckAttack by remember(s) { mutableFloatStateOf(s.musicDuckAttack) }
     var musicDuckRelease by remember(s) { mutableFloatStateOf(s.musicDuckRelease) }
     val context = LocalContext.current
-    val musicPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        if (uri != null) {
-            persistUriAccess(context, uri)
-            onChange(s.copy(musicUri = uri.toString()))
-        }
-    }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(if (language == AppLanguage.ARABIC) "الصوت والموسيقى" else "Audio & Music") },
@@ -3610,7 +3605,7 @@ private fun EditorPreview(
                     color = Color.Gray, fontSize = 11.sp
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                    Button(onClick = { musicPicker.launch("audio/*") }) {
+                    Button(onClick = onPickMusic) {
                         Icon(Icons.Default.LibraryMusic, null); Spacer(Modifier.width(4.dp)); Text(if (language == AppLanguage.ARABIC) "اختيار" else "Choose")
                     }
                     if (s.musicUri.isNotBlank()) OutlinedButton(onClick = { onChange(s.copy(musicUri = "")) }) { Text(if (language == AppLanguage.ARABIC) "إزالة" else "Remove") }
