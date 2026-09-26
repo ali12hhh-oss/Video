@@ -13,6 +13,7 @@ import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.provider.MediaStore
 import android.media.MediaMetadataRetriever
+import android.media.MediaPlayer
 import android.os.Build
 import android.util.Size
 import androidx.activity.ComponentActivity
@@ -1489,7 +1490,7 @@ private fun EditorFeaturePanel(
     onSettingsLiveChange: (EditorSettings) -> Unit, onCurrentClipChange: (Clip) -> Unit, onTrim: () -> Unit, onSplit: () -> Unit,
     onDelete: () -> Unit, onDuplicate: () -> Unit, onReplace: () -> Unit,
     onMoveLeft: () -> Unit, onMoveRight: () -> Unit, onFreeze: () -> Unit,
-    onExtractAudio: () -> Unit, onAudioKeyframes: () -> Unit, onMusicKeyframes: () -> Unit,
+    onExtractAudio: () -> Unit, onAudioKeyframes: () -> Unit, onMusicKeyframes: () -> Unit, onPickMusic: () -> Unit,
     onTextDialog: () -> Unit, onTextAnimation: () -> Unit, onSubtitles: () -> Unit,
     onLayersDialog: () -> Unit, onVideoKeyframes: () -> Unit, onMarkers: () -> Unit,
     onOpenAdvancedTool: (String) -> Unit
@@ -1539,7 +1540,7 @@ private fun EditorFeaturePanel(
             Triple("fadeIn", Icons.Default.TrendingUp, if(language==AppLanguage.ARABIC)"تلاشي دخول" else "Fade in"),
             Triple("fadeOut", Icons.Default.TrendingDown, if(language==AppLanguage.ARABIC)"تلاشي خروج" else "Fade out"),
             Triple("keys", Icons.Default.Timeline, if(language==AppLanguage.ARABIC)"مفاتيح الصوت" else "Keyframes"),
-            Triple("music", Icons.Default.MusicNote, if(language==AppLanguage.ARABIC)"الموسيقى" else "Music"),
+            Triple("music", Icons.Default.MusicNote, if(language==AppLanguage.ARABIC)"إضافة صوت" else "Add audio"),
             Triple("extract", Icons.Default.AudioFile, if(language==AppLanguage.ARABIC)"استخراج الصوت" else "Extract")
         )
         "text" -> listOf(
@@ -1783,7 +1784,7 @@ private fun EditorFeaturePanel(
                                 "audio" -> when(id) {
                                     "volume","fadeIn","fadeOut" -> audioFeature=id
                                     "mute" -> onSettingsLiveChange(settings.copy(muted=!settings.muted))
-                                    "keys" -> onAudioKeyframes(); "music" -> onMusicKeyframes()
+                                    "keys" -> onAudioKeyframes(); "music" -> onPickMusic()
                                     "extract" -> onExtractAudio()
                                 }
                                 "text" -> when(id) {
@@ -2111,6 +2112,7 @@ private fun EditorScreen(
     var showVideoKeyframes by remember { mutableStateOf(false) }
     var showAudioKeyframes by remember { mutableStateOf(false) }
     var showMusicKeyframes by remember { mutableStateOf(false) }
+    var musicImportUri by remember { mutableStateOf<Uri?>(null) }
     var showSubtitles by remember { mutableStateOf(false) }
     var showLayers by remember { mutableStateOf(false) }
     var showMarkers by remember { mutableStateOf(false) }
@@ -2179,6 +2181,13 @@ private fun EditorScreen(
                 context.contentResolver.openOutputStream(uri)?.bufferedWriter()?.use { it.write(subtitlesToSrt(settings.subtitles)) }
                 status = if (language == AppLanguage.ARABIC) "تم تصدير ملف الترجمة" else "Subtitle file exported"
             }.onFailure { status = if (language == AppLanguage.ARABIC) "تعذر تصدير الترجمة" else "Could not export subtitles" }
+        }
+    }
+
+    val musicImportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            persistUriAccess(context, uri)
+            musicImportUri = uri
         }
     }
     var tool by remember { mutableStateOf<String?>(null) }
@@ -2479,6 +2488,7 @@ private fun EditorScreen(
                 onExtractAudio = { extractAudioFromCurrent() },
                 onAudioKeyframes = { showAudioKeyframes=true },
                 onMusicKeyframes = { showMusicKeyframes=true },
+                onPickMusic = { musicImportLauncher.launch(arrayOf("audio/*")) },
                 onTextDialog = { tool="text" },
                 onTextAnimation = { tool="textAnimation" },
                 onSubtitles = { tool="subtitles" },
@@ -2752,6 +2762,13 @@ private fun EditorScreen(
     }
     if (showMusicKeyframes) {
         MusicKeyframeDialog(settings, playheadMs, language, { updateSettings(it) }, { showMusicKeyframes = false })
+    }
+    musicImportUri?.let { uri ->
+        MusicTrimDialog(uri, language, onDismiss = { musicImportUri = null }, onConfirm = { start, end ->
+            updateSettings(settings.copy(musicUri = uri.toString(), musicStartMs = start, musicDurationMs = (end - start).coerceAtLeast(1L)))
+            musicImportUri = null
+            status = if (language == AppLanguage.ARABIC) "تمت إضافة المقطع الصوتي المحدد" else "Selected audio added to the timeline"
+        })
     }
     if (showAudioKeyframes) {
         AudioKeyframeDialog(settings, clips, current, playheadMs, language, { updateSettings(it) }, { updated -> commitClips(clips.map { if (it == current) updated else it }); current = updated }, { showAudioKeyframes = false })
