@@ -808,10 +808,10 @@ private fun HomeScreen(
                     ) {
                         HomeFeatureCard(
                             Modifier.weight(1f),
-                            icon = Icons.Default.LocalOffer,
-                            title = if (arabic) "القوالب" else "Templates",
-                            subtitle = if (arabic) "قوالب جاهزة" else "Ready templates",
-                            iconGradient = listOf(Color(0xFF6844FF), Color(0xFF9637FF)),
+                            icon = Icons.Default.MusicNote,
+                            title = if (arabic) "الموسيقى" else "Music",
+                            subtitle = if (arabic) "مكتبة الصوت" else "Audio library",
+                            iconGradient = listOf(Color(0xFFFF9B24), Color(0xFFFFC928)),
                             onClick = onOpenTemplates
                         )
                         HomeFeatureCard(
@@ -824,10 +824,10 @@ private fun HomeScreen(
                         )
                         HomeFeatureCard(
                             Modifier.weight(1f),
-                            icon = Icons.Default.MusicNote,
-                            title = if (arabic) "الموسيقى" else "Music",
-                            subtitle = if (arabic) "مكتبة الصوت" else "Audio library",
-                            iconGradient = listOf(Color(0xFFFF9B24), Color(0xFFFFC928)),
+                            icon = Icons.Default.LocalOffer,
+                            title = if (arabic) "القوالب" else "Templates",
+                            subtitle = if (arabic) "قوالب جاهزة" else "Ready templates",
+                            iconGradient = listOf(Color(0xFF6844FF), Color(0xFF9637FF)),
                             onClick = onOpenTemplates
                         )
                     }
@@ -867,7 +867,7 @@ private fun HomeReferenceHero(
     Box(
         Modifier
             .fillMaxWidth()
-            .height(158.dp)
+            .height(160.dp)
             .clip(RoundedCornerShape(15.dp))
             .border(1.dp, Color(0x332B7CFF), RoundedCornerShape(15.dp))
             .clickable(onClick = onOpen)
@@ -1123,7 +1123,6 @@ private fun HomeTopBar(
 private fun HomeBottomBar(
     selected: Int,
     onSelected: (Int) -> Unit,
-    onImport: () -> Unit,
     onExplore: () -> Unit,
     onAccount: () -> Unit
 ) {
@@ -1132,6 +1131,9 @@ private fun HomeBottomBar(
         tonalElevation = 0.dp,
         shadowElevation = 10.dp
     ) {
+        // Four-item navigation exactly follows the reference composition:
+        // الرئيسية / مشاريع / استكشاف / حسابي. The center "+" action is intentionally
+        // not part of this bar; project creation remains available through the main CTA.
         Row(
             Modifier
                 .fillMaxWidth()
@@ -1141,49 +1143,11 @@ private fun HomeBottomBar(
         ) {
             HomeNavItem(
                 Modifier.weight(1f),
-                selected = selected == 0,
-                icon = Icons.Default.Home,
-                label = "الرئيسية",
-                onClick = { onSelected(0) }
+                selected = selected == 3,
+                icon = Icons.Default.Person,
+                label = "حسابي",
+                onClick = onAccount
             )
-            HomeNavItem(
-                Modifier.weight(1f),
-                selected = selected == 1,
-                icon = Icons.Default.Folder,
-                label = "مشاريع",
-                onClick = { onSelected(1) }
-            )
-            Box(
-                Modifier
-                    .weight(1f)
-                    .fillMaxHeight(),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.clickable(onClick = onImport)
-                ) {
-                    Box(
-                        Modifier
-                            .size(46.dp)
-                            .clip(androidx.compose.foundation.shape.CircleShape)
-                            .background(
-                                Brush.linearGradient(
-                                    listOf(Color(0xFF8B45FF), Color(0xFF286DFF))
-                                )
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(Icons.Default.Add, null, tint = Color.White, modifier = Modifier.size(27.dp))
-                    }
-                    Text(
-                        "جديد",
-                        color = Color(0xFF9BAAC2),
-                        fontSize = 8.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-            }
             HomeNavItem(
                 Modifier.weight(1f),
                 selected = false,
@@ -1193,10 +1157,17 @@ private fun HomeBottomBar(
             )
             HomeNavItem(
                 Modifier.weight(1f),
-                selected = false,
-                icon = Icons.Default.Person,
-                label = "حسابي",
-                onClick = onAccount
+                selected = selected == 1,
+                icon = Icons.Default.Folder,
+                label = "مشاريع",
+                onClick = { onSelected(1) }
+            )
+            HomeNavItem(
+                Modifier.weight(1f),
+                selected = selected == 0,
+                icon = Icons.Default.Home,
+                label = "الرئيسية",
+                onClick = { onSelected(0) }
             )
         }
     }
