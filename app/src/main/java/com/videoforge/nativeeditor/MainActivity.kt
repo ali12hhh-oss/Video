@@ -3962,6 +3962,77 @@ private fun VideoPresetDialog(s: EditorSettings, language: AppLanguage, onChange
 }
 
 @Composable
+private fun MusicTrimDialog(
+    uri: Uri,
+    language: AppLanguage,
+    onDismiss: () -> Unit,
+    onConfirm: (Long, Long) -> Unit
+) {
+    val context = LocalContext.current
+    var durationMs by remember(uri) { mutableLongStateOf(0L) }
+    var startMs by remember(uri) { mutableLongStateOf(0L) }
+    var endMs by remember(uri) { mutableLongStateOf(0L) }
+    var playing by remember(uri) { mutableStateOf(false) }
+    var player by remember(uri) { mutableStateOf<MediaPlayer?>(null) }
+    DisposableEffect(uri) {
+        val mp = runCatching {
+            MediaPlayer().apply {
+                setDataSource(context, uri); prepare()
+                setOnCompletionListener { playing = false }
+            }
+        }.getOrNull()
+        player = mp
+        durationMs = mp?.duration?.toLong() ?: mediaDurationMs(context, uri)
+        endMs = durationMs.coerceAtLeast(1L)
+        onDispose { runCatching { mp?.stop() }; runCatching { mp?.release() }; player = null }
+    }
+    fun togglePreview() {
+        val mp = player ?: return
+        if (playing) { runCatching { mp.pause() }; playing = false }
+        else runCatching { mp.seekTo(startMs.coerceIn(0L, durationMs).toInt()); mp.start(); playing = true }
+    }
+    LaunchedEffect(playing, startMs, endMs) {
+        while (playing) {
+            val mp = player ?: run { playing = false; break }
+            if (mp.currentPosition.toLong() >= endMs) { runCatching { mp.pause() }; playing = false; break }
+            delay(80L)
+        }
+    }
+    val safeDuration = durationMs.coerceAtLeast(1L)
+    val minGap = minOf(300L, safeDuration)
+NaN
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(if (language == AppLanguage.ARABIC) "اختيار مقطع صوتي" else "Choose audio segment") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(fileName, maxLines = 1, color = Color.White, fontWeight = FontWeight.SemiBold)
+                Text(if (language == AppLanguage.ARABIC) "حدد بداية ونهاية المقطع، ثم استمع إليه قبل إضافته للمحرر." else "Set the start and end, then preview the selection before adding it.", color = Color.Gray, fontSize = 11.sp)
+                Surface(shape = RoundedCornerShape(12.dp), color = Color(0xFF101827), modifier = Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(10.dp)) {
+                        Text(${formatDuration(startMs)}  →  ${formatDuration(endMs)}", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Slider(value = startMs.toFloat(), onValueChange = { startMs = it.toLong().coerceIn(0L, (endMs - minGap).coerceAtLeast(0L)) }, valueRange = 0f..safeDuration.toFloat())
+                        Slider(value = endMs.toFloat(), onValueChange = { endMs = it.toLong().coerceIn((startMs + minGap).coerceAtMost(safeDuration), safeDuration) }, valueRange = 0f..safeDuration.toFloat())
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text(formatDuration(startMs), fontSize = 9.sp, color = Color(0xFF7C4DFF))
+                            Text(formatDuration(endMs), fontSize = 9.sp, color = Color(0xFF18C8FF))
+                        }
+                    }
+                }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = { togglePreview() }, modifier = Modifier.weight(1f)) {
+                        Icon(if (playing) Icons.Default.Pause else Icons.Default.PlayArrow, null, Modifier.size(17.dp)); Spacer(Modifier.width(5.dp))
+                        Text(if (language == AppLanguage.ARABIC) "معاينة التحديد" else "Preview selection")
+                    }
+                    TextButton(onClick = { startMs = 0L; endMs = safeDuration; runCatching { player?.seekTo(0); player?.pause() }; playing = false }) { Text(if (language == AppLanguage.ARABIC) "كامل" else "Full") }
+                }
+            }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(if (language == AppLanguage.ARABIC) "إلغاء" else "Cancel") } },
+        confirmButton = { Button(onClick = { onConfirm(startMs, endMs) }, enabled = durationMs > 0L && endMs > startMs) { Icon(Icons.Default.Add, null, Modifier.size(17.dp)); Spacer(Modifier.width(5.dp)); Text(if (language == AppLanguage.ARABIC) "إضافة إلى المحرر" else "Add to editor") } }
+    )
+}
+@Composable
 private fun FilterDialog(
     s: EditorSettings,
     clip: Clip?,
