@@ -359,7 +359,16 @@ private fun VideoForgeApp() {
                 projectId = ProjectRepository.newId()
                 clips = uris.take(20).mapIndexed { i, uri ->
                     persistUriAccess(context, uri)
-                    Clip(uri, context.getString(R.string.clip_number, i + 1))
+                    run {
+                    val duration = defaultClipDurationMs(context, uri)
+                    Clip(
+                        uri = uri,
+                        name = context.getString(R.string.clip_number, i + 1),
+                        durationMs = duration,
+                        trimStartMs = 0L,
+                        trimEndMs = duration
+                    )
+                }
                 }
                 projectName = clips.firstOrNull()?.name ?: context.getString(R.string.new_project)
                 ProjectRepository.save(context, projectId, clips, projectName)
@@ -437,7 +446,7 @@ private fun VideoForgeApp() {
                             selected = 0
                             showEditor = true
                         },
-                        onNewProject = { projectId = ProjectRepository.newId(); projectName = context.getString(R.string.new_project); clips = emptyList(); selected = 0; showEditor = true }
+                        onNewProject = { launchMediaPicker() }
                     )
                 } else {
                     HomeScreen(
@@ -590,7 +599,7 @@ private fun ProjectsScreen(
     var projects by remember { mutableStateOf(emptyList<RecentProject>()) }
 
     LaunchedEffect(Unit) {
-        projects = RecentProjectsRepository.load(context, includeDeviceVideos = true)
+        projects = RecentProjectsRepository.load(context, includeDeviceVideos = false)
     }
 
     val filtered = projects.filter { project ->
