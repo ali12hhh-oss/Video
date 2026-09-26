@@ -437,7 +437,7 @@ private fun VideoForgeApp() {
                             selected = 0
                             showEditor = true
                         },
-                        onNewProject = { selected = 0; editorInitialTool = null; launchMediaPicker() }
+                        onNewProject = { projectId = ProjectRepository.newId(); projectName = context.getString(R.string.new_project); clips = emptyList(); selected = 0; showEditor = true }
                     )
                 } else {
                     HomeScreen(
@@ -466,7 +466,7 @@ private fun VideoForgeApp() {
                     },
                     selected = selected,
                     onSelected = { selected = it },
-                    onNewProject = { selected = 0; editorInitialTool = null; launchMediaPicker() },
+                    onNewProject = { projectId = ProjectRepository.newId(); projectName = context.getString(R.string.new_project); clips = emptyList(); showEditor = true },
                     onImport = {
                         launchMediaPicker()
                     },
@@ -2436,10 +2436,7 @@ private fun EditorScreen(
         topBar = {
             CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
                 Surface(color = Color(0xFF07111F), tonalElevation = 0.dp) {
-                    Row(
-                        Modifier.fillMaxWidth().height(58.dp).padding(horizontal = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
+                    Row(Modifier.fillMaxWidth().height(58.dp).padding(horizontal = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                         IconButton(onClick = onBack) {
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = Color.White)
                         }
@@ -2457,13 +2454,23 @@ private fun EditorScreen(
                                         EditorSettingsRepository.save(context, projectId, settings)
                                         status = if (language == AppLanguage.ARABIC) "تم حفظ المشروع" else "Project saved"
                                     }
-                                     bottomBar = {
+                                }
+                                .padding(horizontal = 15.dp, vertical = 9.dp)
+                        ) {
+                            Text(if (language == AppLanguage.ARABIC) "حفظ" else "Save", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        }
+                        IconButton(onClick = { showMoreTools = true }) {
+                            Icon(Icons.Default.MoreVert, null, tint = Color(0xFFB9C3D6))
+                        }
+                    }
+                }
+            }
+        },
+        bottomBar = {
             Surface(color = Color(0xFF07111F), tonalElevation = 12.dp, shadowElevation = 14.dp) {
                 Column(Modifier.fillMaxWidth()) {
                     if (activeEditorTool != null) {
-                        Box(
-                            Modifier.fillMaxWidth().heightIn(max = 175.dp).background(Color(0xFF091321))
-                        ) {
+                        Box(Modifier.fillMaxWidth().heightIn(max = 175.dp).background(Color(0xFF091321))) {
                             Column(
                                 Modifier.fillMaxWidth().heightIn(max = 175.dp)
                                     .verticalScroll(rememberScrollState())
@@ -2474,8 +2481,7 @@ private fun EditorScreen(
                                     settings = settings, current = current, clips = clips, language = language,
                                     onSettingsLiveChange = ::updateSettingsLive,
                                     onCurrentClipChange = { updated ->
-                                        commitClips(clips.map { if (it == current) updated else it })
-                                        current = updated
+                                        commitClips(clips.map { if (it == current) updated else it }); current = updated
                                     },
                                     onTrim = { if (current != null) showTrim = true },
                                     onSplit = {
@@ -2489,8 +2495,7 @@ private fun EditorScreen(
                                                 val cut=(start+local).coerceIn(start+1L,end-1L)
                                                 val left=clip.copy(trimEndMs=cut); val right=clip.copy(trimStartMs=cut)
                                                 val index=clips.indexOf(clip)
-                                                commitClips(clips.toMutableList().also{it.removeAt(index);it.add(index,left);it.add(index+1,right)})
-                                                current=left
+                                                commitClips(clips.toMutableList().also{it.removeAt(index);it.add(index,left);it.add(index+1,right)}); current=left
                                             }
                                         }
                                     },
@@ -2552,40 +2557,27 @@ private fun EditorScreen(
                             val selectedTool = activeEditorTool == id
                             Column(
                                 Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(10.dp))
-                                    .background(if (selectedTool) Brush.linearGradient(listOf(Color(0xFF6635FF), Color(0xFF2E78FF))) else Brush.linearGradient(listOf(Color.Transparent, Color.Transparent)))
+                                    .background(if(selectedTool) Brush.linearGradient(listOf(Color(0xFF6635FF),Color(0xFF2E78FF))) else Brush.linearGradient(listOf(Color.Transparent,Color.Transparent)))
                                     .clickable {
-                                        if (id == "delete") {
-                                            val clip = current
-                                            if (clip != null && clips.size > 1) {
-                                                val next = clips.filterNot { it == clip }
-                                                commitClips(next); current = next.firstOrNull()
+                                        if(id=="delete") {
+                                            val clip=current
+                                            if(clip!=null && clips.size>1){
+                                                val next=clips.filterNot{it==clip}; commitClips(next); current=next.firstOrNull()
                                             }
-                                        } else activeEditorTool = id
+                                        } else activeEditorTool=id
                                     },
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.Center
+                                horizontalAlignment=Alignment.CenterHorizontally,
+                                verticalArrangement=Arrangement.Center
                             ) {
-                                Icon(icon, null, tint = if(selectedTool) Color.White else Color(0xFFB8C6DA), modifier = Modifier.size(20.dp))
+                                Icon(icon,null,tint=if(selectedTool)Color.White else Color(0xFFB8C6DA),modifier=Modifier.size(20.dp))
                                 Spacer(Modifier.height(3.dp))
-                                Text(label, color = if(selectedTool) Color.White else Color(0xFFB8C6DA), fontSize = 8.sp, maxLines = 1)
+                                Text(label,color=if(selectedTool)Color.White else Color(0xFFB8C6DA),fontSize=8.sp,maxLines=1)
                             }
                         }
                     }
                 }
             }
         },
-r(0xFF1677FF))))
-                                        .clickable { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)) },
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(Icons.Default.Add, null, tint = Color.White, modifier = Modifier.size(25.dp))
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
     ) { pad ->
         Column(Modifier.fillMaxSize().padding(pad)) {
             // The preview gets a fixed, generous share of the actual screen height (not just
@@ -2810,50 +2802,34 @@ r(0xFF1677FF))))
         MarkerDialog(settings, playheadMs, language, { updateSettings(it) }, { ms -> playheadMs = ms }, { showMarkers = false })
     }
     if (showMoreTools) {
-        ModalBottomSheet(
-            onDismissRequest = { showMoreTools = false },
-            containerColor = Color(0xFF07111F)
-        ) {
+        ModalBottomSheet(onDismissRequest = { showMoreTools = false }, containerColor = Color(0xFF07111F)) {
             CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
-                Column(
-                    Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 10.dp)
-                ) {
-                    Text(if(language==AppLanguage.ARABIC) "الأدوات" else "Tools", color = Color.White, fontSize = 19.sp, fontWeight = FontWeight.Bold)
+                Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal=16.dp,vertical=10.dp)) {
+                    Text(if(language==AppLanguage.ARABIC)"الأدوات" else "Tools",color=Color.White,fontSize=19.sp,fontWeight=FontWeight.Bold)
                     Spacer(Modifier.height(8.dp))
-                    val extraTools = listOf(
-                        "speed" to if(language==AppLanguage.ARABIC) "السرعة" else "Speed",
-                        "adjust" to if(language==AppLanguage.ARABIC) "ضبط" else "Adjust",
-                        "canvas" to if(language==AppLanguage.ARABIC) "اللوحة" else "Canvas",
-                        "effects" to if(language==AppLanguage.ARABIC) "المؤثرات" else "Effects",
-                        "transition" to if(language==AppLanguage.ARABIC) "الانتقالات" else "Transitions",
-                        "subtitles" to if(language==AppLanguage.ARABIC) "الترجمة" else "Subtitles",
-                        "layers" to if(language==AppLanguage.ARABIC) "الطبقات" else "Layers",
-                        "videoKeyframes" to if(language==AppLanguage.ARABIC) "الحركة" else "Motion",
-                        "sticker" to if(language==AppLanguage.ARABIC) "الملصقات" else "Stickers",
-                        "overlay" to if(language==AppLanguage.ARABIC) "الصورة داخل الصورة" else "PIP",
-                        "markers" to if(language==AppLanguage.ARABIC) "العلامات" else "Markers"
+                    val extraTools=listOf(
+                        "speed" to if(language==AppLanguage.ARABIC)"السرعة" else "Speed",
+                        "adjust" to if(language==AppLanguage.ARABIC)"ضبط" else "Adjust",
+                        "canvas" to if(language==AppLanguage.ARABIC)"اللوحة" else "Canvas",
+                        "effects" to if(language==AppLanguage.ARABIC)"المؤثرات" else "Effects",
+                        "transition" to if(language==AppLanguage.ARABIC)"الانتقالات" else "Transitions",
+                        "subtitles" to if(language==AppLanguage.ARABIC)"الترجمة" else "Subtitles",
+                        "layers" to if(language==AppLanguage.ARABIC)"الطبقات" else "Layers",
+                        "videoKeyframes" to if(language==AppLanguage.ARABIC)"الحركة" else "Motion",
+                        "sticker" to if(language==AppLanguage.ARABIC)"الملصقات" else "Stickers",
+                        "overlay" to if(language==AppLanguage.ARABIC)"الصورة داخل الصورة" else "PIP",
+                        "markers" to if(language==AppLanguage.ARABIC)"العلامات" else "Markers"
                     )
                     extraTools.forEach { (id,label) ->
-                        Row(
-                            Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp))
-                                .clickable { activeEditorTool=id; showMoreTools=false }
-                                .padding(horizontal=12.dp, vertical=11.dp),
-                            verticalAlignment=Alignment.CenterVertically
-                        ) {
+                        Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).clickable{activeEditorTool=id;showMoreTools=false}.padding(horizontal=12.dp,vertical=11.dp),verticalAlignment=Alignment.CenterVertically){
                             Text(label,color=Color.White,fontSize=12.sp,modifier=Modifier.weight(1f))
                             Icon(Icons.Default.ChevronLeft,null,tint=Color(0xFF8190A8),modifier=Modifier.size(18.dp))
                         }
                     }
-                    Row(
-                        Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp))
-                            .clickable {
-                                picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo))
-                                showMoreTools=false
-                            }
-                            .padding(horizontal=12.dp,vertical=11.dp),
-                        verticalAlignment=Alignment.CenterVertically
-                    ) {
-                        Text(if(language==AppLanguage.ARABIC) "إضافة فيديو أو صورة" else "Add video or image",color=Color.White,fontSize=12.sp,modifier=Modifier.weight(1f))
+                    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).clickable{
+                        picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo));showMoreTools=false
+                    }.padding(horizontal=12.dp,vertical=11.dp),verticalAlignment=Alignment.CenterVertically){
+                        Text(if(language==AppLanguage.ARABIC)"إضافة فيديو أو صورة" else "Add video or image",color=Color.White,fontSize=12.sp,modifier=Modifier.weight(1f))
                         Icon(Icons.Default.AddPhotoAlternate,null,tint=Color(0xFF7C5CFF),modifier=Modifier.size(19.dp))
                     }
                 }
