@@ -191,7 +191,8 @@ fun Timeline(
     onKeyframeSeek: (Long) -> Unit,
     onVideoKeyframeMove: (Long, Long) -> Unit,
     onAddMedia: () -> Unit = {},
-    textLayerNames: List<String> = emptyList()
+    textLayerNames: List<String> = emptyList(),
+    filterName: String = "none"
 ) {
     val total = clips.sumOf { timelineClipDurationForUi(it) }.coerceAtLeast(1L)
     val safePlayhead = playheadMs.coerceIn(0L, total)
@@ -341,6 +342,47 @@ fun Timeline(
                 contentAlignment = Alignment.Center
             ) {
                 Icon(Icons.Default.Add, null, tint = ClipSelectedColor, modifier = Modifier.size(22.dp))
+            }
+        }
+
+        // Text / graphics lane — directly under the video filmstrip.
+        if (textLayerNames.isNotEmpty()) {
+            Text("Text", color = Color(0xFFB58CFF), fontSize = 9.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(start = 2.dp, top = 2.dp))
+            Row(
+                Modifier.fillMaxWidth().height(30.dp).clip(RoundedCornerShape(8.dp))
+                    .background(Color(0xFF151225)).horizontalScroll(rememberScrollState())
+                    .padding(horizontal = 6.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(5.dp)
+            ) {
+                textLayerNames.forEachIndexed { i, name ->
+                    Box(
+                        Modifier.width(120.dp).fillMaxHeight().clip(RoundedCornerShape(6.dp))
+                            .background(TextLayerColors[i % TextLayerColors.size]),
+                        contentAlignment = Alignment.CenterStart
+                    ) {
+                        Text("T  $name", color = Color.White, fontSize = 8.sp, maxLines = 1, modifier = Modifier.padding(horizontal = 8.dp))
+                    }
+                }
+            }
+        }
+
+        // Effects lane reflects the actual filter state.
+        Text("Effects", color = Color(0xFFFFB56B), fontSize = 9.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(start = 2.dp, top = 2.dp))
+        Row(
+            Modifier.fillMaxWidth().height(28.dp).clip(RoundedCornerShape(8.dp))
+                .background(Color(0xFF19140E)).padding(horizontal = 6.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                Modifier.fillMaxWidth().height(20.dp).clip(RoundedCornerShape(5.dp))
+                    .background(if (filterName == "none") Color(0xFF29241D) else Color(0xFF9A5A22)),
+                contentAlignment = Alignment.CenterStart
+            ) {
+                Text(
+                    if (filterName == "none") "No filter" else "Filter • $filterName",
+                    color = Color.White, fontSize = 8.sp, maxLines = 1,
+                    modifier = Modifier.padding(horizontal = 8.dp)
+                )
             }
         }
 
