@@ -551,6 +551,176 @@ private fun BrandSplashScreen() {
 }
 
 @Composable
+private fun ProjectsScreen(
+    language: AppLanguage,
+    onBackHome: () -> Unit,
+    onOpenProject: (RecentProject) -> Unit,
+    onNewProject: () -> Unit
+) {
+    val context = LocalContext.current
+    val arabic = language == AppLanguage.ARABIC
+    var query by rememberSaveable { mutableStateOf("") }
+    var projects by remember { mutableStateOf(emptyList<RecentProject>()) }
+
+    LaunchedEffect(Unit) {
+        projects = RecentProjectsRepository.load(context, includeDeviceVideos = true)
+    }
+
+    val filtered = projects.filter { project ->
+        query.isBlank() || project.name.contains(query, ignoreCase = true)
+    }
+
+    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+        Scaffold(
+            containerColor = Color(0xFF020914),
+            topBar = {
+                Row(
+                    Modifier.fillMaxWidth().height(62.dp).padding(horizontal = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(onClick = onBackHome) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, if (arabic) "رجوع" else "Back", tint = Color.White)
+                    }
+                    Column(Modifier.weight(1f)) {
+                        Text(if (arabic) "مشاريعي" else "My projects", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
+                        Text(if (arabic) "مشاريع الفيديو المحفوظة" else "Saved video projects", color = Color(0xFF8294AD), fontSize = 9.sp)
+                    }
+                    IconButton(onClick = onNewProject) {
+                        Box(
+                            Modifier.size(38.dp).clip(RoundedCornerShape(11.dp))
+                                .background(Brush.linearGradient(listOf(Color(0xFF7547FF), Color(0xFF2D73FF)))),
+                            contentAlignment = Alignment.Center
+                        ) { Icon(Icons.Default.Add, null, tint = Color.White) }
+                    }
+                }
+            },
+            floatingActionButton = {
+                FloatingActionButton(onClick = onNewProject, containerColor = Color(0xFF7547FF), contentColor = Color.White) {
+                    Icon(Icons.Default.Add, null)
+                }
+            }
+        ) { pad ->
+            Column(
+                Modifier.fillMaxSize().padding(pad).verticalScroll(rememberScrollState())
+                    .padding(horizontal = 12.dp, vertical = 8.dp)
+            ) {
+                OutlinedTextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    shape = RoundedCornerShape(14.dp),
+                    leadingIcon = { Icon(Icons.Default.Search, null, tint = Color(0xFF8FA2BC)) },
+                    placeholder = { Text(if (arabic) "ابحث عن مشروع..." else "Search projects...", color = Color(0xFF71849D)) },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Color(0xFF7547FF),
+                        unfocusedBorderColor = Color(0x223B72B7),
+                        focusedContainerColor = Color(0xFF071426),
+                        unfocusedContainerColor = Color(0xFF071426),
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        cursorColor = Color(0xFF9B73FF)
+                    )
+                )
+
+                Spacer(Modifier.height(14.dp))
+
+                if (filtered.isEmpty()) {
+                    Box(Modifier.fillMaxWidth().height(300.dp), contentAlignment = Alignment.Center) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Box(
+                                Modifier.size(70.dp).clip(RoundedCornerShape(20.dp)).background(Color(0xFF111F35)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(Icons.Default.VideoLibrary, null, tint = Color(0xFF8E6CFF), modifier = Modifier.size(34.dp))
+                            }
+                            Spacer(Modifier.height(12.dp))
+                            Text(
+                                if (query.isBlank()) {
+                                    if (arabic) "لا توجد مشاريع بعد" else "No projects yet"
+                                } else {
+                                    if (arabic) "لا توجد نتائج" else "No results"
+                                },
+                                color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold
+                            )
+                            Spacer(Modifier.height(5.dp))
+                            Text(
+                                if (query.isBlank()) {
+                                    if (arabic) "أنشئ مشروعًا جديدًا للبدء" else "Create a new project to get started"
+                                } else {
+                                    if (arabic) "جرّب اسمًا مختلفًا" else "Try another project name"
+                                },
+                                color = Color(0xFF8193AD), fontSize = 10.sp
+                            )
+                        }
+                    }
+                } else {
+                    filtered.forEach { project ->
+                        Row(
+                            Modifier.fillMaxWidth().clip(RoundedCornerShape(15.dp))
+                                .background(Color(0xFF071426))
+                                .border(1.dp, Color(0x1E2D7CFF), RoundedCornerShape(15.dp))
+                                .clickable { onOpenProject(project) }.padding(9.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                Modifier.size(86.dp, 58.dp).clip(RoundedCornerShape(10.dp)).background(Color(0xFF111E31)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                AndroidView(
+                                    factory = { ctx ->
+                                        PlayerView(ctx).apply {
+                                            useController = false
+                                            resizeMode = androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                                            player = ExoPlayer.Builder(ctx).build().also { player ->
+                                                player.setMediaItem(MediaItem.fromUri(project.uri))
+                                                player.prepare()
+                                                player.volume = 0f
+                                            }
+                                        }
+                                    },
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                                Box(
+                                    Modifier.size(28.dp).clip(androidx.compose.foundation.shape.CircleShape).background(Color(0xAA071426)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(Icons.Default.PlayArrow, null, tint = Color.White, modifier = Modifier.size(17.dp))
+                                }
+                            }
+                            Spacer(Modifier.width(10.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(project.name, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                                Spacer(Modifier.height(4.dp))
+                                Text(
+                                    formatDuration(project.durationMs) + " • " + project.clips.size +
+                                        if (arabic) " مقاطع" else " clips",
+                                    color = Color(0xFF8294AD), fontSize = 9.sp
+                                )
+                                Spacer(Modifier.height(7.dp))
+                                Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                                    Surface(color = Color(0xFF142441), shape = RoundedCornerShape(7.dp)) {
+                                        Text(if (arabic) "تحرير" else "Edit", color = Color(0xFFBBA5FF), fontSize = 8.sp, fontWeight = FontWeight.Bold,
+                                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 4.dp))
+                                    }
+                                    Surface(color = Color(0xFF102B2A), shape = RoundedCornerShape(7.dp)) {
+                                        Text(if (arabic) "محفوظ" else "Saved", color = Color(0xFF6FE0D0), fontSize = 8.sp, fontWeight = FontWeight.Bold,
+                                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 4.dp))
+                                    }
+                                }
+                            }
+                            Icon(Icons.Default.ChevronLeft, null, tint = Color(0xFF7387A2))
+                        }
+                        Spacer(Modifier.height(9.dp))
+                    }
+                }
+                Spacer(Modifier.height(80.dp))
+            }
+        }
+    }
+}
+
+@Composable
 private fun HomeScreen(
     language: AppLanguage,
     onLanguageSelected: (AppLanguage) -> Unit,
