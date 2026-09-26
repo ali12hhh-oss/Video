@@ -333,6 +333,8 @@ private fun VideoForgeApp() {
     var selected by remember { mutableIntStateOf(0) }
     var showTemplates by remember { mutableStateOf(false) }
     var showSettings by remember { mutableStateOf(false) }
+    var showHelp by remember { mutableStateOf(false) }
+    var editorInitialTool by remember { mutableStateOf<String?>(null) }
     var showBrandSplash by rememberSaveable { mutableStateOf(true) }
 
     LaunchedEffect(Unit) {
@@ -415,7 +417,8 @@ private fun VideoForgeApp() {
                         projectName = name
                         if (clips.isNotEmpty()) ProjectRepository.save(context, projectId, clips, name)
                     },
-                    onBack = { showEditor = false },
+                    onBack = { showEditor = false; editorInitialTool = null },
+                    initialTool = editorInitialTool,
                     language = language,
                     onLanguageSelected = {
                         language = it
@@ -444,6 +447,23 @@ private fun VideoForgeApp() {
                         LanguageManager.setLanguage(context, it)
                     },
                     onOpenSettings = { showSettings = true },
+                    onOpenHelp = { showHelp = true },
+                    onOpenMusic = {
+                        projectId = ProjectRepository.newId()
+                        projectName = context.getString(R.string.new_project)
+                        clips = emptyList()
+                        editorInitialTool = "audio"
+                        selected = 0
+                        showEditor = true
+                    },
+                    onOpenEffects = {
+                        projectId = ProjectRepository.newId()
+                        projectName = context.getString(R.string.new_project)
+                        clips = emptyList()
+                        editorInitialTool = "effects"
+                        selected = 0
+                        showEditor = true
+                    },
                     selected = selected,
                     onSelected = { selected = it },
                     onNewProject = { projectId = ProjectRepository.newId(); projectName = context.getString(R.string.new_project); clips = emptyList(); showEditor = true },
@@ -473,6 +493,13 @@ private fun VideoForgeApp() {
                 LanguageManager.setLanguage(context, it)
             },
             onDismiss = { showSettings = false }
+        )
+    }
+
+    if (showHelp) {
+        HelpSheet(
+            language = language,
+            onDismiss = { showHelp = false }
         )
     }
 
@@ -725,6 +752,9 @@ private fun HomeScreen(
     language: AppLanguage,
     onLanguageSelected: (AppLanguage) -> Unit,
     onOpenSettings: () -> Unit,
+    onOpenHelp: () -> Unit,
+    onOpenMusic: () -> Unit,
+    onOpenEffects: () -> Unit,
     selected: Int,
     onSelected: (Int) -> Unit,
     onNewProject: () -> Unit,
@@ -811,7 +841,7 @@ private fun HomeScreen(
                             title = if (arabic) "الموسيقى" else "Music",
                             subtitle = if (arabic) "مكتبة الصوت" else "Audio library",
                             iconGradient = listOf(Color(0xFFFF9B24), Color(0xFFFFC928)),
-                            onClick = onOpenTemplates
+                            onClick = onOpenMusic
                         )
                         HomeFeatureCard(
                             Modifier.weight(1f),
@@ -819,7 +849,7 @@ private fun HomeScreen(
                             title = if (arabic) "المؤثرات" else "Effects",
                             subtitle = if (arabic) "فلاتر وتأثيرات" else "Filters & effects",
                             iconGradient = listOf(Color(0xFF00C8B4), Color(0xFF23E4CF)),
-                            onClick = onOpenTemplates
+                            onClick = onOpenEffects
                         )
                         HomeFeatureCard(
                             Modifier.weight(1f),
@@ -849,7 +879,7 @@ private fun HomeScreen(
                             icon = Icons.Default.HelpOutline,
                             title = if (arabic) "التعليمات" else "Help",
                             subtitle = if (arabic) "دليل الاستخدام" else "How to use",
-                            onClick = onOpenSettings
+                            onClick = onOpenHelp
                         )
                     }
                 }
@@ -1314,6 +1344,69 @@ private fun SettingsInfoRow(
                 Spacer(Modifier.height(2.dp))
                 Text(description, color = Color(0xFF667085), fontSize = 9.sp)
             }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun HelpSheet(
+    language: AppLanguage,
+    onDismiss: () -> Unit
+) {
+    val arabic = language == AppLanguage.ARABIC
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = Color(0xFF0A111D)
+    ) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 18.dp, vertical = 10.dp)
+        ) {
+            Text(
+                if (arabic) "دليل الاستخدام" else "How to use",
+                color = Color.White,
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(Modifier.height(14.dp))
+            val items = if (arabic) listOf(
+                "١. اضغط «مشروع جديد» لبدء تحرير فيديو.",
+                "٢. اضغط «مشاريعي» لفتح المشاريع المحفوظة.",
+                "٣. استخدم «الموسيقى» لإضافة الصوت والتحكم به.",
+                "٤. استخدم «المؤثرات» لتطبيق الفلاتر والتأثيرات.",
+                "٥. استخدم «القوالب» لاستعمال قالب جاهز.",
+                "٦. من شريط الأدوات داخل المحرر ستجد القص والنص والصوت والسرعة وغيرها.",
+                "٧. اضغط «تصدير» لحفظ الفيديو بعد الانتهاء."
+            ) else listOf(
+                "1. Tap New Project to start editing a video.",
+                "2. Tap My Projects to open saved projects.",
+                "3. Use Music to add and control audio.",
+                "4. Use Effects to apply filters and effects.",
+                "5. Use Templates to start from a ready template.",
+                "6. The editor toolbar contains trim, text, audio, speed and more.",
+                "7. Use Export to save the finished video."
+            )
+            items.forEach {
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 7.dp),
+                    verticalAlignment = Alignment.Top
+                ) {
+                    Icon(
+                        Icons.Default.CheckCircle,
+                        contentDescription = null,
+                        tint = Color(0xFF7650FF),
+                        modifier = Modifier.size(19.dp)
+                    )
+                    Spacer(Modifier.width(10.dp))
+                    Text(it, color = Color(0xFFD8E0EC), fontSize = 12.sp, lineHeight = 19.sp)
+                }
+            }
+            Spacer(Modifier.height(20.dp))
         }
     }
 }
@@ -2006,6 +2099,7 @@ private fun EditorScreen(
     onClipsChanged: (List<Clip>) -> Unit,
     onProjectNameChanged: (String) -> Unit,
     onBack: () -> Unit,
+    initialTool: String? = null,
     language: AppLanguage,
     onLanguageSelected: (AppLanguage) -> Unit
 ) {
@@ -2111,7 +2205,7 @@ private fun EditorScreen(
         }
     }
     var tool by remember { mutableStateOf<String?>(null) }
-    var activeEditorTool by remember { mutableStateOf<String?>(null) }
+    var activeEditorTool by remember(initialTool) { mutableStateOf(initialTool) }
     var editingName by remember(projectName) { mutableStateOf(projectName) }
     val undoStack = remember(projectId) { mutableStateListOf<EditorSnapshot>() }
     val redoStack = remember(projectId) { mutableStateListOf<EditorSnapshot>() }
