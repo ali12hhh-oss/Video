@@ -1543,9 +1543,13 @@ private fun EditorFeaturePanel(
             Triple("extract", Icons.Default.AudioFile, if(language==AppLanguage.ARABIC)"استخراج الصوت" else "Extract")
         )
         "text" -> listOf(
-            Triple("text", Icons.Default.TextFields, if(language==AppLanguage.ARABIC)"إضافة/تعديل النص" else "Text"),
+            Triple("text", Icons.Default.TextFields, if(language==AppLanguage.ARABIC)"معاينة وتعديل" else "Edit"),
+            Triple("position", Icons.Default.OpenWith, if(language==AppLanguage.ARABIC)"الموقع" else "Position"),
+            Triple("rotate", Icons.Default.RotateRight, if(language==AppLanguage.ARABIC)"دوران" else "Rotate"),
+            Triple("color", Icons.Default.Palette, if(language==AppLanguage.ARABIC)"اللون" else "Color"),
+            Triple("deleteText", Icons.Default.DeleteOutline, if(language==AppLanguage.ARABIC)"حذف" else "Delete"),
             Triple("animation", Icons.Default.Animation, if(language==AppLanguage.ARABIC)"الحركة" else "Animation"),
-            Triple("textLayers", Icons.Default.Layers, if(language==AppLanguage.ARABIC)"طبقات النص" else "Text layers")
+            Triple("textLayers", Icons.Default.Layers, if(language==AppLanguage.ARABIC)"الطبقات" else "Layers")
         )
         "effects" -> listOf(
             Triple("blur", Icons.Default.BlurOn, if(language==AppLanguage.ARABIC)"ضبابية" else "Blur"),
@@ -1713,7 +1717,34 @@ private fun EditorFeaturePanel(
                                     "keys" -> onAudioKeyframes(); "music" -> onMusicKeyframes()
                                     "extract" -> onExtractAudio()
                                 }
-                                "text" -> when(id) { "text" -> onOpenAdvancedTool("text"); "animation" -> onTextAnimation(); "textLayers" -> onLayersDialog() }
+                                "text" -> when(id) {
+                                    "text" -> onOpenAdvancedTool("text")
+                                    "position" -> {
+                                        val first = settings.textLayers.firstOrNull()
+                                        if (first != null) onSettingsLiveChange(settings.copy(textLayers = settings.textLayers.map { if (it.id == first.id) it.copy(x = 0f, y = 0f) else it }))
+                                    }
+                                    "rotate" -> {
+                                        val first = settings.textLayers.firstOrNull()
+                                        if (first != null) onSettingsLiveChange(settings.copy(textLayers = settings.textLayers.map { if (it.id == first.id) it.copy(rotation = it.rotation + 15f) else it }))
+                                    }
+                                    "color" -> {
+                                        val first = settings.textLayers.firstOrNull()
+                                        if (first != null) {
+                                            val palette = listOf(0xFFFFFFFFL,0xFFFFD54FL,0xFF80D8FFL,0xFFFF80ABL,0xFFB39DDBL)
+                                            val next = palette[(palette.indexOf(first.color).coerceAtLeast(0)+1)%palette.size]
+                                            onSettingsLiveChange(settings.copy(textLayers = settings.textLayers.map { if (it.id == first.id) it.copy(color = next) else it }))
+                                        }
+                                    }
+                                    "deleteText" -> {
+                                        val first = settings.textLayers.firstOrNull()
+                                        if (first != null) {
+                                            val next = settings.textLayers.filterNot { it.id == first.id }
+                                            onSettingsLiveChange(settings.copy(textLayers = next, textVisible = next.isNotEmpty(), text = next.firstOrNull()?.text.orEmpty()))
+                                        }
+                                    }
+                                    "animation" -> onTextAnimation()
+                                    "textLayers" -> onLayersDialog()
+                                }
                                 "effects" -> effectFeature=id
                                 "filters" -> onSettingsLiveChange(settings.copy(filter=id))
                                 "adjust" -> adjustFeature=id
@@ -2656,7 +2687,7 @@ private fun EditorScreen(
             "layers" -> LayerManagerDialog(settings, language, { updateSettings(it) }, { tool = null })
             "subtitles" -> SubtitleDialog(settings, playheadMs, language, { updateSettings(it) }, { subtitleImportLauncher.launch(arrayOf("text/plain", "application/x-subrip", "application/octet-stream")) }, { subtitleExportLauncher.launch("${editingName.ifBlank { "VideoForge" }}.srt") }, { tool = null })
             "effects" -> EffectsDialog(settings, language, { updateSettings(it) }, { tool = null })
-            "filters" -> FilterDialog(settings, language, { updateSettings(it) }, { tool = null })
+            "filters" -> FilterDialog(settings, current, language, { updateSettings(it) }, { tool = null })
             "adjust" -> AdjustDialog(settings, language, { updateSettings(it) }, { tool = null })
             "canvas" -> CanvasDialog(settings, language, { updateSettings(it) }, { tool = null })
             "transition" -> TransitionDialog(settings, language, { updateSettings(it) }, { tool = null })
@@ -2769,16 +2800,18 @@ private fun EditorPreview(
     BoxWithConstraints(
         Modifier
             .fillMaxSize()
-            .padding(horizontal = 8.dp, vertical = 5.dp)
-            .clip(RoundedCornerShape(18.dp))
+            .padding(horizontal = 0.dp, vertical = 0.dp)
+            .clip(RoundedCornerShape(14.dp))
             .background(Color(0xFF0B1019))
             .border(1.dp, Color(0xFF1E2A3A), RoundedCornerShape(18.dp))
     ) {
         val availableWidth = maxWidth.value
-        val availableHeight = (maxHeight.value - 42f).coerceAtLeast(1f)
-        val fitHeight = availableWidth / ratio
-        val displayHeight = if (availableHeight <= 0f || !availableHeight.isFinite() || fitHeight <= availableHeight) fitHeight else availableHeight
-        val displayWidth = displayHeight * ratio
+        val availableHeight = (maxHeight.value - 36f).coerceAtLeast(1f)
+        // The preview is the editor's full stage: the video is no longer a small centered
+        // object beside/above separate UI. All overlays (watermark, text, PIP, stickers)
+        // are composited inside this same video stage.
+        val displayWidth = availableWidth
+        val displayHeight = availableHeight
 
         Row(
             Modifier.fillMaxWidth().height(36.dp).padding(horizontal = 10.dp),
@@ -2819,10 +2852,10 @@ private fun EditorPreview(
             Modifier
                 .width(displayWidth.dp)
                 .height(displayHeight.dp)
-                .align(Alignment.BottomCenter)
-                .clip(RoundedCornerShape(12.dp))
-                .background(Color(0xFF02050A))
-                .border(1.dp, Color(0xFF253044), RoundedCornerShape(12.dp)),
+                .align(Alignment.Center)
+                .clip(RoundedCornerShape(10.dp))
+                .background(Color.Black)
+                .border(1.dp, Color(0xFF253044), RoundedCornerShape(10.dp)),
             contentAlignment = Alignment.Center
         ) {
         if (clip == null) {
@@ -3059,7 +3092,7 @@ private fun EditorPreview(
                     PlayerView(ctx).apply {
                         this.player = player
                         useController = false
-                        resizeMode = androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT
+                        resizeMode = androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM
                         setKeepContentOnPlayerReset(true)
                         setShutterBackgroundColor(android.graphics.Color.BLACK)
                         keepScreenOn = true
@@ -3805,16 +3838,106 @@ private fun VideoPresetDialog(s: EditorSettings, language: AppLanguage, onChange
 }
 
 @Composable
-private fun FilterDialog(s: EditorSettings, language: AppLanguage, onChange: (EditorSettings)->Unit, onDismiss:()->Unit) {
+private fun FilterDialog(
+    s: EditorSettings,
+    clip: Clip?,
+    language: AppLanguage,
+    onChange: (EditorSettings)->Unit,
+    onDismiss:()->Unit
+) {
     val vals=listOf("none","warm","cool","mono","sepia","invert","vivid","dream","noir","faded","tealOrange","vintage","sunset","ice","dramatic","soft")
-    val labels=if(language==AppLanguage.ARABIC) listOf("بدون","سينمائي دافئ","سينمائي بارد","أبيض وأسود","سيبيا","معكوس","حيوي","حالم","نوير","باهت","Teal & Orange","فنتج","غروب","جليدي","درامي","ناعم") else listOf("None","Warm Cinema","Cool Cinema","Grayscale","Sepia","Inverted","Vivid","Dream","Noir","Faded","Teal & Orange","Vintage","Sunset","Ice","Dramatic","Soft")
-    AlertDialog(onDismissRequest=onDismiss,title={Text(if(language==AppLanguage.ARABIC)"الفلاتر" else "Filters")},text={
-        Column(Modifier.verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(7.dp)){
-            Text(if(language==AppLanguage.ARABIC)"اختر فلترًا جاهزًا" else "Choose a ready filter",fontWeight=FontWeight.Bold)
-            labels.forEachIndexed{i,label->FilterChip(selected=s.filter==vals[i],onClick={onChange(s.copy(filter=vals[i]));onDismiss()},label={Text(label)},modifier=Modifier.fillMaxWidth())}
-            OutlinedButton(onClick={onDismiss},modifier=Modifier.fillMaxWidth()){Text(if(language==AppLanguage.ARABIC)"إغلاق" else "Close")}
+    val labels=if(language==AppLanguage.ARABIC)
+        listOf("بدون","دافئ","بارد","أبيض وأسود","سيبيا","معكوس","حيوي","حالم","نوير","باهت","Teal + Orange","فنتج","غروب","جليدي","درامي","ناعم")
+    else
+        listOf("None","Warm","Cool","Mono","Sepia","Invert","Vivid","Dream","Noir","Faded","Teal + Orange","Vintage","Sunset","Ice","Dramatic","Soft")
+
+    val context=LocalContext.current
+    var thumbnail by remember(clip?.uri) { mutableStateOf<android.graphics.Bitmap?>(null) }
+    LaunchedEffect(clip?.uri) {
+        thumbnail = clip?.let { uriClip ->
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                loadVideoThumbnail(context, uriClip.uri)
+            }
         }
-    },confirmButton={})
+    }
+
+    AlertDialog(
+        onDismissRequest=onDismiss,
+        title={Text(if(language==AppLanguage.ARABIC)"الفلاتر" else "Filters")},
+        text={
+            Column(Modifier.verticalScroll(rememberScrollState())) {
+                Text(
+                    if(language==AppLanguage.ARABIC) "اختر من المعاينات، وليس من أسماء فقط." else "Choose from visual previews.",
+                    color=Color.Gray,fontSize=11.sp
+                )
+                Spacer(Modifier.height(8.dp))
+                LazyRow(
+                    horizontalArrangement=Arrangement.spacedBy(8.dp),
+                    contentPadding=PaddingValues(vertical=4.dp)
+                ) {
+                    items(vals) { value ->
+                        val index=vals.indexOf(value)
+                        val selected=s.filter==value
+                        Column(
+                            Modifier.width(86.dp).clickable {
+                                onChange(s.copy(filter=value))
+                                onDismiss()
+                            },
+                            horizontalAlignment=Alignment.CenterHorizontally
+                        ) {
+                            Box(
+                                Modifier.size(82.dp,54.dp)
+                                    .clip(RoundedCornerShape(9.dp))
+                                    .border(if(selected) 2.dp else 1.dp, if(selected) Color(0xFF9B7BFF) else Color(0xFF30394A), RoundedCornerShape(9.dp))
+                                    .background(
+                                        Brush.linearGradient(
+                                            listOf(
+                                                when(value) {
+                                                    "warm","sunset","sepia" -> Color(0xFFB76B3B)
+                                                    "cool","ice" -> Color(0xFF3977B8)
+                                                    "mono","noir" -> Color(0xFF707070)
+                                                    "vivid","tealOrange" -> Color(0xFF167F72)
+                                                    "dream","soft" -> Color(0xFF9B76B8)
+                                                    "invert" -> Color(0xFF6A3B73)
+                                                    else -> Color(0xFF39475A)
+                                                },
+                                                Color(0xFF111827)
+                                            )
+                                        )
+                                    ),
+                                contentAlignment=Alignment.Center
+                            ) {
+                                if(thumbnail!=null) {
+                                    Image(
+                                        bitmap=thumbnail!!.asImageBitmap(),
+                                        contentDescription=null,
+                                        contentScale=androidx.compose.ui.layout.ContentScale.Crop,
+                                        modifier=Modifier.fillMaxSize().alpha(if(value=="none") 0.95f else 0.82f)
+                                    )
+                                    Box(
+                                        Modifier.fillMaxSize().background(
+                                            when(value) {
+                                                "warm","sunset","sepia" -> Color(0x55FF8A45)
+                                                "cool","ice" -> Color(0x553C8DFF)
+                                                "mono","noir" -> Color(0x66777777)
+                                                "vivid","tealOrange" -> Color(0x3318E0B8)
+                                                "dream","soft" -> Color(0x335C3BFF)
+                                                "invert" -> Color(0x554D155C)
+                                                else -> Color.Transparent
+                                            }
+                                        )
+                                    )
+                                }
+                                if(value=="none") Icon(Icons.Default.FilterNone,null,tint=Color.White,modifier=Modifier.size(22.dp))
+                            }
+                            Text(labels[index],fontSize=9.sp,color=Color.White,maxLines=1,modifier=Modifier.padding(top=4.dp))
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton={}
+    )
 }
 @Composable
 private fun EffectsDialog(s: EditorSettings, language: AppLanguage, onChange:(EditorSettings)->Unit,onDismiss:()->Unit){
