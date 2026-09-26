@@ -172,6 +172,7 @@ fun Timeline(
     musicUri: String,
     musicStartMs: Long,
     musicDurationMs: Long,
+    musicSourceDurationMs: Long = 0L,
     musicVolume: Float,
     musicFadeIn: Float,
     musicFadeOut: Float,
@@ -196,6 +197,9 @@ fun Timeline(
     filterName: String = "none"
 ) {
     val total = clips.sumOf { timelineClipDurationForUi(it) }.coerceAtLeast(1L)
+    val safeMusicSourceDuration = musicSourceDurationMs.coerceAtLeast(0L)
+    val safeMusicStart = musicStartMs.coerceIn(0L, (safeMusicSourceDuration - 300L).coerceAtLeast(0L).takeIf { safeMusicSourceDuration > 0L } ?: total)
+    val safeMusicDuration = musicDurationMs.coerceAtLeast(1L).coerceAtMost(if (safeMusicSourceDuration > 0L) (safeMusicSourceDuration - safeMusicStart).coerceAtLeast(1L) else musicDurationMs.coerceAtLeast(1L))
     val safePlayhead = playheadMs.coerceIn(0L, total)
 
     Column(
@@ -405,13 +409,13 @@ fun Timeline(
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         Text("Music", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-                        Text("${formatTimelineTime(musicStartMs)} → ${formatTimelineTime(musicStartMs + musicDurationMs)}", color = TrackLabelAudio, fontSize = 8.sp)
+                        Text("${formatTimelineTime(safeMusicStart)} → ${formatTimelineTime(safeMusicStart + safeMusicDuration)}", color = TrackLabelAudio, fontSize = 8.sp)
                     }
                     BoxWithConstraints(
                         Modifier.fillMaxWidth().height(20.dp).clip(RoundedCornerShape(5.dp)).background(Color(0xFF241D10))
                     ) {
-                        val activeEnd = (musicStartMs + musicDurationMs).coerceAtMost(total)
-                        val activeStart = musicStartMs.coerceIn(0L, total)
+                        val activeEnd = (safeMusicStart + safeMusicDuration).coerceAtMost(total)
+                        val activeStart = safeMusicStart.coerceIn(0L, total)
                         val left = (activeStart.toFloat() / total.toFloat()).coerceIn(0f, 1f)
                         val right = (activeEnd.toFloat() / total.toFloat()).coerceIn(left, 1f)
                         val width = (right - left).coerceAtLeast(0.01f)
@@ -432,14 +436,16 @@ fun Timeline(
                                 .offset(x = with(density) { (left * trackWidthPx).toDp() - 5.dp })
                                 .width(10.dp).fillMaxHeight()
                                 .background(Color.White.copy(alpha = 0.9f))
-                                .pointerInput(total, musicStartMs, musicDurationMs) {
+                                .pointerInput(total, safeMusicStart, safeMusicDuration, safeMusicSourceDuration) {
                                     detectDragGestures { change, dragAmount ->
                                         change.consume()
                                         if (trackWidthPx > 0f) {
                                             val delta = (dragAmount.x / trackWidthPx * total).toLong()
-                                            val end = (musicStartMs + musicDurationMs).coerceAtMost(total)
-                                            val nextStart = (musicStartMs + delta).coerceIn(0L, (end - minDuration).coerceAtLeast(0L))
-                                            onMusicTrim(nextStart, (end - nextStart).coerceAtLeast(minDuration))
+                                            val end = (safeMusicStart + safeMusicDuration).coerceAtMost(total)
+                                            val nextStart = (safeMusicStart + delta).coerceIn(0L, (end - minDuration).coerceAtLeast(0L))
+                                            val maxSourceEnd = if (safeMusicSourceDuration > 0L) safeMusicSourceDuration else Long.MAX_VALUE
+                                            val safeEnd = end.coerceAtMost(maxSourceEnd)
+                                            onMusicTrim(nextStart, (safeEnd - nextStart).coerceAtLeast(minDuration))
                                         }
                                     }
                                 }
@@ -454,8 +460,9 @@ fun Timeline(
                                         change.consume()
                                         if (trackWidthPx > 0f) {
                                             val delta = (dragAmount.x / trackWidthPx * total).toLong()
-                                            val start = musicStartMs.coerceIn(0L, total)
-                                            val nextEnd = (start + musicDurationMs + delta).coerceIn((start + minDuration).coerceAtMost(total), total)
+                                            val start = safeMusicStart.coerceIn(0L, total)
+                                            val sourceEnd = if (safeMusicSourceDuration > 0L) safeMusicSourceDuration else total
+                                            val nextEnd = (start + safeMusicDuration + delta).coerceIn((start + minDuration).coerceAtMost(total), minOf(total, sourceEnd))
                                             onMusicTrim(start, (nextEnd - start).coerceAtLeast(minDuration))
                                         }
                                     }
@@ -463,7 +470,7 @@ fun Timeline(
                         )
                     }
                 }
-                Text("${(musicVolume * 100).toInt()}%", color = Color(0xFFCBB27A), fontSize = 8.sp, modifier = Modifier.padding(start = 6.dp))
+                Text("${(musicVolume * 100).toInt()}%  •  In ${String.format("%.1f", musicFadeIn)}s  •  Out ${String.format("%.1f", musicFadeOut)}s", color = Color(0xFFCBB27A), fontSize = 8.sp, modifier = Modifier.padding(start = 6.dp))
             } else if (clips.isNotEmpty()) {
                 Text("Clip audio • ${(audioBaseVolume * 100).toInt()}%", color = Color(0xFFB7C0D0), fontSize = 10.sp, modifier = Modifier.weight(1f))
             } else {
