@@ -437,7 +437,7 @@ private fun VideoForgeApp() {
                             selected = 0
                             showEditor = true
                         },
-                        onNewProject = { projectId = ProjectRepository.newId(); projectName = context.getString(R.string.new_project); clips = emptyList(); selected = 0; showEditor = true }
+                        onNewProject = { selected = 0; editorInitialTool = null; launchMediaPicker() }
                     )
                 } else {
                     HomeScreen(
@@ -466,7 +466,7 @@ private fun VideoForgeApp() {
                     },
                     selected = selected,
                     onSelected = { selected = it },
-                    onNewProject = { projectId = ProjectRepository.newId(); projectName = context.getString(R.string.new_project); clips = emptyList(); showEditor = true },
+                    onNewProject = { selected = 0; editorInitialTool = null; launchMediaPicker() },
                     onImport = {
                         launchMediaPicker()
                     },
