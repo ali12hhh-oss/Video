@@ -10,6 +10,7 @@ import android.net.Uri
 import android.app.Activity
 import android.os.Bundle
 import android.content.Intent
+import android.content.pm.ActivityInfo
 import android.provider.MediaStore
 import android.media.MediaMetadataRetriever
 import android.os.Build
@@ -53,6 +54,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.res.stringResource
@@ -376,6 +378,17 @@ private fun VideoForgeApp() {
     }
 
     val direction = if (language == AppLanguage.ARABIC) LayoutDirection.Rtl else LayoutDirection.Ltr
+    val configuration = LocalConfiguration.current
+    val activity = context as? Activity
+
+    // Portrait-first mobile geometry, while larger screens remain adaptive.
+    LaunchedEffect(configuration.screenWidthDp, configuration.screenHeightDp) {
+        if (configuration.screenWidthDp < 600 || configuration.screenHeightDp < 600) {
+            activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        } else {
+            activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+        }
+    }
 
     CompositionLocalProvider(LocalLayoutDirection provides direction) {
         MaterialTheme(
@@ -603,7 +616,25 @@ private fun HomeScreen(
     ) {
     Scaffold(
         containerColor = Color.Transparent,
-        topBar = { HomeTopBar(language, onLanguageSelected, onOpenSettings) },
+        topBar = {
+            CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+                Surface(color = Color(0xFF070B14), tonalElevation = 6.dp, shadowElevation = 8.dp) {
+                    Row(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 7.dp), verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = Color.White) }
+                        Column(Modifier.weight(1f).padding(horizontal = 7.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(editingName.ifBlank { if (language == AppLanguage.ARABIC) "مشروع جديد" else "New project" }, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp, maxLines = 1)
+                            Text(if (language == AppLanguage.ARABIC) "محرر فيديو احترافي" else "Professional video editor", color = Color(0xFF8E9AAF), fontSize = 8.sp, maxLines = 1)
+                        }
+                        IconButton(onClick = { undo() }, enabled = undoStack.isNotEmpty()) { Icon(Icons.AutoMirrored.Filled.Undo, null, tint = Color(0xFFB9C3D6)) }
+                        IconButton(onClick = { redo() }, enabled = redoStack.isNotEmpty()) { Icon(Icons.AutoMirrored.Filled.Redo, null, tint = Color(0xFFB9C3D6)) }
+                        IconButton(onClick = { tool = "history" }) { Icon(Icons.Default.History, null, tint = Color(0xFFB9C3D6)) }
+                        Box(Modifier.clip(RoundedCornerShape(13.dp)).background(Brush.horizontalGradient(listOf(Color(0xFF6C3BFF), Color(0xFF2F7BFF)))).clickable { showExport = true }.padding(horizontal = 13.dp, vertical = 9.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Default.FileUpload, null, tint = Color.White, modifier = Modifier.size(17.dp)); Spacer(Modifier.width(5.dp)); Text(if (language == AppLanguage.ARABIC) "تصدير" else "Export", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold) }
+                        }
+                    }
+                }
+            }
+        },
         bottomBar = {
             HomeBottomBar(selected = selected, onSelected = onSelected, onImport = onImport)
         }
@@ -2213,18 +2244,7 @@ private fun EditorScreen(
         }
     ) { pad ->
         Column(Modifier.fillMaxSize().padding(pad)) {
-            Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 7.dp), verticalAlignment = Alignment.CenterVertically) {
-                OutlinedTextField(
-                    value = editingName,
-                    onValueChange = { editingName = it; onProjectNameChanged(it) },
-                    label = { Text(if (language == AppLanguage.ARABIC) "اسم المشروع" else "Project name") },
-                    singleLine = true, modifier = Modifier.weight(1f), trailingIcon = { Icon(Icons.Default.Edit, null, Modifier.size(17.dp)) }
-                )
-                Spacer(Modifier.width(7.dp))
-                AssistChip(onClick = {}, label = { Text(if (language == AppLanguage.ARABIC) "محفوظ" else "Saved", fontSize = 10.sp) }, leadingIcon = { Icon(Icons.Default.CloudDone, null, Modifier.size(16.dp)) })
-            }
-
-            // The preview gets a fixed, generous share of the actual screen height (not just
+            // Project identity is kept in the compact mobile top bar.\n\n            // The preview gets a fixed, generous share of the actual screen height (not just
             // whatever its aspect ratio implies from width alone) so it reads as a real, large
             // preview like a professional editor instead of shrinking inside a scrolling column.
             Box(Modifier.fillMaxWidth().fillMaxHeight(0.52f)) {
@@ -2298,245 +2318,7 @@ private fun EditorScreen(
                 }
             }
 
-            // Primary tools are placed after the timeline to match a professional editor workflow.
-            Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(if (language == AppLanguage.ARABIC) "المخطط الزمني" else "Timeline", fontSize = 15.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                Text("${clips.size} ${if (language == AppLanguage.ARABIC) "مقطع" else "clips"}", color = Color.Gray, fontSize = 10.sp)
-            }
-            Timeline(
-                clips = clips, current = current, playheadMs = playheadMs,
-                videoKeyframes = settings.videoKeyframes,
-                textKeyframes = settings.textLayers.flatMap { it.keyframes },
-                audioKeyframes = current?.let { selected ->
-                    selected.audioKeyframes.map { k ->
-                        ClipAudioKeyframe(
-                            timeMs = timelinePositionOf(clips, selected) + k.timeMs,
-                            volume = k.volume
-                        )
-                    }.map { AudioKeyframe(it.timeMs, it.volume) }
-                } ?: settings.audioKeyframes,
-                speedKeyframes = settings.speedKeyframes,
-                musicUri = settings.musicUri,
-                musicStartMs = settings.musicStartMs,
-                musicDurationMs = settings.musicDurationMs,
-                musicVolume = settings.musicVolume,
-                musicFadeIn = settings.musicFadeIn,
-                musicFadeOut = settings.musicFadeOut,
-                musicKeyframes = settings.musicKeyframes,
-                markers = settings.markers,
-                audioBaseVolume = current?.audioVolume ?: settings.volume,
-                audioFadeIn = maxOf(settings.fadeIn, current?.audioFadeIn ?: 0f),
-                audioFadeOut = maxOf(settings.fadeOut, current?.audioFadeOut ?: 0f),
-                onAudioTrackClick = { activeEditorTool = "audio" },
-                onSelect = { clip -> current = clip; playheadMs = timelinePositionOf(clips, clip) },
-                onPlayheadChange = { position ->
-                    playheadMs = position.coerceIn(0L, timelineTotalDuration(clips))
-                    timelineClipAt(clips, playheadMs)?.let { (clip, _) -> current = clip }
-                },
-                onDelete = { clip -> val u = clips.filterNot { it == clip }; commitClips(u); current = u.firstOrNull(); playheadMs = 0L },
-                onMoveLeft = { clip -> val i = clips.indexOf(clip); if (i > 0) commitClips(clips.toMutableList().also { it.add(i - 1, it.removeAt(i)) }) },
-                onMoveRight = { clip -> val i = clips.indexOf(clip); if (i >= 0 && i < clips.lastIndex) commitClips(clips.toMutableList().also { it.add(i + 1, it.removeAt(i)) }) },
-                onTrimEdges = { clip, start, end ->
-                    val updated = clip.copy(trimStartMs = start, trimEndMs = end)
-                    commitClips(clips.map { if (it == clip) updated else it })
-                    current = updated
-                    playheadMs = timelinePositionOf(clips, updated).coerceAtMost(timelineTotalDuration(clips))
-                },
-                onSplit = { clip ->
-                    val clipOffset = timelinePositionOf(clips, clip)
-                    val localPlayhead = (playheadMs - clipOffset).coerceIn(0L, clipTimelineDuration(clip))
-                    val start = clip.trimStartMs
-                    val end = if (clip.trimEndMs == Long.MAX_VALUE) clip.durationMs else clip.trimEndMs
-                    val cut = (start + localPlayhead).coerceIn(start + 1L, end - 1L)
-                    if (end - start > 2L) {
-                        val cutLocal = cut - start
-                        val leftKeys = clip.audioKeyframes.filter { it.timeMs <= cutLocal }
-                        val rightKeys = clip.audioKeyframes.filter { it.timeMs >= cutLocal }.map { it.copy(timeMs = (it.timeMs - cutLocal).coerceAtLeast(0L)) }
-                        val left = clip.copy(name = clip.name.substringBeforeLast('.').ifBlank { clip.name } + " • 1", trimStartMs = start, trimEndMs = cut, audioKeyframes = leftKeys)
-                        val right = clip.copy(name = clip.name.substringBeforeLast('.').ifBlank { clip.name } + " • 2", trimStartMs = cut, trimEndMs = end, audioKeyframes = rightKeys)
-                        val idx = clips.indexOf(clip)
-                        commitClips(clips.toMutableList().also { it.removeAt(idx); it.add(idx, left); it.add(idx + 1, right) })
-                        current = left; playheadMs = timelinePositionOf(clips, left)
-                    }
-                },
-                onKeyframeSeek = { position ->
-                    val safe = position.coerceIn(0L, timelineTotalDuration(clips))
-                    playheadMs = safe
-                    timelineClipAt(clips, safe)?.let { (clip, _) -> current = clip }
-                },
-                onVideoKeyframeMove = { oldGlobalMs, newGlobalMs ->
-                    val selectedClip = current ?: return@Timeline
-                    val offset = timelinePositionOf(clips, selectedClip)
-                    val localDuration = clipTimelineDuration(selectedClip)
-                    val newLocal = (newGlobalMs - offset).coerceIn(0L, localDuration)
-                    val oldLocal = (oldGlobalMs - offset).coerceIn(0L, localDuration)
-                    val nearest = settings.videoKeyframes.minByOrNull { kotlin.math.abs(it.timeMs - oldLocal) } ?: return@Timeline
-                    val moved = nearest.copy(timeMs = newLocal)
-                    val next = settings.videoKeyframes
-                        .filterNot { it === nearest || kotlin.math.abs(it.timeMs - nearest.timeMs) <= 1L }
-                        .filterNot { kotlin.math.abs(it.timeMs - newLocal) <= 35L } + moved
-                    val updated = next.sortedBy { it.timeMs }
-                    settings = settings.copy(videoKeyframes = updated)
-                    EditorSettingsRepository.save(context, projectId, settings)
-                    playheadMs = (offset + newLocal).coerceIn(0L, timelineTotalDuration(clips))
-                },
-                onAddMedia = { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)) },
-                textLayerNames = settings.textLayers.mapIndexed { i, layer -> layer.name.ifBlank { (if (language == AppLanguage.ARABIC) "نص " else "Text ") + (i + 1) } }
-            )
-
-            Text(
-                if (language == AppLanguage.ARABIC) "أدوات التحرير" else "Editing tools",
-                fontWeight = FontWeight.Bold,
-                fontSize = 14.sp,
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp)
-            )
-            LazyRow(
-                Modifier.fillMaxWidth().padding(horizontal = 10.dp),
-                horizontalArrangement = Arrangement.spacedBy(7.dp),
-                contentPadding = PaddingValues(bottom = 5.dp)
-            ) {
-                val tools = listOf(
-                    Triple("edit", Icons.Default.Edit, if(language==AppLanguage.ARABIC)"تحرير" else "Edit"),
-                    Triple("text", Icons.Default.TextFields, if(language==AppLanguage.ARABIC)"النص" else "Text"),
-                    Triple("audio", Icons.Default.MusicNote, if(language==AppLanguage.ARABIC)"الصوت" else "Audio"),
-                    Triple("effects", Icons.Default.AutoAwesome, if(language==AppLanguage.ARABIC)"المؤثرات" else "Effects"),
-                    Triple("filters", Icons.Default.FilterVintage, if(language==AppLanguage.ARABIC)"الفلاتر" else "Filters"),
-                    Triple("adjust", Icons.Default.Tune, if(language==AppLanguage.ARABIC)"الضبط" else "Adjust"),
-                    Triple("canvas", Icons.Default.CropFree, if(language==AppLanguage.ARABIC)"المقاس" else "Canvas"),
-                    Triple("transition", Icons.Default.SwapHoriz, if(language==AppLanguage.ARABIC)"الانتقال" else "Transition"),
-                    Triple("subtitles", Icons.Default.Subtitles, if(language==AppLanguage.ARABIC)"الترجمة" else "Subtitles"),
-                    Triple("layers", Icons.Default.Layers, if(language==AppLanguage.ARABIC)"الطبقات" else "Layers"),
-                    Triple("videoKeyframes", Icons.Default.Timeline, if(language==AppLanguage.ARABIC)"الحركة" else "Motion"),
-                    Triple("more", Icons.Default.MoreHoriz, if(language==AppLanguage.ARABIC)"المزيد" else "More")
-                )
-                items(tools,key={it.first}){(id,icon,label)->
-                    Column(
-                        Modifier.width(76.dp).clip(RoundedCornerShape(13.dp))
-                            .background(Color(0xFF0D1724))
-                            .clickable{tool=id}
-                            .padding(vertical=9.dp),
-                        horizontalAlignment=Alignment.CenterHorizontally
-                    ) {
-                        Icon(icon,null,tint=Color(0xFFD09CFF),modifier=Modifier.size(24.dp))
-                        Spacer(Modifier.height(4.dp))
-                        Text(label,fontSize=9.sp,maxLines=1)
-                    }
-                }
-            }
-
-            EditorFeaturePanel(
-                activeTool = activeEditorTool,
-                settings = settings, current = current, clips = clips, language = language,
-                onSettingsLiveChange = ::updateSettingsLive,
-                onCurrentClipChange = { updated -> commitClips(clips.map { if (it == current) updated else it }); current = updated },
-                onTrim = { if (current != null) showTrim = true },
-                onSplit = {
-                    val clip = current
-                    if (clip != null) {
-                        val offset = timelinePositionOf(clips, clip)
-                        val local = (playheadMs - offset).coerceIn(1L, (clipTimelineDuration(clip)-1L).coerceAtLeast(1L))
-                        val start = clip.trimStartMs
-                        val end = if (clip.trimEndMs == Long.MAX_VALUE) clip.durationMs else clip.trimEndMs
-                        if (end-start > 2L) {
-                            val cut=(start+local).coerceIn(start+1L,end-1L)
-                            val left=clip.copy(trimEndMs=cut); val right=clip.copy(trimStartMs=cut)
-                            val index=clips.indexOf(clip)
-                            commitClips(clips.toMutableList().also{it.removeAt(index);it.add(index,left);it.add(index+1,right)})
-                            current=left
-                        }
-                    }
-                },
-                onDelete = {
-                    val clip=current
-                    if(clip!=null && clips.size>1){val next=clips.filterNot{it==clip};commitClips(next);current=next.firstOrNull();playheadMs=timelinePositionOf(next,current)}
-                },
-                onDuplicate = {
-                    val clip=current
-                    if(clip!=null){val index=clips.indexOf(clip);if(index>=0){val copy=clip.copy(name=clip.name.substringBeforeLast('.').ifBlank{clip.name}+" • copy");commitClips(clips.toMutableList().also{it.add(index+1,copy)});current=copy}}
-                },
-                onReplace = { replaceLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly)) },
-                onMoveLeft = { val clip=current; if(clip!=null){val i=clips.indexOf(clip);if(i>0)commitClips(clips.toMutableList().also{it.add(i-1,it.removeAt(i))})} },
-                onMoveRight = { val clip=current; if(clip!=null){val i=clips.indexOf(clip);if(i in 0 until clips.lastIndex)commitClips(clips.toMutableList().also{it.add(i+1,it.removeAt(i))})} },
-                onFreeze = { createFreezeFrame() },
-                onExtractAudio = { extractAudioFromCurrent() },
-                onAudioKeyframes = { showAudioKeyframes=true },
-                onMusicKeyframes = { showMusicKeyframes=true },
-                onTextDialog = { tool="text" },
-                onTextAnimation = { tool="textAnimation" },
-                onSubtitles = { tool="subtitles" },
-                onLayersDialog = { showLayers=true },
-                onVideoKeyframes = { showVideoKeyframes=true },
-                onMarkers = { showMarkers=true }
-            )
-
-            Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 7.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly)) }, modifier = Modifier.weight(1f)) {
-                    Icon(Icons.Default.Add, null); Spacer(Modifier.width(5.dp)); Text(if (language == AppLanguage.ARABIC) "إضافة وسائط" else "Add media")
-                }
-                OutlinedButton(onClick = { if (current != null) showTrim = true }, modifier = Modifier.weight(1f)) {
-                    Icon(Icons.Default.ContentCut, null); Spacer(Modifier.width(5.dp)); Text(if (language == AppLanguage.ARABIC) "قص" else "Trim")
-                }
-            }
-
-            Row(
-                Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    if (language == AppLanguage.ARABIC) "أدوات التحرير" else "Editing tools",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp,
-                    modifier = Modifier.weight(1f)
-                )
-                OutlinedButton(
-                    onClick = { extractAudioFromCurrent() },
-                    enabled = current != null
-                ) {
-                    Icon(Icons.Default.AudioFile, null, Modifier.size(17.dp))
-                    Spacer(Modifier.width(5.dp))
-                    Text(if (language == AppLanguage.ARABIC) "استخراج الصوت" else "Extract audio", fontSize = 10.sp)
-                }
-                Spacer(Modifier.width(6.dp))
-                OutlinedButton(
-                    onClick = { createFreezeFrame() },
-                    enabled = current != null
-                ) {
-                    Icon(Icons.Default.PauseCircle, null, Modifier.size(17.dp))
-                    Spacer(Modifier.width(5.dp))
-                    Text(if (language == AppLanguage.ARABIC) "إطار ثابت" else "Freeze frame", fontSize = 10.sp)
-                }
-            }
-            Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 3.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.Tune, null, Modifier.size(18.dp), tint = Color(0xFFD09CFF))
-                Spacer(Modifier.width(5.dp))
-                Text(if (language == AppLanguage.ARABIC) "الحركة الزمنية" else "Keyframe timeline", fontSize = 11.sp, modifier = Modifier.weight(1f))
-                Text(formatTimelineTime(playheadMs), fontSize = 10.sp, color = Color.Gray)
-                Spacer(Modifier.width(6.dp))
-                OutlinedButton(onClick = { showMarkers = true }, contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)) {
-                    Icon(Icons.Default.Bookmark, null, Modifier.size(16.dp)); Spacer(Modifier.width(3.dp)); Text(if (language == AppLanguage.ARABIC) "علامة ${settings.markers.size}" else "Markers ${settings.markers.size}", fontSize = 9.sp)
-                }
-                Spacer(Modifier.width(4.dp))
-                OutlinedButton(onClick = { updateSettings(settings.copy(markers = (settings.markers + TimelineMarker(timeMs = playheadMs, label = "M${settings.markers.size + 1}" )).sortedBy { it.timeMs })) }, contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)) {
-                    Icon(Icons.Default.AddLocationAlt, null, Modifier.size(16.dp)); Spacer(Modifier.width(3.dp)); Text(if (language == AppLanguage.ARABIC) "إضافة علامة" else "Add marker", fontSize = 9.sp)
-                }
-                Spacer(Modifier.width(4.dp))
-                OutlinedButton(onClick = { showLayers = true }, enabled = settings.textLayers.isNotEmpty(), contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)) {
-                    Icon(Icons.Default.Layers, null, Modifier.size(16.dp)); Spacer(Modifier.width(3.dp)); Text(if (language == AppLanguage.ARABIC) "الطبقات" else "Layers", fontSize = 9.sp)
-                }
-                Spacer(Modifier.width(4.dp))
-                OutlinedButton(onClick = { showKeyframes = true }, enabled = settings.textLayers.isNotEmpty(), contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)) {
-                    Icon(Icons.Default.AddCircleOutline, null, Modifier.size(16.dp)); Spacer(Modifier.width(3.dp)); Text(if (language == AppLanguage.ARABIC) "نقطة حركة" else "Keyframe", fontSize = 9.sp)
-                }
-                Spacer(Modifier.width(4.dp))
-                OutlinedButton(onClick = { showVideoKeyframes = true }, enabled = clips.isNotEmpty(), contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)) {
-                    Icon(Icons.Default.MovieFilter, null, Modifier.size(16.dp)); Spacer(Modifier.width(3.dp)); Text(if (language == AppLanguage.ARABIC) "حركة الفيديو" else "Video Motion", fontSize = 9.sp)
-                }
-                Spacer(Modifier.width(4.dp))
-                OutlinedButton(onClick = { showAudioKeyframes = true }, enabled = clips.isNotEmpty(), contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)) {
-                    Icon(Icons.Default.GraphicEq, null, Modifier.size(16.dp)); Spacer(Modifier.width(3.dp)); Text(if (language == AppLanguage.ARABIC) "حركة الصوت" else "Audio Motion", fontSize = 9.sp)
-                }
-            }
-            if (status.isNotBlank()) Text(status, Modifier.padding(horizontal = 14.dp, vertical = 2.dp), color = Color.Gray, fontSize = 10.sp)
+            // Secondary editing controls open in the mobile bottom sheet.\n\n            if (status.isNotBlank()) Text(status, Modifier.padding(horizontal = 14.dp, vertical = 2.dp), color = Color.Gray, fontSize = 10.sp)
             lastExportUri?.let { exportedUri ->
                 OutlinedButton(
                     onClick = {
@@ -2558,6 +2340,30 @@ private fun EditorScreen(
         }
     }
 
+
+    if (activeEditorTool != null) {
+        ModalBottomSheet(onDismissRequest = { activeEditorTool = null }, containerColor = Color(0xFF0B111C), dragHandle = { Box(Modifier.padding(vertical = 8.dp).size(width = 38.dp, height = 4.dp).clip(RoundedCornerShape(4.dp)).background(Color(0xFF5D6B83))) }) {
+            Column(Modifier.fillMaxWidth().heightIn(max = 560.dp).verticalScroll(rememberScrollState())) {
+                EditorFeaturePanel(
+                    activeTool = activeEditorTool,
+                    settings = settings, current = current, clips = clips, language = language,
+                    onSettingsLiveChange = ::updateSettingsLive,
+                    onCurrentClipChange = { updated -> commitClips(clips.map { if (it == current) updated else it }); current = updated },
+                    onTrim = { if (current != null) showTrim = true },
+                    onSplit = { val clip=current; if(clip!=null){ val offset=timelinePositionOf(clips,clip); val local=(playheadMs-offset).coerceIn(1L,(clipTimelineDuration(clip)-1L).coerceAtLeast(1L)); val start=clip.trimStartMs; val end=if(clip.trimEndMs==Long.MAX_VALUE)clip.durationMs else clip.trimEndMs; if(end-start>2L){val cut=(start+local).coerceIn(start+1L,end-1L);val left=clip.copy(trimEndMs=cut);val right=clip.copy(trimStartMs=cut);val index=clips.indexOf(clip);commitClips(clips.toMutableList().also{it.removeAt(index);it.add(index,left);it.add(index+1,right)});current=left}} },
+                    onDelete = { val clip=current; if(clip!=null&&clips.size>1){val index=clips.indexOf(clip);val next=clips.toMutableList().also{it.removeAt(index)};commitClips(next);current=next.getOrNull(index.coerceAtMost(next.lastIndex));playheadMs=timelinePositionOf(next,current)};activeEditorTool=null },
+                    onDuplicate = { val clip=current; if(clip!=null){val index=clips.indexOf(clip);if(index>=0){val copy=clip.copy(name=clip.name.substringBeforeLast('.').ifBlank{clip.name}+" • copy");commitClips(clips.toMutableList().also{it.add(index+1,copy)});current=copy}} },
+                    onReplace = { replaceLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly)) },
+                    onMoveLeft = { val clip=current;if(clip!=null){val i=clips.indexOf(clip);if(i>0)commitClips(clips.toMutableList().also{it.add(i-1,it.removeAt(i))})} },
+                    onMoveRight = { val clip=current;if(clip!=null){val i=clips.indexOf(clip);if(i in 0 until clips.lastIndex)commitClips(clips.toMutableList().also{it.add(i+1,it.removeAt(i))})} },
+                    onFreeze = { createFreezeFrame() }, onExtractAudio = { extractAudioFromCurrent() },
+                    onAudioKeyframes = { showAudioKeyframes=true }, onMusicKeyframes = { showMusicKeyframes=true },
+                    onTextDialog = { tool="text" }, onTextAnimation = { tool="textAnimation" }, onSubtitles = { tool="subtitles" },
+                    onLayersDialog = { showLayers=true }, onVideoKeyframes = { showVideoKeyframes=true }, onMarkers = { showMarkers=true }
+                )
+            }
+        }
+    }
     if (showKeyframes) {
         KeyframeDialog(settings, clips, current, playheadMs, language, { updateSettings(it) }, { showKeyframes = false })
     }
