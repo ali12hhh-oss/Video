@@ -3510,7 +3510,17 @@ private fun EditorPreview(
     var musicDuckVolume by remember(s) { mutableFloatStateOf(s.musicDuckVolume) }
     var musicDuckAttack by remember(s) { mutableFloatStateOf(s.musicDuckAttack) }
     var musicDuckRelease by remember(s) { mutableFloatStateOf(s.musicDuckRelease) }
+    var musicSourceDurationMs by remember(s.musicUri) { mutableLongStateOf(0L) }
     val context = LocalContext.current
+    LaunchedEffect(s.musicUri) {
+        musicSourceDurationMs = if (s.musicUri.isBlank()) 0L else mediaDurationMs(context, Uri.parse(s.musicUri))
+        if (musicSourceDurationMs > 0L) {
+            val maxStart = (musicSourceDurationMs - 300L).coerceAtLeast(0L)
+            musicStart = musicStart.coerceIn(0f, maxStart / 1000f)
+            val maxDuration = ((musicSourceDurationMs - (musicStart * 1000f).toLong()).coerceAtLeast(300L)) / 1000f
+            if (musicDuration > maxDuration) musicDuration = maxDuration
+        }
+    }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(if (language == AppLanguage.ARABIC) "الصوت والموسيقى" else "Audio & Music") },
@@ -3618,10 +3628,14 @@ private fun EditorPreview(
                 }
                 Text(if (language == AppLanguage.ARABIC) "مستوى الموسيقى: ${(musicVolume * 100).toInt()}%" else "Music volume: ${(musicVolume * 100).toInt()}%")
                 Slider(value = musicVolume, onValueChange = { musicVolume = it }, valueRange = 0f..1.5f)
+                val sourceSeconds = musicSourceDurationMs / 1000f
+                val maxStartSeconds = if (sourceSeconds > 0f) (sourceSeconds - 0.3f).coerceAtLeast(0f) else 300f
+                val maxDurationSeconds = if (sourceSeconds > 0f) (sourceSeconds - musicStart).coerceAtLeast(0.3f) else 600f
+                Text(if (language == AppLanguage.ARABIC) "مصدر الموسيقى: ${sourceSeconds.takeIf { it > 0f }?.let { String.format("%.1f", it) + "s" } ?: "غير معروف"}" else "Music source: ${sourceSeconds.takeIf { it > 0f }?.let { String.format("%.1f", it) + "s" } ?: "Unknown"}", color = Color.Gray, fontSize = 10.sp)
                 Text(if (language == AppLanguage.ARABIC) "قص مصدر الموسيقى من: ${String.format("%.1f", musicStart)}s" else "Music source start: ${String.format("%.1f", musicStart)}s", color = Color.Gray, fontSize = 11.sp)
-                Slider(value = musicStart, onValueChange = { musicStart = it }, valueRange = 0f..300f)
+                Slider(value = musicStart, onValueChange = { musicStart = it.coerceIn(0f, maxStartSeconds) }, valueRange = 0f..maxStartSeconds.coerceAtLeast(0.01f))
                 Text(if (language == AppLanguage.ARABIC) "مدة الموسيقى: ${if (musicDuration <= 0f) "تلقائي" else String.format("%.1f", musicDuration) + "s"}" else "Music duration: ${if (musicDuration <= 0f) "Auto" else String.format("%.1f", musicDuration) + "s"}", color = Color.Gray, fontSize = 11.sp)
-                Slider(value = musicDuration, onValueChange = { musicDuration = it }, valueRange = 0f..600f)
+                Slider(value = musicDuration, onValueChange = { musicDuration = it.coerceIn(0f, maxDurationSeconds) }, valueRange = 0f..maxDurationSeconds.coerceAtLeast(0.01f))
                 Text(if (language == AppLanguage.ARABIC) "تلاشي دخول الموسيقى: ${String.format("%.1f", musicFadeIn)}s" else "Music fade in: ${String.format("%.1f", musicFadeIn)}s", color = Color.Gray, fontSize = 11.sp)
                 Slider(value = musicFadeIn, onValueChange = { musicFadeIn = it }, valueRange = 0f..10f)
                 Text(if (language == AppLanguage.ARABIC) "تلاشي خروج الموسيقى: ${String.format("%.1f", musicFadeOut)}s" else "Music fade out: ${String.format("%.1f", musicFadeOut)}s", color = Color.Gray, fontSize = 11.sp)
