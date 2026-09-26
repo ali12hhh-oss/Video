@@ -2891,7 +2891,7 @@ private fun EditorScreen(
                         }
                     }
                     Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).clickable{
-                        picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo));showMoreTools=false
+                        launchMediaPicker();showMoreTools=false
                     }.padding(horizontal=12.dp,vertical=11.dp),verticalAlignment=Alignment.CenterVertically){
                         Text(if(language==AppLanguage.ARABIC)"إضافة فيديو أو صورة" else "Add video or image",color=Color.White,fontSize=12.sp,modifier=Modifier.weight(1f))
                         Icon(Icons.Default.AddPhotoAlternate,null,tint=Color(0xFF7C5CFF),modifier=Modifier.size(19.dp))
