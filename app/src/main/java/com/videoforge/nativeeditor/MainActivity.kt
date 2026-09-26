@@ -2673,6 +2673,11 @@ private fun EditorScreen(
                 audioFadeIn = maxOf(settings.fadeIn, current?.audioFadeIn ?: 0f),
                 audioFadeOut = maxOf(settings.fadeOut, current?.audioFadeOut ?: 0f),
                 onAudioTrackClick = { activeEditorTool = "audio" },
+                onMusicTrim = { start, duration ->
+                    val safeStart = start.coerceAtLeast(0L)
+                    val safeDuration = duration.coerceAtLeast(1L)
+                    updateSettings(settings.copy(musicStartMs = safeStart, musicDurationMs = safeDuration))
+                },
                 onSelect = { clip -> current = clip; playheadMs = timelinePositionOf(clips, clip) },
                 onPlayheadChange = { position ->
                     playheadMs = position.coerceIn(0L, timelineTotalDuration(clips))
