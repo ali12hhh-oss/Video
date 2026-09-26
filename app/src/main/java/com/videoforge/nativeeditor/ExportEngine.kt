@@ -5,6 +5,7 @@ package com.videoforge.nativeeditor
 import android.content.ContentResolver
 import android.content.Context
 import android.graphics.Typeface
+import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.text.Spannable
 import android.text.SpannableString
@@ -340,10 +341,21 @@ class ExportEngine(private val context: Context, private val resolver: ContentRe
             val videoSequence = EditedMediaItemSequence.withAudioAndVideoFrom(edited)
             val sequences = mutableListOf(videoSequence)
             if (editor.musicUri.isNotBlank()) {
+                val actualMusicDurationMs = runCatching {
+                    MediaMetadataRetriever().use { retriever ->
+                        retriever.setDataSource(context, Uri.parse(editor.musicUri))
+                        retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L
+                    }
+                }.getOrDefault(0L)
+                val safeMusicStartMs = if (actualMusicDurationMs > 0L) editor.musicStartMs.coerceIn(0L, (actualMusicDurationMs - 1L).coerceAtLeast(0L)) else editor.musicStartMs.coerceAtLeast(0L)
+                val safeMusicDurationMs = if (actualMusicDurationMs > 0L) {
+                    val available = (actualMusicDurationMs - safeMusicStartMs).coerceAtLeast(1L)
+                    if (editor.musicDurationMs > 0L) editor.musicDurationMs.coerceAtMost(available) else available
+                } else editor.musicDurationMs
                 val musicClipping = MediaItem.ClippingConfiguration.Builder()
-                    .setStartPositionMs(editor.musicStartMs.coerceAtLeast(0L))
+                    .setStartPositionMs(safeMusicStartMs)
                     .apply {
-                        if (editor.musicDurationMs > 0L) setEndPositionMs(editor.musicStartMs + editor.musicDurationMs)
+                        if (safeMusicDurationMs > 0L) setEndPositionMs(safeMusicStartMs + safeMusicDurationMs)
                     }
                     .build()
                 val musicMediaItem = MediaItem.Builder()
@@ -351,7 +363,7 @@ class ExportEngine(private val context: Context, private val resolver: ContentRe
                     .setClippingConfiguration(musicClipping)
                     .build()
                 val musicAudioProcessors = mutableListOf<androidx.media3.common.audio.AudioProcessor>()
-                val musicActiveDurationMs = if (editor.musicDurationMs > 0L) editor.musicDurationMs else timelineDurationMs(clips)
+                val musicActiveDurationMs = if (safeMusicDurationMs > 0L) safeMusicDurationMs else timelineDurationMs(clips)
                 val musicAutomation = buildMusicAutomationKeyframes(clips, editor, musicActiveDurationMs)
                 if (musicAutomation.isNotEmpty()) {
                     musicAudioProcessors += VolumeAutomationProcessor(
