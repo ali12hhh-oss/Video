@@ -181,6 +181,7 @@ fun Timeline(
     audioFadeIn: Float,
     audioFadeOut: Float,
     onAudioTrackClick: () -> Unit,
+    onMusicTrim: (Long, Long) -> Unit,
     onSelect: (Clip) -> Unit,
     onPlayheadChange: (Long) -> Unit,
     onDelete: (Clip) -> Unit,
@@ -406,16 +407,60 @@ fun Timeline(
                         Text("Music", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
                         Text("${formatTimelineTime(musicStartMs)} → ${formatTimelineTime(musicStartMs + musicDurationMs)}", color = TrackLabelAudio, fontSize = 8.sp)
                     }
-                    Box(Modifier.fillMaxWidth().height(16.dp).clip(RoundedCornerShape(5.dp)).background(Color(0xFF241D10))) {
+                    BoxWithConstraints(
+                        Modifier.fillMaxWidth().height(20.dp).clip(RoundedCornerShape(5.dp)).background(Color(0xFF241D10))
+                    ) {
                         val activeEnd = (musicStartMs + musicDurationMs).coerceAtMost(total)
                         val activeStart = musicStartMs.coerceIn(0L, total)
                         val left = (activeStart.toFloat() / total.toFloat()).coerceIn(0f, 1f)
-                        val width = ((activeEnd - activeStart).coerceAtLeast(1L).toFloat() / total.toFloat()).coerceIn(0.01f, 1f)
+                        val right = (activeEnd.toFloat() / total.toFloat()).coerceIn(left, 1f)
+                        val width = (right - left).coerceAtLeast(0.01f)
                         Row(Modifier.fillMaxSize()) {
                             Spacer(Modifier.fillMaxHeight().weight(left.coerceAtLeast(0.001f)))
-                            Box(Modifier.fillMaxHeight().weight(width.coerceAtLeast(0.001f)).clip(RoundedCornerShape(5.dp)).background(Color(0xFF8E6A2F)))
-                            Spacer(Modifier.fillMaxHeight().weight((1f - left - width).coerceAtLeast(0.001f)))
+                            Box(
+                                Modifier.fillMaxHeight().weight(width)
+                                    .clip(RoundedCornerShape(5.dp))
+                                    .background(Color(0xFF8E6A2F))
+                            )
+                            Spacer(Modifier.fillMaxHeight().weight((1f - right).coerceAtLeast(0.001f)))
                         }
+                        val density = LocalDensity.current
+                        val trackWidthPx = with(density) { maxWidth.toPx() }
+                        val minDuration = 300L.coerceAtMost(total)
+                        Box(
+                            Modifier
+                                .offset(x = with(density) { (left * trackWidthPx).toDp() - 5.dp })
+                                .width(10.dp).fillMaxHeight()
+                                .background(Color.White.copy(alpha = 0.9f))
+                                .pointerInput(total, musicStartMs, musicDurationMs) {
+                                    detectDragGestures { change, dragAmount ->
+                                        change.consume()
+                                        if (trackWidthPx > 0f) {
+                                            val delta = (dragAmount.x / trackWidthPx * total).toLong()
+                                            val end = (musicStartMs + musicDurationMs).coerceAtMost(total)
+                                            val nextStart = (musicStartMs + delta).coerceIn(0L, (end - minDuration).coerceAtLeast(0L))
+                                            onMusicTrim(nextStart, (end - nextStart).coerceAtLeast(minDuration))
+                                        }
+                                    }
+                                }
+                        )
+                        Box(
+                            Modifier
+                                .offset(x = with(density) { (right * trackWidthPx).toDp() - 5.dp })
+                                .width(10.dp).fillMaxHeight()
+                                .background(Color.White.copy(alpha = 0.9f))
+                                .pointerInput(total, musicStartMs, musicDurationMs) {
+                                    detectDragGestures { change, dragAmount ->
+                                        change.consume()
+                                        if (trackWidthPx > 0f) {
+                                            val delta = (dragAmount.x / trackWidthPx * total).toLong()
+                                            val start = musicStartMs.coerceIn(0L, total)
+                                            val nextEnd = (start + musicDurationMs + delta).coerceIn((start + minDuration).coerceAtMost(total), total)
+                                            onMusicTrim(start, (nextEnd - start).coerceAtLeast(minDuration))
+                                        }
+                                    }
+                                }
+                        )
                     }
                 }
                 Text("${(musicVolume * 100).toInt()}%", color = Color(0xFFCBB27A), fontSize = 8.sp, modifier = Modifier.padding(start = 6.dp))
