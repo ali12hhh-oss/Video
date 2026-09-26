@@ -2341,7 +2341,10 @@ private fun EditorScreen(
                                 Triple("subtitles", Icons.Default.Subtitles, if(language==AppLanguage.ARABIC) "ترجمة" else "Subtitles"),
                                 Triple("layers", Icons.Default.Layers, if(language==AppLanguage.ARABIC) "طبقات" else "Layers"),
                                 Triple("videoKeyframes", Icons.Default.Timeline, if(language==AppLanguage.ARABIC) "حركة" else "Motion"),
-                                Triple("more", Icons.Default.MoreHoriz, if(language==AppLanguage.ARABIC) "المزيد" else "More")
+                                Triple("speed", Icons.Default.Speed, if(language==AppLanguage.ARABIC) "سرعة" else "Speed"),
+                                Triple("sticker", Icons.Default.EmojiEmotions, if(language==AppLanguage.ARABIC) "ملصقات" else "Stickers"),
+                                Triple("overlay", Icons.Default.PictureInPicture, if(language==AppLanguage.ARABIC) "PIP" else "PIP"),
+                                Triple("markers", Icons.Default.Bookmark, if(language==AppLanguage.ARABIC) "علامات" else "Markers")
                             )
                             items(dockTools, key = { it.first }) { (id, icon, label) ->
                                 val selectedTool = activeEditorTool == id
@@ -2377,22 +2380,6 @@ private fun EditorScreen(
                                     Icon(Icons.Default.Add, null, tint = Color.White, modifier = Modifier.size(25.dp))
                                 }
                             }
-                        }
-                        Row(
-                            Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 2.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                if (language == AppLanguage.ARABIC) "الأساسيات أمامك — الأدوات المتقدمة داخل «المزيد»" else "Essentials are visible — advanced tools are inside More",
-                                color = Color(0xFF66758C),
-                                fontSize = 8.sp,
-                                modifier = Modifier.weight(1f)
-                            )
-                            Text(
-                                if (language == AppLanguage.ARABIC) "اسحب لعرض المزيد" else "Swipe for more",
-                                color = Color(0xFF53647A),
-                                fontSize = 8.sp
-                            )
                         }
                     }
                 }
