@@ -197,338 +197,355 @@ fun Timeline(
     filterName: String = "none"
 ) {
     val total = clips.sumOf { timelineClipDurationForUi(it) }.coerceAtLeast(1L)
-    val safeMusicSourceDuration = musicSourceDurationMs.coerceAtLeast(0L)
-    val safeMusicStart = musicStartMs.coerceIn(0L, (safeMusicSourceDuration - 300L).coerceAtLeast(0L).takeIf { safeMusicSourceDuration > 0L } ?: total)
-    val safeMusicDuration = musicDurationMs.coerceAtLeast(1L).coerceAtMost(if (safeMusicSourceDuration > 0L) (safeMusicSourceDuration - safeMusicStart).coerceAtLeast(1L) else musicDurationMs.coerceAtLeast(1L))
     val safePlayhead = playheadMs.coerceIn(0L, total)
+    val scroll = rememberScrollState()
+    val timelineWidth = 760.dp
+    val laneHeight = 56.dp
+    val videoClips = clips.filter { !isImageUri(LocalContext.current, it.uri) && !it.isFreezeFrame }
+    val imageClips = clips.filter { isImageUri(LocalContext.current, it.uri) || it.isFreezeFrame }
+
+    fun clipStartMs(clip: Clip): Long = clips.takeWhile { it != clip }.sumOf { timelineClipDurationForUi(it) }
+    fun xFor(time: Long, density: Float): Float =
+        (time.toFloat() / total.toFloat()).coerceIn(0f, 1f) * (760f * density)
 
     Column(
         Modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 6.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp)
+            .padding(horizontal = 12.dp, vertical = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        // Scrub bar with current / total time readout.
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text(formatTimelineTime(safePlayhead), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = Color.White, modifier = Modifier.weight(1f))
-            Text(formatTimelineTime(total), color = Color.Gray, fontSize = 11.sp)
-        }
-        Slider(
-            value = safePlayhead.toFloat(),
-            onValueChange = { onPlayheadChange(it.toLong()) },
-            valueRange = 0f..max(1L, total).toFloat(),
-            modifier = Modifier.fillMaxWidth().height(20.dp)
-        )
+        // Reference-style time ruler: compact, directly above the tracks.
         Row(
-            Modifier.fillMaxWidth().padding(horizontal = 4.dp),
-            horizontalArrangement = Arrangement.SpaceBetween
+            Modifier.fillMaxWidth().padding(horizontal = 2.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("0:00", color = MutedTextColor, fontSize = 7.sp)
-            Text(formatTimelineTime(total / 4), color = MutedTextColor, fontSize = 7.sp)
-            Text(formatTimelineTime(total / 2), color = MutedTextColor, fontSize = 7.sp)
-            Text(formatTimelineTime((total * 3) / 4), color = MutedTextColor, fontSize = 7.sp)
-            Text(formatTimelineTime(total), color = MutedTextColor, fontSize = 7.sp)
+            Text(
+                formatTimelineTime(safePlayhead),
+                color = Color.White,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.weight(1f)
+            )
+            Text(
+                formatTimelineTime(total),
+                color = Color(0xFF71809A),
+                fontSize = 9.sp
+            )
         }
 
-        // Thin strip above the video track showing where text/graphic layers sit, like the
-        // colored title bars in professional NLEs. Layers currently span the whole project
-        // (no per-layer time range in the data model yet), so each gets an equal-width chip.
-        if (textLayerNames.isNotEmpty()) {
-            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                textLayerNames.forEachIndexed { i, name ->
-                    Box(
-                        Modifier
-                            .height(20.dp)
-                            .clip(RoundedCornerShape(5.dp))
-                            .background(TextLayerColors[i % TextLayerColors.size])
-                            .padding(horizontal = 8.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(name, color = Color.White, fontSize = 8.sp, maxLines = 1)
-                    }
-                }
-            }
-        }
-
-        // Video / image track — compact proportional clip blocks with real thumbnails. The
-        // selected clip grows drag handles on both edges so you can trim it directly in place
-        // by pulling the edges in or out, instead of separate trim buttons.
-        Text("Video", color = TrackLabelVideo, fontSize = 9.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(start = 2.dp))
-        Row(
+        BoxWithConstraints(
             Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(10.dp))
-                .background(TrackVideoBg)
-                .horizontalScroll(rememberScrollState())
-                .padding(6.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(5.dp)
+                .heightIn(min = 230.dp, max = 310.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(Color(0xFF07111F))
+                .border(1.dp, Color(0xFF172D48), RoundedCornerShape(12.dp))
         ) {
-            clips.forEach { clip ->
-                val selected = clip == current
-                val durationSec = (timelineClipDurationForUi(clip) / 1000f).coerceAtLeast(0.3f)
-                val blockWidth = (54f + durationSec * 14f).coerceIn(64f, 220f).dp
-                val clipStart = clip.trimStartMs
-                val clipEnd = if (clip.trimEndMs == Long.MAX_VALUE) clip.durationMs else clip.trimEndMs
+            val density = LocalDensity.current
+            val widthPx = with(density) { timelineWidth.toPx() }
+            val playheadX = with(density) { (safePlayhead.toFloat() / total.toFloat() * timelineWidth.toPx()).toDp() }
+
+            Row(
+                Modifier
+                    .fillMaxSize()
+                    .horizontalScroll(scroll)
+            ) {
                 Box(
                     Modifier
-                        .width(blockWidth)
-                        .height(56.dp)
-                        .clip(RoundedCornerShape(9.dp))
-                        .background(if (clip.isFreezeFrame) ClipImageColor else ClipDefaultColor)
-                        .then(if (selected) Modifier.border(1.5.dp, Color.White, RoundedCornerShape(9.dp)) else Modifier)
-                        .clickable { onSelect(clip) }
+                        .width(timelineWidth)
+                        .fillMaxHeight()
                 ) {
-                    // Real frame/photo thumbnail behind the label, like a professional NLE.
-                    ClipFilmstrip(clip.uri, Modifier.fillMaxSize())
-                    // Scrim so the label stays readable over any thumbnail content.
-                    Box(
-                        Modifier
-                            .fillMaxSize()
-                            .background(Brush.verticalGradient(listOf(Color.Transparent, Color(0xCC000000))))
-                    )
-                    if (selected) {
-                        Box(Modifier.fillMaxSize().background(ClipSelectedColor.copy(alpha = 0.22f)))
-                    }
-                    Column(
-                        Modifier
-                            .fillMaxSize()
-                            .padding(
-                                horizontal = if (selected) 18.dp else 7.dp,
-                                vertical = 5.dp
-                            ),
-                        verticalArrangement = Arrangement.SpaceBetween
+                    // Fine reference-style ruler.
+                    Row(
+                        Modifier.fillMaxWidth().height(24.dp).padding(horizontal = 8.dp),
+                        verticalAlignment = Alignment.Bottom
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                if (clip.isFreezeFrame) Icons.Default.ImageIcon else Icons.Default.Videocam,
-                                null, tint = Color.White, modifier = Modifier.size(12.dp)
-                            )
-                            Spacer(Modifier.width(3.dp))
-                            Text(clip.name, maxLines = 1, fontSize = 9.sp, color = Color.White, modifier = Modifier.weight(1f))
-                        }
-                        Text(formatTimelineTime(timelineClipDurationForUi(clip)), color = Color(0xFFE4E9F2), fontSize = 8.sp)
-                        if (selected) {
-                            Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
-                                IconButton(onClick = { onSplit(clip) }, modifier = Modifier.size(18.dp)) {
-                                    Icon(Icons.Default.ContentCut, null, tint = Color.White, modifier = Modifier.size(11.dp))
+                        val marks = 7
+                        repeat(marks) { i ->
+                            val t = total * i / (marks - 1).coerceAtLeast(1)
+                            Column(
+                                Modifier.weight(1f),
+                                horizontalAlignment = when (i) {
+                                    0 -> Alignment.Start
+                                    marks - 1 -> Alignment.End
+                                    else -> Alignment.CenterHorizontally
                                 }
-                                IconButton(onClick = { onMoveLeft(clip) }, modifier = Modifier.size(18.dp)) {
-                                    Text("‹", color = Color.White, fontSize = 12.sp)
-                                }
-                                IconButton(onClick = { onMoveRight(clip) }, modifier = Modifier.size(18.dp)) {
-                                    Text("›", color = Color.White, fontSize = 12.sp)
-                                }
-                                IconButton(onClick = { onDelete(clip) }, modifier = Modifier.size(18.dp)) {
-                                    Icon(Icons.Default.Close, null, tint = Color(0xFFFF8A80), modifier = Modifier.size(11.dp))
-                                }
+                            ) {
+                                Text(
+                                    formatTimelineTime(t).substring(0, 5),
+                                    color = Color(0xFF8090A8),
+                                    fontSize = 7.sp
+                                )
+                                Box(
+                                    Modifier.width(1.dp).height(if (i % 2 == 0) 7.dp else 4.dp)
+                                        .background(Color(0xFF30435E))
+                                )
                             }
                         }
                     }
-                    if (selected) {
-                        TrimHandle(Alignment.CenterStart) { deltaMs ->
-                            val newStart = (clipStart + deltaMs).coerceIn(0L, clipEnd - MIN_CLIP_DURATION_MS)
-                            onTrimEdges(clip, newStart, clipEnd)
-                        }
-                        TrimHandle(Alignment.CenterEnd) { deltaMs ->
-                            val newEnd = (clipEnd + deltaMs).coerceIn(clipStart + MIN_CLIP_DURATION_MS, clip.durationMs)
-                            onTrimEdges(clip, clipStart, newEnd)
-                        }
-                    }
-                }
-            }
-            // Add media (+) — always at the end of the video track.
-            Box(
-                Modifier
-                    .size(56.dp)
-                    .clip(RoundedCornerShape(9.dp))
-                    .border(1.dp, ClipSelectedColor, RoundedCornerShape(9.dp))
-                    .clickable { onAddMedia() },
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(Icons.Default.Add, null, tint = ClipSelectedColor, modifier = Modifier.size(22.dp))
-            }
-        }
 
-        // Text / graphics lane — directly under the video filmstrip.
-        if (textLayerNames.isNotEmpty()) {
-            Text("Text", color = Color(0xFFB58CFF), fontSize = 9.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(start = 2.dp, top = 2.dp))
-            Row(
-                Modifier.fillMaxWidth().height(30.dp).clip(RoundedCornerShape(8.dp))
-                    .background(Color(0xFF151225)).horizontalScroll(rememberScrollState())
-                    .padding(horizontal = 6.dp, vertical = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(5.dp)
-            ) {
-                textLayerNames.forEachIndexed { i, name ->
-                    Box(
-                        Modifier.width(120.dp).fillMaxHeight().clip(RoundedCornerShape(6.dp))
-                            .background(TextLayerColors[i % TextLayerColors.size]),
-                        contentAlignment = Alignment.CenterStart
+                    // Four clean NLE lanes: video, images/PIP, text, audio.
+                    Column(
+                        Modifier.fillMaxWidth().padding(top = 25.dp),
+                        verticalArrangement = Arrangement.spacedBy(5.dp)
                     ) {
-                        Text("T  $name", color = Color.White, fontSize = 8.sp, maxLines = 1, modifier = Modifier.padding(horizontal = 8.dp))
+                        @Composable
+                        fun TrackLane(
+                            label: String,
+                            labelIcon: ImageVector,
+                            tint: Color,
+                            laneClips: List<Clip>,
+                            height: androidx.compose.ui.unit.Dp = laneHeight,
+                            showTrimHandles: Boolean = true
+                        ) {
+                            Box(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .height(height)
+                                    .clip(RoundedCornerShape(7.dp))
+                                    .background(Color(0xFF0A1728))
+                            ) {
+                                Icon(
+                                    labelIcon,
+                                    contentDescription = label,
+                                    tint = tint,
+                                    modifier = Modifier
+                                        .align(Alignment.CenterStart)
+                                        .padding(start = 6.dp)
+                                        .size(15.dp)
+                                )
+                                laneClips.forEach { clip ->
+                                    val start = clipStartMs(clip)
+                                    val duration = timelineClipDurationForUi(clip).coerceAtLeast(MIN_CLIP_DURATION_MS)
+                                    val leftFraction = start.toFloat() / total.toFloat()
+                                    val widthFraction = duration.toFloat() / total.toFloat()
+                                    val selected = clip == current
+                                    Box(
+                                        Modifier
+                                            .fillMaxHeight()
+                                            .fillMaxWidth(widthFraction.coerceIn(0.01f, 1f))
+                                            .offset(x = with(density) { (leftFraction * widthPx).toDp() })
+                                            .padding(vertical = 3.dp)
+                                            .clip(RoundedCornerShape(6.dp))
+                                            .border(
+                                                if (selected) 2.dp else 1.dp,
+                                                if (selected) Color.White else tint.copy(alpha = 0.35f),
+                                                RoundedCornerShape(6.dp)
+                                            )
+                                            .background(Color(0xFF14243A))
+                                            .clickable {
+                                                onSelect(clip)
+                                                onPlayheadChange(start)
+                                            }
+                                    ) {
+                                        ClipFilmstrip(clip.uri, Modifier.fillMaxSize())
+                                        Box(
+                                            Modifier.fillMaxSize().background(
+                                                Brush.horizontalGradient(
+                                                    listOf(
+                                                        Color.Black.copy(alpha = 0.08f),
+                                                        Color.Black.copy(alpha = 0.30f)
+                                                    )
+                                                )
+                                            )
+                                        )
+                                        if (selected) {
+                                            Box(Modifier.fillMaxSize().background(tint.copy(alpha = 0.16f)))
+                                            if (showTrimHandles) {
+                                                TrimHandle(Alignment.CenterStart) { deltaMs ->
+                                                    val oldStart = clip.trimStartMs
+                                                    val oldEnd = if (clip.trimEndMs == Long.MAX_VALUE) clip.durationMs else clip.trimEndMs
+                                                    val next = (oldStart + deltaMs).coerceIn(0L, oldEnd - MIN_CLIP_DURATION_MS)
+                                                    onTrimEdges(clip, next, oldEnd)
+                                                }
+                                                TrimHandle(Alignment.CenterEnd) { deltaMs ->
+                                                    val oldStart = clip.trimStartMs
+                                                    val oldEnd = if (clip.trimEndMs == Long.MAX_VALUE) clip.durationMs else clip.trimEndMs
+                                                    val next = (oldEnd + deltaMs).coerceIn(oldStart + MIN_CLIP_DURATION_MS, clip.durationMs)
+                                                    onTrimEdges(clip, oldStart, next)
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        TrackLane(
+                            label = "Video",
+                            labelIcon = Icons.Default.Videocam,
+                            tint = Color(0xFF55A8FF),
+                            laneClips = videoClips
+                        )
+
+                        TrackLane(
+                            label = "Images",
+                            labelIcon = Icons.Default.Image,
+                            tint = Color(0xFF33D6B2),
+                            laneClips = imageClips
+                        )
+
+                        // Text lane: real selectable text segments rather than detached chips.
+                        Box(
+                            Modifier.fillMaxWidth().height(42.dp)
+                                .clip(RoundedCornerShape(7.dp))
+                                .background(Color(0xFF111126))
+                        ) {
+                            Icon(
+                                Icons.Default.TextFields,
+                                contentDescription = "Text",
+                                tint = Color(0xFFC69BFF),
+                                modifier = Modifier.align(Alignment.CenterStart).padding(start = 6.dp).size(15.dp)
+                            )
+                            textLayerNames.forEachIndexed { i, name ->
+                                val left = if (textLayerNames.size == 1) 0.12f else i.toFloat() / textLayerNames.size
+                                val width = (0.32f).coerceAtMost(0.85f)
+                                Box(
+                                    Modifier.fillMaxHeight().fillMaxWidth(width)
+                                        .offset(x = with(density) { (left * widthPx).toDp() })
+                                        .padding(vertical = 4.dp, horizontal = 2.dp)
+                                        .clip(RoundedCornerShape(5.dp))
+                                        .background(TextLayerColors[i % TextLayerColors.size])
+                                        .clickable { onKeyframeSeek(safePlayhead) },
+                                    contentAlignment = Alignment.CenterStart
+                                ) {
+                                    Text(
+                                        "T  $name",
+                                        color = Color.White,
+                                        fontSize = 8.sp,
+                                        maxLines = 1,
+                                        modifier = Modifier.padding(horizontal = 8.dp)
+                                    )
+                                }
+                            }
+                        }
+
+                        // Music lane with a visible range and draggable start/end handles.
+                        Box(
+                            Modifier.fillMaxWidth().height(48.dp)
+                                .clip(RoundedCornerShape(7.dp))
+                                .background(Color(0xFF101C2C))
+                                .clickable { onAudioTrackClick() }
+                        ) {
+                            Icon(
+                                Icons.Default.MusicNote,
+                                contentDescription = "Audio",
+                                tint = Color(0xFF39BFFF),
+                                modifier = Modifier.align(Alignment.CenterStart).padding(start = 6.dp).size(16.dp)
+                            )
+                            if (musicUri.isNotBlank()) {
+                                val start = musicStartMs.coerceIn(0L, total)
+                                val end = (start + musicDurationMs.coerceAtLeast(1L)).coerceIn(start + 1L, total)
+                                val leftFraction = start.toFloat() / total.toFloat()
+                                val widthFraction = ((end - start).toFloat() / total.toFloat()).coerceIn(0.01f, 1f)
+                                Box(
+                                    Modifier.fillMaxHeight().fillMaxWidth(widthFraction)
+                                        .offset(x = with(density) { (leftFraction * widthPx).toDp() })
+                                        .padding(vertical = 4.dp)
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(Color(0xFF087CC1))
+                                ) {
+                                    // Visual waveform-style bars. The source remains the real
+                                    // selected audio URI; this is a compact visual representation.
+                                    Canvas(Modifier.fillMaxSize().padding(horizontal = 8.dp, vertical = 5.dp)) {
+                                        val bars = 54
+                                        val barWidth = size.width / bars
+                                        for (i in 0 until bars) {
+                                            val phase = (musicUri.hashCode() * 0.0001f + i * 0.73f)
+                                            val h = (0.18f + 0.72f * ((kotlin.math.sin(phase * 1.9f) + 1f) / 2f)).coerceIn(0.08f, 0.95f)
+                                            drawRoundRect(
+                                                color = Color(0xFF64D9FF),
+                                                topLeft = Offset(i * barWidth + barWidth * 0.18f, (size.height * (1f - h)) / 2f),
+                                                size = androidx.compose.ui.geometry.Size(barWidth * 0.56f, size.height * h),
+                                                cornerRadius = androidx.compose.ui.geometry.CornerRadius(2f, 2f)
+                                            )
+                                        }
+                                    }
+                                    val handle = 7.dp
+                                    Box(
+                                        Modifier.fillMaxHeight().width(handle)
+                                            .background(Color.White)
+                                            .align(Alignment.CenterStart)
+                                            .pointerInput(total, start, end) {
+                                                detectDragGestures { change, drag ->
+                                                    change.consume()
+                                                    val delta = (drag.x / widthPx * total).toLong()
+                                                    val nextStart = (start + delta).coerceIn(0L, (end - 300L).coerceAtLeast(0L))
+                                                    onMusicTrim(nextStart, (end - nextStart).coerceAtLeast(300L))
+                                                }
+                                            }
+                                    )
+                                    Box(
+                                        Modifier.fillMaxHeight().width(handle)
+                                            .background(Color.White)
+                                            .align(Alignment.CenterEnd)
+                                            .pointerInput(total, start, end) {
+                                                detectDragGestures { change, drag ->
+                                                    change.consume()
+                                                    val nextEnd = (end + (drag.x / widthPx * total).toLong())
+                                                        .coerceIn(start + 300L, total)
+                                                    onMusicTrim(start, nextEnd - start)
+                                                }
+                                            }
+                                    )
+                                }
+                            } else {
+                                Text(
+                                    "إضافة صوت" ,
+                                    color = Color(0xFF7C8DA6),
+                                    fontSize = 9.sp,
+                                    modifier = Modifier.align(Alignment.Center).padding(start = 16.dp)
+                                )
+                            }
+                        }
                     }
+
+                    // The playhead is a real vertical editing cursor spanning every lane.
+                    Box(
+                        Modifier
+                            .offset(x = playheadX)
+                            .fillMaxHeight()
+                            .width(1.dp)
+                            .background(Color.White.copy(alpha = 0.92f))
+                    )
+                    Box(
+                        Modifier
+                            .offset(x = (playheadX - 5.dp))
+                            .width(10.dp)
+                            .height(10.dp)
+                            .clip(RoundedCornerShape(5.dp))
+                            .background(Color.White)
+                            .align(Alignment.TopStart)
+                    )
                 }
             }
         }
 
-        // Effects lane reflects the actual filter state.
-        Text("Effects", color = Color(0xFFFFB56B), fontSize = 9.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(start = 2.dp, top = 2.dp))
-        Row(
-            Modifier.fillMaxWidth().height(28.dp).clip(RoundedCornerShape(8.dp))
-                .background(Color(0xFF19140E)).padding(horizontal = 6.dp, vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                Modifier.fillMaxWidth().height(20.dp).clip(RoundedCornerShape(5.dp))
-                    .background(if (filterName == "none") Color(0xFF29241D) else Color(0xFF9A5A22)),
-                contentAlignment = Alignment.CenterStart
+        // A small action row keeps the destructive/editing actions accessible without putting
+        // them inside the clip rectangles.
+        if (current != null) {
+            Row(
+                Modifier.fillMaxWidth().padding(top = 2.dp),
+                horizontalArrangement = Arrangement.spacedBy(7.dp)
             ) {
+                AssistChip(
+                    onClick = { onSplit(current) },
+                    label = { Text("قص عند المؤشر", fontSize = 9.sp) },
+                    leadingIcon = { Icon(Icons.Default.ContentCut, null, Modifier.size(14.dp)) }
+                )
+                AssistChip(
+                    onClick = { onDelete(current) },
+                    label = { Text("حذف", fontSize = 9.sp) },
+                    leadingIcon = { Icon(Icons.Default.Delete, null, Modifier.size(14.dp)) }
+                )
                 Text(
-                    if (filterName == "none") "No filter" else "Filter • $filterName",
-                    color = Color.White, fontSize = 8.sp, maxLines = 1,
-                    modifier = Modifier.padding(horizontal = 8.dp)
+                    formatTimelineTime(timelineClipDurationForUi(current)),
+                    color = Color(0xFF7D8DA7),
+                    fontSize = 9.sp,
+                    modifier = Modifier.align(Alignment.CenterVertically).padding(start = 2.dp)
                 )
             }
         }
-
-        // Audio / music track — visually distinct from the video track.
-        Text("Audio", color = TrackLabelAudio, fontSize = 9.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(start = 2.dp, top = 2.dp))
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .height(48.dp)
-                .clip(RoundedCornerShape(9.dp))
-                .background(AudioTrackBg)
-                .clickable { onAudioTrackClick() }
-                .padding(horizontal = 10.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(Icons.Default.MusicNote, null, tint = TrackLabelAudio, modifier = Modifier.size(16.dp))
-            Spacer(Modifier.width(7.dp))
-            if (musicUri.isNotBlank()) {
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Text("Music", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-                        Text("${formatTimelineTime(safeMusicStart)} → ${formatTimelineTime(safeMusicStart + safeMusicDuration)}", color = TrackLabelAudio, fontSize = 8.sp)
-                    }
-                    BoxWithConstraints(
-                        Modifier.fillMaxWidth().height(20.dp).clip(RoundedCornerShape(5.dp)).background(Color(0xFF241D10))
-                    ) {
-                        val activeEnd = (safeMusicStart + safeMusicDuration).coerceAtMost(total)
-                        val activeStart = safeMusicStart.coerceIn(0L, total)
-                        val left = (activeStart.toFloat() / total.toFloat()).coerceIn(0f, 1f)
-                        val right = (activeEnd.toFloat() / total.toFloat()).coerceIn(left, 1f)
-                        val width = (right - left).coerceAtLeast(0.01f)
-                        Row(Modifier.fillMaxSize()) {
-                            Spacer(Modifier.fillMaxHeight().weight(left.coerceAtLeast(0.001f)))
-                            Box(
-                                Modifier.fillMaxHeight().weight(width)
-                                    .clip(RoundedCornerShape(5.dp))
-                                    .background(Color(0xFF8E6A2F))
-                            )
-                            Spacer(Modifier.fillMaxHeight().weight((1f - right).coerceAtLeast(0.001f)))
-                        }
-                        val density = LocalDensity.current
-                        val trackWidthPx = with(density) { maxWidth.toPx() }
-                        val minDuration = 300L.coerceAtMost(total)
-                        Box(
-                            Modifier
-                                .offset(x = with(density) { (left * trackWidthPx).toDp() - 5.dp })
-                                .width(10.dp).fillMaxHeight()
-                                .background(Color.White.copy(alpha = 0.9f))
-                                .pointerInput(total, safeMusicStart, safeMusicDuration, safeMusicSourceDuration) {
-                                    detectDragGestures { change, dragAmount ->
-                                        change.consume()
-                                        if (trackWidthPx > 0f) {
-                                            val delta = (dragAmount.x / trackWidthPx * total).toLong()
-                                            val end = (safeMusicStart + safeMusicDuration).coerceAtMost(total)
-                                            val nextStart = (safeMusicStart + delta).coerceIn(0L, (end - minDuration).coerceAtLeast(0L))
-                                            val maxSourceEnd = if (safeMusicSourceDuration > 0L) safeMusicSourceDuration else Long.MAX_VALUE
-                                            val safeEnd = end.coerceAtMost(maxSourceEnd)
-                                            onMusicTrim(nextStart, (safeEnd - nextStart).coerceAtLeast(minDuration))
-                                        }
-                                    }
-                                }
-                        )
-                        Box(
-                            Modifier
-                                .offset(x = with(density) { (right * trackWidthPx).toDp() - 5.dp })
-                                .width(10.dp).fillMaxHeight()
-                                .background(Color.White.copy(alpha = 0.9f))
-                                .pointerInput(total, musicStartMs, musicDurationMs) {
-                                    detectDragGestures { change, dragAmount ->
-                                        change.consume()
-                                        if (trackWidthPx > 0f) {
-                                            val delta = (dragAmount.x / trackWidthPx * total).toLong()
-                                            val start = safeMusicStart.coerceIn(0L, total)
-                                            val sourceEnd = if (safeMusicSourceDuration > 0L) safeMusicSourceDuration else total
-                                            val nextEnd = (start + safeMusicDuration + delta).coerceIn((start + minDuration).coerceAtMost(total), minOf(total, sourceEnd))
-                                            onMusicTrim(start, (nextEnd - start).coerceAtLeast(minDuration))
-                                        }
-                                    }
-                                }
-                        )
-                    }
-                }
-                Text("${(musicVolume * 100).toInt()}%  •  In ${String.format("%.1f", musicFadeIn)}s  •  Out ${String.format("%.1f", musicFadeOut)}s", color = Color(0xFFCBB27A), fontSize = 8.sp, modifier = Modifier.padding(start = 6.dp))
-            } else if (clips.isNotEmpty()) {
-                Text("Clip audio • ${(audioBaseVolume * 100).toInt()}%", color = Color(0xFFB7C0D0), fontSize = 10.sp, modifier = Modifier.weight(1f))
-            } else {
-                Text("No audio yet", color = MutedTextColor, fontSize = 10.sp, modifier = Modifier.weight(1f))
-            }
-        }
-
-        // Volume automation track — draws the combined audio-keyframe curve across the whole
-        // timeline as a filled line chart, like the green "Volume" row in professional NLEs.
-        Text("Volume", color = TrackLabelVolume, fontSize = 9.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(start = 2.dp, top = 2.dp))
-        Canvas(
-            Modifier
-                .fillMaxWidth()
-                .height(34.dp)
-                .clip(RoundedCornerShape(9.dp))
-                .background(VolumeTrackBg)
-        ) {
-            val w = size.width
-            val h = size.height
-            val points = (audioKeyframes.map { it.timeMs to it.volume } +
-                listOf(0L to (audioKeyframes.minByOrNull { it.timeMs }?.volume ?: audioBaseVolume)) +
-                listOf(total to (audioKeyframes.maxByOrNull { it.timeMs }?.volume ?: audioBaseVolume)))
-                .distinctBy { it.first }
-                .sortedBy { it.first }
-            if (points.size >= 2) {
-                val line = Path()
-                points.forEachIndexed { i, (t, v) ->
-                    val x = (t.toFloat() / total.toFloat()).coerceIn(0f, 1f) * w
-                    val y = h - (v.coerceIn(0f, 2f) / 2f) * h
-                    if (i == 0) line.moveTo(x, y) else line.lineTo(x, y)
-                }
-                val fill = Path().apply {
-                    addPath(line)
-                    lineTo(w, h)
-                    lineTo(0f, h)
-                    close()
-                }
-                drawPath(fill, color = VolumeLineColor.copy(alpha = 0.22f))
-                drawPath(line, color = VolumeLineColor, style = Stroke(width = 2.5f))
-            }
-        }
-
-        // Motion keyframe markers for the selected clip's video track (only shown when present).
-        if (videoKeyframes.isNotEmpty()) {
-            Row(
-                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                videoKeyframes.sortedBy { it.timeMs }.forEach { key ->
-                    AssistChip(onClick = { onKeyframeSeek(key.timeMs) }, label = { Text(formatTimelineTime(key.timeMs), fontSize = 8.sp) })
-                }
-            }
-        }
-
-        // Compact stats row — keeps every keyframe/marker param meaningfully surfaced.
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text("V${videoKeyframes.size} · T${textKeyframes.size} · A${audioKeyframes.size}", fontSize = 8.sp, color = MutedTextColor)
-            Text("S${speedKeyframes.size} · M${musicKeyframes.size} · ${markers.size}⚑", fontSize = 8.sp, color = MutedTextColor)
-        }
     }
 }
+
