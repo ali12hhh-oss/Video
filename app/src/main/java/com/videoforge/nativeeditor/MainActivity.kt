@@ -872,59 +872,11 @@ private fun HomeReferenceHero(
             .clickable(onClick = onOpen)
     ) {
         Image(
-            painter = painterResource(R.drawable.hero_cinematic),
-            contentDescription = null,
+            painter = painterResource(R.drawable.home_hero_reference),
+            contentDescription = if (arabic) "معاينة الفيديو" else "Video preview",
             contentScale = androidx.compose.ui.layout.ContentScale.Crop,
             modifier = Modifier.fillMaxSize()
         )
-        Box(
-            Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        0f to Color.Transparent,
-                        .50f to Color(0x08020914),
-                        1f to Color(0xE8020914)
-                    )
-                )
-        )
-        Box(
-            Modifier
-                .align(Alignment.Center)
-                .size(47.dp)
-                .clip(androidx.compose.foundation.shape.CircleShape)
-                .background(Color(0x55030A14))
-                .border(1.dp, Color.White.copy(alpha = .78f), androidx.compose.foundation.shape.CircleShape),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                Icons.Default.PlayArrow,
-                contentDescription = "تشغيل",
-                tint = Color.White,
-                modifier = Modifier.size(28.dp)
-            )
-        }
-        Column(
-            Modifier
-                .align(Alignment.BottomEnd)
-                .padding(horizontal = 13.dp, vertical = 10.dp),
-            horizontalAlignment = Alignment.End
-        ) {
-            Text(
-                if (arabic) "حول لحظاتك" else "Turn your moments",
-                color = Color.White,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.ExtraBold,
-                textAlign = TextAlign.End
-            )
-            Text(
-                if (arabic) "إلى فيديوهات مذهلة" else "into amazing videos",
-                color = Color.White,
-                fontSize = 17.sp,
-                fontWeight = FontWeight.ExtraBold,
-                textAlign = TextAlign.End
-            )
-        }
     }
 }
 
@@ -1054,37 +1006,15 @@ private fun HomeSecondaryCard(
 }
 
 @Composable
-private fun HomeCrownMark() {
-    Canvas(
-        Modifier
+private fun HomeAppIcon() {
+    Image(
+        painter = painterResource(android.R.mipmap.ic_launcher),
+        contentDescription = "Video editor",
+        contentScale = androidx.compose.ui.layout.ContentScale.Fit,
+        modifier = Modifier
             .fillMaxSize()
-            .padding(7.dp)
-    ) {
-        val crown = androidx.compose.ui.graphics.Path().apply {
-            moveTo(size.width * 0.08f, size.height * 0.68f)
-            lineTo(size.width * 0.18f, size.height * 0.30f)
-            lineTo(size.width * 0.36f, size.height * 0.52f)
-            lineTo(size.width * 0.50f, size.height * 0.10f)
-            lineTo(size.width * 0.64f, size.height * 0.52f)
-            lineTo(size.width * 0.82f, size.height * 0.30f)
-            lineTo(size.width * 0.92f, size.height * 0.68f)
-            close()
-        }
-        drawPath(
-            crown,
-            brush = Brush.linearGradient(
-                listOf(Color(0xFFFFD84D), Color(0xFFFFA800))
-            )
-        )
-        drawRoundRect(
-            brush = Brush.linearGradient(
-                listOf(Color(0xFFFFD84D), Color(0xFFFFA800))
-            ),
-            topLeft = Offset(size.width * 0.10f, size.height * 0.66f),
-            size = androidx.compose.ui.geometry.Size(size.width * 0.80f, size.height * 0.17f),
-            cornerRadius = androidx.compose.ui.geometry.CornerRadius(size.width * 0.035f)
-        )
-    }
+            .padding(4.dp)
+    )
 }
 
 @Composable
@@ -1105,7 +1035,7 @@ private fun HomeTopBar(
                 .border(1.dp, Color(0x332E7EFF), RoundedCornerShape(12.dp)),
             contentAlignment = Alignment.Center
         ) {
-            HomeCrownMark()
+            HomeAppIcon()
         }
 
         Spacer(Modifier.width(9.dp))
