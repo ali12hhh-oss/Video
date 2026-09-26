@@ -1623,6 +1623,42 @@ private fun EditorFeaturePanel(
                     )
                 }
             }
+            if (activeTool == "edit" && current != null) {
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 2.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    FilledTonalButton(
+                        onClick = onTrim,
+                        modifier = Modifier.weight(1f),
+                        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 5.dp)
+                    ) {
+                        Icon(Icons.Default.ContentCut, null, Modifier.size(15.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text(if(language==AppLanguage.ARABIC) "قص سريع" else "Quick trim", fontSize = 9.sp)
+                    }
+                    FilledTonalButton(
+                        onClick = onSplit,
+                        modifier = Modifier.weight(1f),
+                        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 5.dp)
+                    ) {
+                        Icon(Icons.Default.CallSplit, null, Modifier.size(15.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text(if(language==AppLanguage.ARABIC) "تقسيم هنا" else "Split here", fontSize = 9.sp)
+                    }
+                    FilledTonalButton(
+                        onClick = onDelete,
+                        enabled = clips.size > 1,
+                        modifier = Modifier.weight(1f),
+                        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 5.dp)
+                    ) {
+                        Icon(Icons.Default.DeleteOutline, null, Modifier.size(15.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text(if(language==AppLanguage.ARABIC) "حذف" else "Delete", fontSize = 9.sp)
+                    }
+                }
+            }
+
             LazyRow(
                 Modifier.fillMaxWidth(),
                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 5.dp),
@@ -2236,10 +2272,6 @@ private fun EditorScreen(
                                 Triple("text", Icons.Default.TextFields, if(language==AppLanguage.ARABIC) "نص" else "Text"),
                                 Triple("effects", Icons.Default.AutoAwesome, if(language==AppLanguage.ARABIC) "مؤثرات" else "Effects"),
                                 Triple("filters", Icons.Default.FilterVintage, if(language==AppLanguage.ARABIC) "فلاتر" else "Filters"),
-                                Triple("adjust", Icons.Default.Tune, if(language==AppLanguage.ARABIC) "ضبط" else "Adjust"),
-                                Triple("canvas", Icons.Default.CropFree, if(language==AppLanguage.ARABIC) "لوحة" else "Canvas"),
-                                Triple("transition", Icons.Default.SwapHoriz, if(language==AppLanguage.ARABIC) "انتقال" else "Transition"),
-                                Triple("layers", Icons.Default.Layers, if(language==AppLanguage.ARABIC) "طبقات" else "Layers"),
                                 Triple("more", Icons.Default.MoreHoriz, if(language==AppLanguage.ARABIC) "المزيد" else "More")
                             )
                             items(dockTools, key = { it.first }) { (id, icon, label) ->
@@ -2292,7 +2324,7 @@ private fun EditorScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                if (language == AppLanguage.ARABIC) "الأدوات مرتبة حسب نوع العمل" else "Tools are grouped by workflow",
+                                if (language == AppLanguage.ARABIC) "الأساسيات أمامك — الأدوات المتقدمة داخل «المزيد»" else "Essentials are visible — advanced tools are inside More",
                                 color = Color(0xFF66758C),
                                 fontSize = 8.sp,
                                 modifier = Modifier.weight(1f)
