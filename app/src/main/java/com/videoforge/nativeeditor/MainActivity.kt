@@ -563,171 +563,126 @@ private fun HomeScreen(
     onOpenProject: (RecentProject) -> Unit,
     onViewAllProjects: () -> Unit
 ) {
-    val context = LocalContext.current
-    val lifecycleOwner = LocalLifecycleOwner.current
-    var recentProjects by remember { mutableStateOf(emptyList<RecentProject>()) }
-
-    fun reloadRecentProjects() {
-        recentProjects = ProjectRepository.load(context).mapNotNull { project ->
-            val primary = project.primaryClip ?: return@mapNotNull null
-            RecentProject(
-                project.id,
-                primary.uri,
-                project.name,
-                primary.durationMs,
-                project.updatedAtMs / 1000L,
-                project.clips
-            )
-        }.sortedByDescending { it.dateModifiedSeconds }.take(12)
-    }
-
-    DisposableEffect(lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) reloadRecentProjects()
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
-    }
-    LaunchedEffect(Unit) { reloadRecentProjects() }
-
     val arabic = language == AppLanguage.ARABIC
 
     MaterialTheme(
         colorScheme = darkColorScheme(
-            primary = Color(0xFF7447FF),
-            secondary = Color(0xFF2B7CFF),
-            background = Color(0xFF020916),
-            surface = Color(0xFF071323),
-            surfaceVariant = Color(0xFF0B1A2D),
+            primary = Color(0xFF7147FF),
+            secondary = Color(0xFF2D7DFF),
+            background = Color(0xFF020914),
+            surface = Color(0xFF071426),
+            surfaceVariant = Color(0xFF0A192B),
             onBackground = Color.White,
             onSurface = Color.White,
-            onSurfaceVariant = Color(0xFF9CAAC0)
+            onSurfaceVariant = Color(0xFF93A5BD)
         )
     ) {
-        Scaffold(
-            containerColor = Color(0xFF020916),
-            bottomBar = {
-                HomeBottomBar(
-                    selected = selected,
-                    onSelected = onSelected,
-                    onImport = onImport,
-                    onExplore = onOpenTemplates,
-                    onAccount = onOpenSettings
-                )
-            }
-        ) { pad ->
-            Column(
-                Modifier
-                    .fillMaxSize()
-                    .padding(pad)
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 12.dp, vertical = 8.dp)
-            ) {
-                HomeTopBar(
-                    language = language,
-                    onLanguageSelected = onLanguageSelected,
-                    onOpenSettings = onOpenSettings
-                )
-
-                Spacer(Modifier.height(8.dp))
-
-                // The reference uses one strong cinematic hero instead of a generic
-                // marketing card. This is an existing app asset, not the reference image.
-                HomeReferenceHero(
-                    arabic = arabic,
-                    onOpen = onImport
-                )
-
-                Spacer(Modifier.height(14.dp))
-
-                HomePrimaryAction(
-                    title = if (arabic) "مشروع جديد" else "New project",
-                    subtitle = if (arabic) "ابدأ تحرير فيديو جديد" else "Start a new video",
-                    icon = Icons.Default.MovieCreation,
-                    gradient = listOf(Color(0xFF6840FF), Color(0xFF8A35FF)),
-                    onClick = onNewProject
-                )
-
-                Spacer(Modifier.height(10.dp))
-
-                HomePrimaryAction(
-                    title = if (arabic) "مشاريعي" else "My projects",
-                    subtitle = if (arabic) "عرض المشاريع المحفوظة" else "Browse saved projects",
-                    icon = Icons.Default.Folder,
-                    gradient = listOf(Color(0xFFFF8A34), Color(0xFFFF2F91)),
-                    onClick = onViewAllProjects
-                )
-
-                Spacer(Modifier.height(14.dp))
-
-                Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(9.dp)
-                ) {
-                    HomeFeatureCard(
-                        Modifier.weight(1f),
-                        icon = Icons.Default.MusicNote,
-                        title = if (arabic) "الموسيقى" else "Music",
-                        subtitle = if (arabic) "مكتبة الصوت" else "Audio library",
-                        iconGradient = listOf(Color(0xFFFF9B22), Color(0xFFFFC62E)),
-                        onClick = { onOpenTemplates() }
-                    )
-                    HomeFeatureCard(
-                        Modifier.weight(1f),
-                        icon = Icons.Default.AutoAwesome,
-                        title = if (arabic) "المؤثرات" else "Effects",
-                        subtitle = if (arabic) "فلاتر وتأثيرات" else "Filters & effects",
-                        iconGradient = listOf(Color(0xFF00C9B7), Color(0xFF2BE6D2)),
-                        onClick = { onOpenTemplates() }
-                    )
-                    HomeFeatureCard(
-                        Modifier.weight(1f),
-                        icon = Icons.Default.LocalOffer,
-                        title = if (arabic) "القوالب" else "Templates",
-                        subtitle = if (arabic) "قوالب جاهزة" else "Ready templates",
-                        iconGradient = listOf(Color(0xFF6D45FF), Color(0xFF9C38FF)),
-                        onClick = onOpenTemplates
+        CompositionLocalProvider(
+            LocalLayoutDirection provides LayoutDirection.Rtl
+        ) {
+            Scaffold(
+                containerColor = Color(0xFF020914),
+                bottomBar = {
+                    HomeBottomBar(
+                        selected = selected,
+                        onSelected = onSelected,
+                        onImport = onImport,
+                        onExplore = onOpenTemplates,
+                        onAccount = onOpenSettings
                     )
                 }
-
-                Spacer(Modifier.height(12.dp))
-
-                Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(9.dp)
+            ) { pad ->
+                Column(
+                    Modifier
+                        .fillMaxSize()
+                        .padding(pad)
+                        .verticalScroll(rememberScrollState())
+                        .padding(start = 12.dp, end = 12.dp, top = 5.dp, bottom = 10.dp)
                 ) {
-                    HomeSecondaryCard(
-                        Modifier.weight(1f),
-                        icon = Icons.Default.HelpOutline,
-                        title = if (arabic) "التعليمات" else "Help",
-                        subtitle = if (arabic) "دليل الاستخدام" else "How to use",
-                        onClick = onOpenSettings
+                    HomeTopBar(
+                        onOpenSettings = onOpenSettings
                     )
-                    HomeSecondaryCard(
-                        Modifier.weight(1f),
-                        icon = Icons.Default.Settings,
-                        title = if (arabic) "الإعدادات" else "Settings",
-                        subtitle = if (arabic) "خيارات التطبيق" else "App options",
-                        onClick = onOpenSettings
-                    )
-                }
 
-                Spacer(Modifier.height(18.dp))
+                    Spacer(Modifier.height(5.dp))
 
-                if (recentProjects.isNotEmpty()) {
-                    SectionHeader(
-                        if (arabic) "المشاريع الأخيرة" else "Recent projects",
-                        if (arabic) "عرض الكل" else "View all",
-                        onViewAllProjects
+                    HomeReferenceHero(
+                        arabic = arabic,
+                        onOpen = onImport
                     )
-                    Spacer(Modifier.height(8.dp))
-                    RecentProjects(
-                        projects = recentProjects,
-                        hasPermission = true,
-                        onRequestPermission = {},
-                        onOpenProject = onOpenProject
+
+                    Spacer(Modifier.height(13.dp))
+
+                    HomePrimaryAction(
+                        title = if (arabic) "مشروع جديد" else "New project",
+                        subtitle = if (arabic) "ابدأ تحرير فيديو جديد" else "Start a new video",
+                        icon = Icons.Default.MovieCreation,
+                        gradient = listOf(Color(0xFF673DFF), Color(0xFF8D32FF)),
+                        onClick = onNewProject
                     )
+
                     Spacer(Modifier.height(10.dp))
+
+                    HomePrimaryAction(
+                        title = if (arabic) "مشاريعي" else "My projects",
+                        subtitle = if (arabic) "عرض المشاريع المحفوظة" else "Browse saved projects",
+                        icon = Icons.Default.Folder,
+                        gradient = listOf(Color(0xFFFF9633), Color(0xFFFF168B)),
+                        onClick = onViewAllProjects
+                    )
+
+                    Spacer(Modifier.height(13.dp))
+
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(9.dp)
+                    ) {
+                        HomeFeatureCard(
+                            Modifier.weight(1f),
+                            icon = Icons.Default.LocalOffer,
+                            title = if (arabic) "القوالب" else "Templates",
+                            subtitle = if (arabic) "قوالب جاهزة" else "Ready templates",
+                            iconGradient = listOf(Color(0xFF6844FF), Color(0xFF9637FF)),
+                            onClick = onOpenTemplates
+                        )
+                        HomeFeatureCard(
+                            Modifier.weight(1f),
+                            icon = Icons.Default.AutoAwesome,
+                            title = if (arabic) "المؤثرات" else "Effects",
+                            subtitle = if (arabic) "فلاتر وتأثيرات" else "Filters & effects",
+                            iconGradient = listOf(Color(0xFF00C8B4), Color(0xFF23E4CF)),
+                            onClick = onOpenTemplates
+                        )
+                        HomeFeatureCard(
+                            Modifier.weight(1f),
+                            icon = Icons.Default.MusicNote,
+                            title = if (arabic) "الموسيقى" else "Music",
+                            subtitle = if (arabic) "مكتبة الصوت" else "Audio library",
+                            iconGradient = listOf(Color(0xFFFF9B24), Color(0xFFFFC928)),
+                            onClick = onOpenTemplates
+                        )
+                    }
+
+                    Spacer(Modifier.height(11.dp))
+
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(9.dp)
+                    ) {
+                        HomeSecondaryCard(
+                            Modifier.weight(1f),
+                            icon = Icons.Default.Settings,
+                            title = if (arabic) "الإعدادات" else "Settings",
+                            subtitle = if (arabic) "خيارات التطبيق" else "App options",
+                            onClick = onOpenSettings
+                        )
+                        HomeSecondaryCard(
+                            Modifier.weight(1f),
+                            icon = Icons.Default.HelpOutline,
+                            title = if (arabic) "التعليمات" else "Help",
+                            subtitle = if (arabic) "دليل الاستخدام" else "How to use",
+                            onClick = onOpenSettings
+                        )
+                    }
                 }
             }
         }
@@ -742,9 +697,9 @@ private fun HomeReferenceHero(
     Box(
         Modifier
             .fillMaxWidth()
-            .height(166.dp)
-            .clip(RoundedCornerShape(16.dp))
-            .border(1.dp, Color(0x332B7CFF), RoundedCornerShape(16.dp))
+            .height(158.dp)
+            .clip(RoundedCornerShape(15.dp))
+            .border(1.dp, Color(0x332B7CFF), RoundedCornerShape(15.dp))
             .clickable(onClick = onOpen)
     ) {
         Image(
@@ -758,49 +713,47 @@ private fun HomeReferenceHero(
                 .fillMaxSize()
                 .background(
                     Brush.verticalGradient(
-                        listOf(
-                            Color.Transparent,
-                            Color(0x22030A14),
-                            Color(0xDD030A14)
-                        )
+                        0f to Color.Transparent,
+                        .50f to Color(0x08020914),
+                        1f to Color(0xE8020914)
                     )
                 )
         )
         Box(
             Modifier
                 .align(Alignment.Center)
-                .size(48.dp)
+                .size(47.dp)
                 .clip(androidx.compose.foundation.shape.CircleShape)
-                .background(Color(0x660A1320))
-                .border(1.dp, Color.White.copy(alpha = .75f), androidx.compose.foundation.shape.CircleShape),
+                .background(Color(0x55030A14))
+                .border(1.dp, Color.White.copy(alpha = .78f), androidx.compose.foundation.shape.CircleShape),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 Icons.Default.PlayArrow,
-                contentDescription = null,
+                contentDescription = "تشغيل",
                 tint = Color.White,
                 modifier = Modifier.size(28.dp)
             )
         }
         Column(
             Modifier
-                .align(if (arabic) Alignment.BottomEnd else Alignment.BottomStart)
-                .padding(horizontal = 13.dp, vertical = 11.dp),
-            horizontalAlignment = if (arabic) Alignment.End else Alignment.Start
+                .align(Alignment.BottomEnd)
+                .padding(horizontal = 13.dp, vertical = 10.dp),
+            horizontalAlignment = Alignment.End
         ) {
             Text(
                 if (arabic) "حول لحظاتك" else "Turn your moments",
                 color = Color.White,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.ExtraBold,
-                textAlign = if (arabic) TextAlign.End else TextAlign.Start
+                textAlign = TextAlign.End
             )
             Text(
                 if (arabic) "إلى فيديوهات مذهلة" else "into amazing videos",
                 color = Color.White,
                 fontSize = 17.sp,
                 fontWeight = FontWeight.ExtraBold,
-                textAlign = if (arabic) TextAlign.End else TextAlign.Start
+                textAlign = TextAlign.End
             )
         }
     }
@@ -817,28 +770,47 @@ private fun HomePrimaryAction(
     Row(
         Modifier
             .fillMaxWidth()
-            .height(56.dp)
+            .height(58.dp)
             .clip(RoundedCornerShape(14.dp))
             .background(Brush.horizontalGradient(gradient))
             .clickable(onClick = onClick)
             .padding(horizontal = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        Column(
+            Modifier.weight(1f),
+            horizontalAlignment = Alignment.Start
+        ) {
+            Text(
+                title,
+                color = Color.White,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.ExtraBold
+            )
+            Text(
+                subtitle,
+                color = Color.White.copy(alpha = .80f),
+                fontSize = 9.sp,
+                fontWeight = FontWeight.Medium
+            )
+        }
+
+        Spacer(Modifier.width(10.dp))
+
         Box(
             Modifier
                 .size(40.dp)
                 .clip(RoundedCornerShape(11.dp))
-                .background(Color.White.copy(alpha = .16f)),
+                .background(Color.White.copy(alpha = .17f)),
             contentAlignment = Alignment.Center
         ) {
-            Icon(icon, null, tint = Color.White, modifier = Modifier.size(23.dp))
+            Icon(
+                icon,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(24.dp)
+            )
         }
-        Spacer(Modifier.width(11.dp))
-        Column(Modifier.weight(1f)) {
-            Text(title, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.ExtraBold)
-            Text(subtitle, color = Color.White.copy(alpha = .80f), fontSize = 9.sp)
-        }
-        Icon(Icons.Default.ChevronLeft, null, tint = Color.White.copy(alpha = .88f))
     }
 }
 
@@ -914,481 +886,65 @@ private fun HomeSecondaryCard(
 
 @Composable
 private fun HomeTopBar(
-    language: AppLanguage,
-    onLanguageSelected: (AppLanguage) -> Unit,
     onOpenSettings: () -> Unit
 ) {
-    var languageMenu by remember { mutableStateOf(false) }
-    val arabic = language == AppLanguage.ARABIC
-
     Row(
         Modifier
             .fillMaxWidth()
-            .height(58.dp)
-            .padding(horizontal = 2.dp),
+            .height(58.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        if (arabic) {
-            Box(
-                Modifier
-                    .size(38.dp)
-                    .clip(RoundedCornerShape(11.dp))
-                    .background(Brush.linearGradient(listOf(Color(0xFFFFB300), Color(0xFFFF7A00)))),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(Icons.Default.EmojiEvents, null, tint = Color.White, modifier = Modifier.size(25.dp))
-            }
-            Spacer(Modifier.width(9.dp))
+        Box(
+            Modifier
+                .size(43.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(Color(0xFF061322))
+                .border(1.dp, Color(0x332E7EFF), RoundedCornerShape(12.dp)),
+            contentAlignment = Alignment.Center
+        ) {
+            Image(
+                painter = painterResource(R.drawable.videoforge_logo),
+                contentDescription = "VideoForge",
+                contentScale = androidx.compose.ui.layout.ContentScale.Fit,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(5.dp)
+            )
         }
+
+        Spacer(Modifier.width(9.dp))
 
         Column(
             Modifier.weight(1f),
-            horizontalAlignment = if (arabic) Alignment.Start else Alignment.Start
+            horizontalAlignment = Alignment.Start
         ) {
             Text(
-                if (arabic) "محرر الفيديو" else "Video Editor",
+                "محرر الفيديو",
                 color = Color.White,
                 fontSize = 18.sp,
-                fontWeight = FontWeight.ExtraBold
+                fontWeight = FontWeight.ExtraBold,
+                letterSpacing = (-0.2).sp
             )
             Text(
-                if (arabic) "ابدأ - اصنع قصتك" else "Start - create your story",
-                color = Color(0xFF8B9BB4),
-                fontSize = 9.sp
+                "ابدأ - اصنع قصتك",
+                color = Color(0xFF8E9EB5),
+                fontSize = 9.sp,
+                fontWeight = FontWeight.Medium
             )
         }
 
-        if (!arabic) {
-            Box(
-                Modifier
-                    .size(38.dp)
-                    .clip(RoundedCornerShape(11.dp))
-                    .background(Brush.linearGradient(listOf(Color(0xFFFFB300), Color(0xFFFF7A00)))),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(Icons.Default.EmojiEvents, null, tint = Color.White, modifier = Modifier.size(25.dp))
-            }
-            Spacer(Modifier.width(6.dp))
-        }
-
-        Box {
-            IconButton(onClick = onOpenSettings, modifier = Modifier.size(42.dp)) {
-                Icon(Icons.Default.Settings, null, tint = Color(0xFFD7E1F0), modifier = Modifier.size(23.dp))
-            }
-        }
-
-        if (!arabic) {
-            Box {
-                IconButton(onClick = { languageMenu = true }, modifier = Modifier.size(42.dp)) {
-                    Icon(Icons.Default.Language, null, tint = Color(0xFF9FB0C8), modifier = Modifier.size(21.dp))
-                }
-                DropdownMenu(expanded = languageMenu, onDismissRequest = { languageMenu = false }) {
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.arabic)) },
-                        onClick = { languageMenu = false; onLanguageSelected(AppLanguage.ARABIC) }
-                    )
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.english)) },
-                        onClick = { languageMenu = false; onLanguageSelected(AppLanguage.ENGLISH) }
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun ProjectsScreen(
-    language: AppLanguage,
-    onBackHome: () -> Unit,
-    onOpenProject: (RecentProject) -> Unit,
-    onNewProject: () -> Unit
-) {
-    val context = LocalContext.current
-    var projects by remember { mutableStateOf(emptyList<RecentProject>()) }
-    var query by rememberSaveable { mutableStateOf("") }
-    var renameTarget by remember { mutableStateOf<RecentProject?>(null) }
-    var deleteTarget by remember { mutableStateOf<RecentProject?>(null) }
-    var duplicateTarget by remember { mutableStateOf<RecentProject?>(null) }
-
-    fun reload() {
-        val saved = ProjectRepository.load(context)
-        projects = saved.mapNotNull { p ->
-            p.primaryClip?.let { clip ->
-                RecentProject(p.id, clip.uri, p.name, clip.durationMs, p.updatedAtMs / 1000L, p.clips)
-            }
-        }
-    }
-
-    val lifecycleOwner = LocalLifecycleOwner.current
-    DisposableEffect(lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event -> if (event == Lifecycle.Event.ON_RESUME) reload() }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
-    }
-    LaunchedEffect(Unit) { reload() }
-
-    val filtered = projects.filter { it.name.contains(query.trim(), ignoreCase = true) }
-
-    Scaffold(
-        containerColor = Color(0xFF020812),
-        topBar = {
-            Surface(color = Color(0xFF020812)) {
-                Row(
-                    Modifier.fillMaxWidth().height(68.dp).padding(horizontal = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconButton(onClick = onBackHome) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = Color.White) }
-                    Text(stringResource(R.string.projects), Modifier.weight(1f), fontSize = 21.sp, fontWeight = FontWeight.Bold)
-                    FilledIconButton(
-                        onClick = onNewProject,
-                        colors = IconButtonDefaults.filledIconButtonColors(containerColor = Color(0xFF7041FF))
-                    ) { Icon(Icons.Default.Add, null) }
-                }
-            }
-        }
-    ) { pad ->
-        Column(Modifier.fillMaxSize().padding(pad).padding(horizontal = 14.dp)) {
-            OutlinedTextField(
-                value = query,
-                onValueChange = { query = it },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                leadingIcon = { Icon(Icons.Default.Search, null) },
-                placeholder = { Text(stringResource(R.string.search_projects)) },
-                shape = RoundedCornerShape(14.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = Color(0xFF0C1521),
-                    unfocusedContainerColor = Color(0xFF0C1521),
-                    focusedBorderColor = Color(0xFF7041FF),
-                    unfocusedBorderColor = Color(0xFF202A39)
-                )
-            )
-            Spacer(Modifier.height(14.dp))
-            Text(
-                stringResource(R.string.project_count, filtered.size),
-                color = Color.Gray, fontSize = 11.sp,
-                modifier = Modifier.padding(horizontal = 2.dp)
-            )
-            Spacer(Modifier.height(8.dp))
-
-            if (filtered.isEmpty()) {
-                Column(
-                    Modifier.fillMaxWidth().weight(1f),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Icon(Icons.Default.VideoLibrary, null, tint = Color(0xFF8B5CFF), modifier = Modifier.size(58.dp))
-                    Spacer(Modifier.height(12.dp))
-                    Text(stringResource(if (query.isBlank()) R.string.no_saved_projects else R.string.no_matching_projects), fontWeight = FontWeight.Bold)
-                    Spacer(Modifier.height(14.dp))
-                    Button(onClick = onNewProject) { Icon(Icons.Default.Add, null); Spacer(Modifier.width(6.dp)); Text(stringResource(R.string.new_project)) }
-                }
-            } else {
-                androidx.compose.foundation.lazy.LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                    contentPadding = PaddingValues(bottom = 20.dp)
-                ) {
-                    items(filtered, key = { it.id }) { project ->
-                        ProjectListCard(
-                            project = project,
-                            onOpen = { onOpenProject(project) },
-                            onRename = { renameTarget = project },
-                            onDelete = { deleteTarget = project },
-                            onDuplicate = { duplicateTarget = project }
-                        )
-                    }
-                }
-            }
-        }
-    }
-
-    renameTarget?.let { project ->
-        var name by remember(project.id) { mutableStateOf(project.name) }
-        AlertDialog(
-            onDismissRequest = { renameTarget = null },
-            title = { Text(stringResource(R.string.rename_project)) },
-            text = { OutlinedTextField(value = name, onValueChange = { name = it }, singleLine = true, label = { Text(stringResource(R.string.project_name)) }) },
-            confirmButton = {
-                TextButton(onClick = {
-                    ProjectRepository.rename(context, project.id, name)
-                    renameTarget = null
-                    reload()
-                }) { Text(stringResource(R.string.save)) }
-            },
-            dismissButton = { TextButton(onClick = { renameTarget = null }) { Text(stringResource(R.string.cancel)) } }
-        )
-    }
-
-    duplicateTarget?.let { project ->
-        AlertDialog(
-            onDismissRequest = { duplicateTarget = null },
-            title = { Text(if (language == AppLanguage.ARABIC) "تكرار المشروع" else "Duplicate project") },
-            text = { Text(if (language == AppLanguage.ARABIC) "سيتم إنشاء نسخة مستقلة من المشروع مع جميع المقاطع." else "A separate copy will be created with all clips.") },
-            confirmButton = {
-                TextButton(onClick = {
-                    val newId = ProjectRepository.duplicate(context, project.id)
-                    if (newId != null) {
-                        EditorSettingsRepository.save(context, newId, EditorSettingsRepository.load(context, project.id))
-                    }
-                    duplicateTarget = null
-                    reload()
-                }) { Text(if (language == AppLanguage.ARABIC) "تكرار" else "Duplicate") }
-            },
-            dismissButton = { TextButton(onClick = { duplicateTarget = null }) { Text(stringResource(R.string.cancel)) } }
-        )
-    }
-
-    deleteTarget?.let { project ->
-        AlertDialog(
-            onDismissRequest = { deleteTarget = null },
-            title = { Text(stringResource(R.string.delete_project)) },
-            text = { Text(stringResource(R.string.delete_project_confirm, project.name)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    ProjectRepository.delete(context, project.id)
-                    deleteTarget = null
-                    reload()
-                }) { Text(stringResource(R.string.delete), color = Color(0xFFFF6B6B)) }
-            },
-            dismissButton = { TextButton(onClick = { deleteTarget = null }) { Text(stringResource(R.string.cancel)) } }
-        )
-    }
-}
-
-@Composable
-private fun ProjectListCard(
-    project: RecentProject,
-    onOpen: () -> Unit,
-    onRename: () -> Unit,
-    onDelete: () -> Unit,
-    onDuplicate: () -> Unit
-) {
-    val context = LocalContext.current
-    var thumbnail by remember(project.uri) { mutableStateOf<android.graphics.Bitmap?>(null) }
-    var menu by remember { mutableStateOf(false) }
-    LaunchedEffect(project.uri) {
-        thumbnail = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { loadVideoThumbnail(context, project.uri) }
-    }
-    Row(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Color(0xFF0C1521)).clickable(onClick = onOpen).padding(8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(Modifier.width(132.dp).height(78.dp).clip(RoundedCornerShape(11.dp)).background(Color(0xFF111D2B))) {
-            if (thumbnail != null) {
-                androidx.compose.foundation.Image(thumbnail!!.asImageBitmap(), null, contentScale = androidx.compose.ui.layout.ContentScale.Crop, modifier = Modifier.fillMaxSize())
-            } else {
-                Icon(Icons.Default.PlayCircle, null, tint = Color(0xFF7C4DFF), modifier = Modifier.align(Alignment.Center).size(34.dp))
-            }
-            Text(formatDuration(project.durationMs), Modifier.align(Alignment.BottomEnd).padding(4.dp).clip(RoundedCornerShape(4.dp)).background(Color(0xDD000000)).padding(horizontal = 4.dp, vertical = 2.dp), fontSize = 8.sp)
-        }
-        Spacer(Modifier.width(11.dp))
-        Column(Modifier.weight(1f)) {
-            Text(project.name, fontWeight = FontWeight.Bold, fontSize = 14.sp, maxLines = 1)
-            Spacer(Modifier.height(4.dp))
-            Text(stringResource(R.string.clip_count, project.clips.size), color = Color.Gray, fontSize = 10.sp)
-            Text(formatProjectDate(project.dateModifiedSeconds), color = Color.Gray, fontSize = 9.sp)
-        }
-        Box {
-            IconButton(onClick = { menu = true }) { Icon(Icons.Default.MoreVert, null, tint = Color.LightGray) }
-            DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                DropdownMenuItem(text = { Text(stringResource(R.string.open_project)) }, leadingIcon = { Icon(Icons.Default.PlayArrow, null) }, onClick = { menu = false; onOpen() })
-                DropdownMenuItem(text = { Text(stringResource(R.string.rename_project)) }, leadingIcon = { Icon(Icons.Default.Edit, null) }, onClick = { menu = false; onRename() })
-                DropdownMenuItem(text = { Text(if (LocalLayoutDirection.current == LayoutDirection.Rtl) "تكرار المشروع" else "Duplicate project") }, leadingIcon = { Icon(Icons.Default.ContentCopy, null) }, onClick = { menu = false; onDuplicate() })
-                DropdownMenuItem(text = { Text(stringResource(R.string.delete_project)) }, leadingIcon = { Icon(Icons.Default.DeleteOutline, null) }, onClick = { menu = false; onDelete() })
-            }
-        }
-    }
-}
-
-@Composable
-private fun HeroCard(language: AppLanguage, onNewProject: () -> Unit) {
-    val alignment = if (language == AppLanguage.ARABIC) Alignment.CenterEnd else Alignment.CenterStart
-    val textAlign = if (language == AppLanguage.ARABIC) androidx.compose.ui.text.style.TextAlign.End else androidx.compose.ui.text.style.TextAlign.Start
-
-    Box(
-        Modifier
-            .fillMaxWidth()
-            .height(246.dp)
-            .padding(horizontal = 12.dp)
-            .clip(RoundedCornerShape(19.dp))
-    ) {
-        androidx.compose.foundation.Image(
-            painter = painterResource(R.drawable.hero_cinematic),
-            contentDescription = null,
-            contentScale = androidx.compose.ui.layout.ContentScale.Crop,
-            modifier = Modifier.fillMaxSize()
-        )
-        Box(
-            Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.horizontalGradient(
-                        if (language == AppLanguage.ARABIC) {
-                            listOf(Color(0xB8000715), Color(0x4A08142A), Color(0xA6000612))
-                        } else {
-                            listOf(Color(0xA6000612), Color(0x4A08142A), Color(0xB8000715))
-                        }
-                    )
-                )
-        )
-        Box(
-            Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        listOf(Color.Transparent, Color(0x18000815), Color(0xD9000815))
-                    )
-                )
-        )
-
-        Column(
-            Modifier
-                .align(Alignment.BottomCenter)
-                .widthIn(max = 340.dp)
-                .padding(horizontal = 22.dp, vertical = 18.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+        IconButton(
+            onClick = onOpenSettings,
+            modifier = Modifier
+                .size(44.dp)
+                .clip(RoundedCornerShape(12.dp))
         ) {
-            Button(
-                onClick = onNewProject,
-                shape = RoundedCornerShape(28.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF7041FF)),
-                contentPadding = PaddingValues(horizontal = 17.dp, vertical = 8.dp)
-            ) {
-                if (language == AppLanguage.ARABIC) {
-                    Text(stringResource(R.string.new_project), fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                    Spacer(Modifier.width(6.dp))
-                    Icon(Icons.Default.Add, null, Modifier.size(18.dp))
-                    Spacer(Modifier.width(2.dp))
-                    Icon(Icons.Default.ChevronLeft, null, Modifier.size(18.dp))
-                } else {
-                    Icon(Icons.Default.Add, null, Modifier.size(18.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text(stringResource(R.string.new_project), fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                    Spacer(Modifier.width(2.dp))
-                    Icon(Icons.Default.ChevronRight, null, Modifier.size(18.dp))
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun SectionHeader(title: String, action: String?, onAction: (() -> Unit)? = null) {
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        if (action != null) {
-            Text(action, color = Color(0xFF9D70FF), fontSize = 13.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.clickable { onAction?.invoke() })
-            Spacer(Modifier.weight(1f))
-        }
-        Text(title, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-    }
-}
-
-@Composable
-private fun QuickTools() {
-    // Keep each icon and label explicitly paired so RTL/LTR layout never swaps labels.
-    data class QuickTool(val icon: ImageVector, val label: String)
-    val tools = listOf(
-        QuickTool(Icons.Default.ContentCut, stringResource(R.string.trim_clip)),
-        QuickTool(Icons.Default.Speed, stringResource(R.string.speed)),
-        QuickTool(Icons.Default.TextFields, stringResource(R.string.text)),
-        QuickTool(Icons.Default.MusicNote, stringResource(R.string.music)),
-        QuickTool(Icons.Default.AutoAwesome, stringResource(R.string.effects)),
-        QuickTool(Icons.Default.Tune, stringResource(R.string.adjust))
-    )
-    LazyRow(
-        Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(7.dp)
-    ) {
-        items(tools) { tool ->
-            val icon = tool.icon
-            val label = tool.label
-            Column(
-                Modifier
-                    .width(74.dp)
-                    .height(82.dp)
-                    .clip(RoundedCornerShape(13.dp))
-                    .background(Color(0xFF0E1725))
-                    .padding(vertical = 9.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
-            ) {
-                Icon(icon, null, tint = Color(0xFFD09CFF), modifier = Modifier.size(26.dp))
-                Spacer(Modifier.height(6.dp))
-                Text(label, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
-            }
-        }
-    }
-}
-
-@Composable
-private fun RecentProjects(
-    projects: List<RecentProject>,
-    hasPermission: Boolean,
-    onRequestPermission: () -> Unit,
-    onOpenProject: (RecentProject) -> Unit
-) {
-    if (projects.isEmpty()) {
-        Surface(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
-            color = Color(0xFF0C1521), shape = RoundedCornerShape(16.dp), shadowElevation = 0.dp
-        ) {
-            Row(Modifier.padding(horizontal = 16.dp, vertical = 20.dp), verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(48.dp).clip(RoundedCornerShape(14.dp)).background(Color(0xFF21163D)), contentAlignment = Alignment.Center) {
-                    Icon(Icons.Default.VideoLibrary, null, tint = Color(0xFF9D70FF), modifier = Modifier.size(27.dp))
-                }
-                Spacer(Modifier.width(12.dp))
-                Column(Modifier.weight(1f)) {
-                    Text(stringResource(R.string.no_saved_projects), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                    Spacer(Modifier.height(3.dp))
-                    Text(stringResource(R.string.create_first_project), color = Color(0xFF8D9AB0), fontSize = 10.sp)
-                }
-                Icon(Icons.Default.ChevronRight, null, tint = Color(0xFF8D9AB0))
-            }
-        }
-        return
-    }
-    LazyRow(Modifier.fillMaxWidth().padding(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        items(projects.take(6), key = { it.id }) { project ->
-            val context = LocalContext.current
-            var thumbnail by remember(project.uri) { mutableStateOf<android.graphics.Bitmap?>(null) }
-            LaunchedEffect(project.uri) {
-                thumbnail = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { loadVideoThumbnail(context, project.uri) }
-            }
-            Column(
-                Modifier.width(166.dp).clip(RoundedCornerShape(16.dp)).background(Color(0xFF0C1521))
-                    .clickable { onOpenProject(project) }.padding(8.dp)
-            ) {
-                Box(Modifier.fillMaxWidth().height(96.dp).clip(RoundedCornerShape(11.dp)).background(Color(0xFFE9EDF5))) {
-                    if (thumbnail != null) {
-                        androidx.compose.foundation.Image(
-                            bitmap = thumbnail!!.asImageBitmap(), contentDescription = project.name,
-                            contentScale = androidx.compose.ui.layout.ContentScale.Crop, modifier = Modifier.fillMaxSize()
-                        )
-                    } else {
-                        Icon(Icons.Default.PlayCircle, null, tint = Color(0xFF6D3DFF), modifier = Modifier.align(Alignment.Center).size(34.dp))
-                    }
-                    if (project.durationMs > 0L) {
-                        Text(
-                            formatDuration(project.durationMs),
-                            Modifier.align(Alignment.BottomEnd).padding(5.dp).clip(RoundedCornerShape(5.dp))
-                                .background(Color(0xDD172033)).padding(horizontal = 5.dp, vertical = 2.dp),
-                            fontSize = 9.sp, fontWeight = FontWeight.SemiBold, color = Color.White
-                        )
-                    }
-                }
-                Spacer(Modifier.height(7.dp))
-                Text(project.name, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 1)
-                Text(formatProjectDate(project.dateModifiedSeconds), color = Color(0xFF8D9AB0), fontSize = 10.sp, maxLines = 1)
-            }
+            Icon(
+                Icons.Default.Settings,
+                contentDescription = "الإعدادات",
+                tint = Color(0xFFD6E0EF),
+                modifier = Modifier.size(24.dp)
+            )
         }
     }
 }
