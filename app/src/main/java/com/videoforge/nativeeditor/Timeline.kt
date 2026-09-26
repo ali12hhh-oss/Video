@@ -10,6 +10,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -24,6 +25,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.TextFields
 import androidx.compose.material.icons.filled.Photo
 import androidx.compose.material.icons.filled.Videocam
+import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -268,31 +270,47 @@ fun Timeline(
                         .width(timelineWidth)
                         .fillMaxHeight()
                 ) {
-                    // Fine reference-style ruler.
-                    Row(
-                        Modifier.fillMaxWidth().height(24.dp).padding(horizontal = 8.dp),
-                        verticalAlignment = Alignment.Bottom
-                    ) {
-                        val marks = 7
-                        repeat(marks) { i ->
-                            val t = total * i / (marks - 1).coerceAtLeast(1)
-                            Column(
-                                Modifier.weight(1f),
-                                horizontalAlignment = when (i) {
-                                    0 -> Alignment.Start
-                                    marks - 1 -> Alignment.End
-                                    else -> Alignment.CenterHorizontally
+                    // Reference-style ruler. Tapping or dragging here moves the real playhead.
+                    Box(
+                        Modifier
+                            .fillMaxWidth()
+                            .height(24.dp)
+                            .padding(horizontal = 8.dp)
+                            .pointerInput(total, timelineWidth) {
+                                detectTapGestures { position ->
+                                    val localX = position.x.coerceIn(0f, widthPx)
+                                    onPlayheadChange((localX / widthPx * total).toLong().coerceIn(0L, total))
                                 }
-                            ) {
-                                Text(
-                                    formatTimelineTime(t).substring(0, 5),
-                                    color = Color(0xFF8090A8),
-                                    fontSize = 7.sp
-                                )
-                                Box(
-                                    Modifier.width(1.dp).height(if (i % 2 == 0) 7.dp else 4.dp)
-                                        .background(Color(0xFF30435E))
-                                )
+                                detectDragGestures { change, dragAmount ->
+                                    change.consume()
+                                    val localX = (change.position.x + dragAmount.x).coerceIn(0f, widthPx)
+                                    onPlayheadChange((localX / widthPx * total).toLong().coerceIn(0L, total))
+                                }
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom) {
+                            val marks = 7
+                            repeat(marks) { i ->
+                                val t = total * i / (marks - 1).coerceAtLeast(1)
+                                Column(
+                                    Modifier.weight(1f),
+                                    horizontalAlignment = when (i) {
+                                        0 -> Alignment.Start
+                                        marks - 1 -> Alignment.End
+                                        else -> Alignment.CenterHorizontally
+                                    }
+                                ) {
+                                    Text(
+                                        formatTimelineTime(t).substring(0, 5),
+                                        color = Color(0xFF8090A8),
+                                        fontSize = 7.sp
+                                    )
+                                    Box(
+                                        Modifier.width(1.dp).height(if (i % 2 == 0) 7.dp else 4.dp)
+                                            .background(Color(0xFF30435E))
+                                    )
+                                }
                             }
                         }
                     }
@@ -510,6 +528,31 @@ fun Timeline(
                                     modifier = Modifier.align(Alignment.Center).padding(start = 16.dp)
                                 )
                             }
+                        }
+
+                        // Reference-style media insertion control. It is only an action button;
+                        // no fake clip is created until the user actually chooses media.
+                        Row(
+                            Modifier.fillMaxWidth().height(38.dp),
+                            horizontalArrangement = Arrangement.Start,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            IconButton(
+                                onClick = onAddMedia,
+                                modifier = Modifier
+                                    .size(34.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(Color(0xFF0F1E31))
+                                    .border(1.dp, Color(0xFF2A4668), RoundedCornerShape(8.dp))
+                            ) {
+                                Icon(Icons.Default.Add, contentDescription = "Add media", tint = Color.White, modifier = Modifier.size(19.dp))
+                            }
+                            Text(
+                                "إضافة فيديو أو صورة",
+                                color = Color(0xFF71809A),
+                                fontSize = 8.sp,
+                                modifier = Modifier.padding(start = 7.dp)
+                            )
                         }
                     }
 
