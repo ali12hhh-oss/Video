@@ -246,7 +246,7 @@ fun Timeline(
             )
         }
 
-        BoxWithConstraints(
+        Box(
             Modifier
                 .fillMaxWidth()
                 .heightIn(min = 230.dp, max = 310.dp)
