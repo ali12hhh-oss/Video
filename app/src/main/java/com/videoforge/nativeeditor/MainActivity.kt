@@ -3995,7 +3995,10 @@ private fun MusicTrimDialog(
         val mp = runCatching {
             MediaPlayer().apply {
                 setDataSource(context, uri); prepare()
-                setOnCompletionListener { playing = false }
+                setOnCompletionListener {
+                    playing = false
+                    runCatching { seekTo(startMs.coerceIn(0L, durationMs).toInt()) }
+                }
             }
         }.getOrNull()
         player = mp
@@ -4015,6 +4018,7 @@ private fun MusicTrimDialog(
                 playing = false
             } else if (mp.currentPosition.toLong() >= endMs) {
                 runCatching { mp.pause() }
+                runCatching { mp.seekTo(startMs.coerceIn(0L, durationMs).toInt()) }
                 playing = false
             }
             delay(80L)
@@ -4035,16 +4039,52 @@ private fun MusicTrimDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text(fileName, maxLines = 1, color = Color.White, fontWeight = FontWeight.SemiBold)
-                Text(if (language == AppLanguage.ARABIC) "حدد بداية ونهاية المقطع، ثم استمع إليه قبل إضافته للمحرر." else "Set the start and end, then preview the selection before adding it.", color = Color.Gray, fontSize = 11.sp)
+                Text(
+                    if (language == AppLanguage.ARABIC) "حدد البداية والنهاية، ثم استمع للتحديد قبل إضافته للمحرر." else "Set the start and end, then preview the selection before adding it.",
+                    color = Color.Gray, fontSize = 11.sp
+                )
                 Surface(shape = RoundedCornerShape(12.dp), color = Color(0xFF101827), modifier = Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(10.dp)) {
-                        Text("${formatDuration(startMs)}  →  ${formatDuration(endMs)}", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                        Slider(value = startMs.toFloat(), onValueChange = { startMs = it.toLong().coerceIn(0L, (endMs - minGap).coerceAtLeast(0L)) }, valueRange = 0f..safeDuration.toFloat())
-                        Slider(value = endMs.toFloat(), onValueChange = { endMs = it.toLong().coerceIn((startMs + minGap).coerceAtMost(safeDuration), safeDuration) }, valueRange = 0f..safeDuration.toFloat())
+                    Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            Text("${formatDuration(startMs)} → ${formatDuration(endMs)}", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                            Text(formatDuration((endMs - startMs).coerceAtLeast(0L)), color = Color(0xFF18C8FF), fontSize = 10.sp)
+                        }
+                        val previewPosition = if (playing) {
+                            player?.currentPosition?.toLong()?.coerceIn(startMs, endMs) ?: startMs
+                        } else startMs
+                        val previewFraction = if (endMs > startMs) {
+                            ((previewPosition - startMs).toFloat() / (endMs - startMs).toFloat()).coerceIn(0f, 1f)
+                        } else 0f
+                        LinearProgressIndicator(
+                            progress = { previewFraction },
+                            modifier = Modifier.fillMaxWidth().height(5.dp).clip(RoundedCornerShape(3.dp))
+                        )
+                        Slider(
+                            value = startMs.toFloat(),
+                            onValueChange = {
+                                playing = false
+                                runCatching { player?.pause() }
+                                startMs = it.toLong().coerceIn(0L, (endMs - minGap).coerceAtLeast(0L))
+                            },
+                            valueRange = 0f..safeDuration.toFloat()
+                        )
+                        Slider(
+                            value = endMs.toFloat(),
+                            onValueChange = {
+                                playing = false
+                                runCatching { player?.pause() }
+                                endMs = it.toLong().coerceIn((startMs + minGap).coerceAtMost(safeDuration), safeDuration)
+                            },
+                            valueRange = 0f..safeDuration.toFloat()
+                        )
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                             Text(formatDuration(startMs), fontSize = 9.sp, color = Color(0xFF7C4DFF))
                             Text(formatDuration(endMs), fontSize = 9.sp, color = Color(0xFF18C8FF))
                         }
+                        Text(
+                            if (language == AppLanguage.ARABIC) "المصدر: ${formatDuration(safeDuration)}" else "Source: ${formatDuration(safeDuration)}",
+                            color = Color(0xFF7D8798), fontSize = 9.sp
+                        )
                     }
                 }
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
