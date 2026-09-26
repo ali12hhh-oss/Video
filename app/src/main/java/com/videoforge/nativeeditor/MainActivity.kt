@@ -3113,6 +3113,8 @@ private fun EditorPreview(
     }
 }
 
+}
+
 @Composable private fun LanguageDialog(language: AppLanguage, onSelect: (AppLanguage) -> Unit, onDismiss: () -> Unit) {
     AlertDialog(onDismissRequest = onDismiss, title = { Text(if (language == AppLanguage.ARABIC) "لغة التطبيق" else "App language") }, text = { Column { TextButton(onClick = { onSelect(AppLanguage.ARABIC); onDismiss() }) { Text("العربية") }; TextButton(onClick = { onSelect(AppLanguage.ENGLISH); onDismiss() }) { Text("English") } } }, confirmButton = { TextButton(onClick = onDismiss) { Text(if (language == AppLanguage.ARABIC) "إغلاق" else "Close") } })
 }
