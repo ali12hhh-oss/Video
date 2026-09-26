@@ -342,9 +342,13 @@ class ExportEngine(private val context: Context, private val resolver: ContentRe
             val sequences = mutableListOf(videoSequence)
             if (editor.musicUri.isNotBlank()) {
                 val actualMusicDurationMs = runCatching {
-                    MediaMetadataRetriever().use { retriever ->
-                        retriever.setDataSource(context, Uri.parse(editor.musicUri))
-                        retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L
+                    MediaMetadataRetriever().let { retriever ->
+                        try {
+                            retriever.setDataSource(context, Uri.parse(editor.musicUri))
+                            retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L
+                        } finally {
+                            retriever.release()
+                        }
                     }
                 }.getOrDefault(0L)
                 val safeMusicStartMs = if (actualMusicDurationMs > 0L) editor.musicStartMs.coerceIn(0L, (actualMusicDurationMs - 1L).coerceAtLeast(0L)) else editor.musicStartMs.coerceAtLeast(0L)
