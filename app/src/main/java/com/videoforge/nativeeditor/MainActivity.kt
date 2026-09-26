@@ -3993,8 +3993,13 @@ private fun MusicTrimDialog(
     }
     LaunchedEffect(playing, startMs, endMs) {
         while (playing) {
-            val mp = player ?: run { playing = false; break }
-            if (mp.currentPosition.toLong() >= endMs) { runCatching { mp.pause() }; playing = false; break }
+            val mp = player
+            if (mp == null) {
+                playing = false
+            } else if (mp.currentPosition.toLong() >= endMs) {
+                runCatching { mp.pause() }
+                playing = false
+            }
             delay(80L)
         }
     }
@@ -4010,7 +4015,7 @@ NaN
                 Text(if (language == AppLanguage.ARABIC) "حدد بداية ونهاية المقطع، ثم استمع إليه قبل إضافته للمحرر." else "Set the start and end, then preview the selection before adding it.", color = Color.Gray, fontSize = 11.sp)
                 Surface(shape = RoundedCornerShape(12.dp), color = Color(0xFF101827), modifier = Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(10.dp)) {
-                        Text(${formatDuration(startMs)}  →  ${formatDuration(endMs)}", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text("${formatDuration(startMs)}  →  ${formatDuration(endMs)}", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         Slider(value = startMs.toFloat(), onValueChange = { startMs = it.toLong().coerceIn(0L, (endMs - minGap).coerceAtLeast(0L)) }, valueRange = 0f..safeDuration.toFloat())
                         Slider(value = endMs.toFloat(), onValueChange = { endMs = it.toLong().coerceIn((startMs + minGap).coerceAtMost(safeDuration), safeDuration) }, valueRange = 0f..safeDuration.toFloat())
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
