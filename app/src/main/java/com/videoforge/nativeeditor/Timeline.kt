@@ -86,36 +86,44 @@ private fun timelineClipDurationForUi(clip: Clip): Long {
 
 /** Small frame/cover thumbnail for a clip block. Kept local to this file since MainActivity's
  * loadVideoThumbnail is file-private in Kotlin (top-level `private` is per-file, not per-package). */
-private fun loadClipThumbnail(context: android.content.Context, uri: Uri): Bitmap? {
+private fun loadClipThumbnails(context: android.content.Context, uri: Uri, count: Int = 6): List<Bitmap> {
     return try {
-        if (Build.VERSION.SDK_INT >= 29) {
-            context.contentResolver.loadThumbnail(uri, Size(200, 200), null)
-        } else {
-            val retriever = android.media.MediaMetadataRetriever()
-            retriever.setDataSource(context, uri)
-            val bitmap = retriever.getFrameAtTime(0L, android.media.MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
-            retriever.release()
-            bitmap
+        val retriever = android.media.MediaMetadataRetriever()
+        retriever.setDataSource(uri)
+        val durationUs = (retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 1L) * 1000L
+        val frames = (0 until count).mapNotNull { index ->
+            val atUs = if (count <= 1) 0L else (durationUs * index / (count - 1)).coerceIn(0L, durationUs)
+            retriever.getFrameAtTime(atUs, android.media.MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
         }
+        retriever.release()
+        frames
     } catch (_: Exception) {
-        null
+        if (Build.VERSION.SDK_INT >= 29) listOfNotNull(runCatching {
+            context.contentResolver.loadThumbnail(uri, Size(240, 120), null)
+        }.getOrNull()) else emptyList()
     }
 }
 
 @Composable
-private fun ClipThumbnail(uri: Uri) {
+private fun ClipFilmstrip(uri: Uri, modifier: Modifier = Modifier) {
     val context = LocalContext.current
-    var bitmap by remember(uri) { mutableStateOf<Bitmap?>(null) }
+    var frames by remember(uri) { mutableStateOf<List<Bitmap>>(emptyList()) }
     LaunchedEffect(uri) {
-        bitmap = withContext(Dispatchers.IO) { loadClipThumbnail(context, uri) }
+        frames = withContext(Dispatchers.IO) { loadClipThumbnails(context, uri) }
     }
-    bitmap?.let {
-        Image(
-            bitmap = it.asImageBitmap(),
-            contentDescription = null,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxSize()
-        )
+    if (frames.isEmpty()) {
+        Box(modifier.background(Color(0xFF1A2638)))
+    } else {
+        Row(modifier, horizontalArrangement = Arrangement.spacedBy(1.dp)) {
+            frames.forEach { frame ->
+                Image(
+                    bitmap = frame.asImageBitmap(),
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.weight(1f).fillMaxHeight()
+                )
+            }
+        }
     }
 }
 
@@ -205,6 +213,16 @@ fun Timeline(
             valueRange = 0f..max(1L, total).toFloat(),
             modifier = Modifier.fillMaxWidth().height(20.dp)
         )
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text("0:00", color = MutedTextColor, fontSize = 7.sp)
+            Text(formatTimelineTime(total / 4), color = MutedTextColor, fontSize = 7.sp)
+            Text(formatTimelineTime(total / 2), color = MutedTextColor, fontSize = 7.sp)
+            Text(formatTimelineTime((total * 3) / 4), color = MutedTextColor, fontSize = 7.sp)
+            Text(formatTimelineTime(total), color = MutedTextColor, fontSize = 7.sp)
+        }
 
         // Thin strip above the video track showing where text/graphic layers sit, like the
         // colored title bars in professional NLEs. Layers currently span the whole project
@@ -256,7 +274,7 @@ fun Timeline(
                         .clickable { onSelect(clip) }
                 ) {
                     // Real frame/photo thumbnail behind the label, like a professional NLE.
-                    ClipThumbnail(clip.uri)
+                    ClipFilmstrip(clip.uri, Modifier.fillMaxSize())
                     // Scrim so the label stays readable over any thumbnail content.
                     Box(
                         Modifier
