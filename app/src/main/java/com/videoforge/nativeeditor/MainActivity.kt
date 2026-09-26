@@ -2578,7 +2578,8 @@ private fun EditorScreen(
                     playheadMs = (offset + newLocal).coerceIn(0L, timelineTotalDuration(clips))
                 },
                 onAddMedia = { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)) },
-                textLayerNames = settings.textLayers.mapIndexed { i, layer -> layer.name.ifBlank { (if (language == AppLanguage.ARABIC) "نص " else "Text ") + (i + 1) } }
+                textLayerNames = settings.textLayers.mapIndexed { i, layer -> layer.name.ifBlank { (if (language == AppLanguage.ARABIC) "نص " else "Text ") + (i + 1) } },
+                filterName = settings.filter
             )
 
             // Editing controls are intentionally kept in the fixed bottom dock for a clean mobile workflow.
