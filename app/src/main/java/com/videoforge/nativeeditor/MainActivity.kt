@@ -332,7 +332,6 @@ private fun VideoForgeApp() {
     var selected by remember { mutableIntStateOf(0) }
     var showTemplates by remember { mutableStateOf(false) }
     var showSettings by remember { mutableStateOf(false) }
-    var showAiStudio by remember { mutableStateOf(false) }
     var showBrandSplash by rememberSaveable { mutableStateOf(true) }
 
     LaunchedEffect(Unit) {
@@ -422,19 +421,6 @@ private fun VideoForgeApp() {
                         LanguageManager.setLanguage(context, it)
                     }
                 )
-            } else if (showAiStudio) {
-                AiStudioScreen(
-                    isArabic = language == AppLanguage.ARABIC,
-                    onBack = { showAiStudio = false },
-                    onOpenInEditor = { uri ->
-                        projectId = ProjectRepository.newId()
-                        projectName = if (language == AppLanguage.ARABIC) "صورة AI" else "AI Photo"
-                        clips = listOf(Clip(uri, projectName))
-                        ProjectRepository.save(context, projectId, clips, projectName)
-                        showAiStudio = false
-                        showEditor = true
-                    }
-                )
             } else {
                 if (selected == 1) {
                     ProjectsScreen(
@@ -471,8 +457,7 @@ private fun VideoForgeApp() {
                         selected = 0
                         showEditor = true
                     },
-                    onViewAllProjects = { selected = 1 },
-                    onOpenAiStudio = { showAiStudio = true }
+                    onViewAllProjects = { selected = 1 }
                     )
                 }
             }
@@ -575,13 +560,11 @@ private fun HomeScreen(
     onImport: () -> Unit,
     onOpenTemplates: () -> Unit,
     onOpenProject: (RecentProject) -> Unit,
-    onViewAllProjects: () -> Unit,
-    onOpenAiStudio: () -> Unit
+    onViewAllProjects: () -> Unit
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     var recentProjects by remember { mutableStateOf(emptyList<RecentProject>()) }
-    var hasPermission by remember { mutableStateOf(true) }
 
     fun reloadRecentProjects() {
         recentProjects = ProjectRepository.load(context).mapNotNull { project ->
@@ -597,96 +580,255 @@ private fun HomeScreen(
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
-
-    LaunchedEffect(Unit) {
-        reloadRecentProjects()
-    }
-
-    val scroll = rememberScrollState()
+    LaunchedEffect(Unit) { reloadRecentProjects() }
 
     MaterialTheme(
-        colorScheme = lightColorScheme(
-            primary = Color(0xFF6D3DFF), onPrimary = Color.White,
-            secondary = Color(0xFF008F82),
-            background = Color(0xFFF5F7FB), surface = Color.White,
-            surfaceVariant = Color(0xFFE9EDF5),
-            onBackground = Color(0xFF172033), onSurface = Color(0xFF172033),
-            onSurfaceVariant = Color(0xFF4E5A6D)
+        colorScheme = darkColorScheme(
+            primary = Color(0xFF7C4DFF),
+            secondary = Color(0xFF18C8FF),
+            background = Color(0xFF050810),
+            surface = Color(0xFF0B1220),
+            surfaceVariant = Color(0xFF111B2C),
+            onBackground = Color.White,
+            onSurface = Color.White,
+            onSurfaceVariant = Color(0xFF9AA8BD)
         )
     ) {
-    Scaffold(
-        containerColor = Color.Transparent,
-        topBar = { HomeTopBar(language, onLanguageSelected, onOpenSettings) },
-        bottomBar = {
-            HomeBottomBar(selected = selected, onSelected = onSelected, onImport = onImport)
-        }
-    ) { pad ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            Color(0xFFF7F0FF),
-                            Color(0xFFEAF3FF),
-                            Color(0xFFE7FAF6)
-                        )
-                    )
-                )
-        ) {
+        Scaffold(
+            containerColor = Color(0xFF050810),
+            topBar = { HomeTopBar(language, onLanguageSelected, onOpenSettings) },
+            bottomBar = { HomeBottomBar(selected = selected, onSelected = onSelected, onImport = onImport) }
+        ) { pad ->
             Column(
                 Modifier
                     .fillMaxSize()
                     .padding(pad)
-                    .verticalScroll(scroll)
-                    .padding(bottom = 8.dp)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 14.dp, vertical = 12.dp)
             ) {
-            Spacer(Modifier.height(6.dp))
-            HeroCard(language = language, onNewProject = onNewProject)
-            Spacer(Modifier.height(16.dp))
+                HomeHero(language = language, onNewProject = onNewProject, onImport = onImport)
+                Spacer(Modifier.height(16.dp))
 
-            ActionCards(onImport = onImport, onTemplates = onOpenTemplates, onCapture = {
-                val intent = Intent(MediaStore.ACTION_VIDEO_CAPTURE)
-                try { context.startActivity(intent) } catch (_: Exception) { }
-            })
-            Spacer(Modifier.height(12.dp))
-            AiPhotoStudioEntry(language = language, onClick = onOpenAiStudio)
-            Spacer(Modifier.height(16.dp))
+                Text(
+                    if (language == AppLanguage.ARABIC) "ابدأ مشروعك" else "Start creating",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+                Spacer(Modifier.height(9.dp))
+                ActionCards(
+                    language = language,
+                    onImport = onImport,
+                    onTemplates = onOpenTemplates,
+                    onCapture = {
+                        runCatching {
+                            context.startActivity(Intent(MediaStore.ACTION_VIDEO_CAPTURE))
+                        }
+                    }
+                )
+                Spacer(Modifier.height(22.dp))
 
-            SectionHeader(stringResource(R.string.drafts), stringResource(R.string.view_all), onViewAllProjects)
-            Spacer(Modifier.height(8.dp))
-            RecentProjects(
-                projects = recentProjects,
-                hasPermission = true,
-                onRequestPermission = { },
-                onOpenProject = onOpenProject
-            )
-            Spacer(Modifier.height(16.dp))
-
-                Spacer(Modifier.height(10.dp))
+                SectionHeader(
+                    if (language == AppLanguage.ARABIC) "المشاريع الأخيرة" else "Recent projects",
+                    if (language == AppLanguage.ARABIC) "عرض الكل" else "View all",
+                    onViewAllProjects
+                )
+                Spacer(Modifier.height(9.dp))
+                RecentProjects(
+                    projects = recentProjects,
+                    hasPermission = true,
+                    onRequestPermission = {},
+                    onOpenProject = onOpenProject
+                )
+                Spacer(Modifier.height(18.dp))
             }
         }
-    }
     }
 }
 
+@Composable
+private fun HomeHero(
+    language: AppLanguage,
+    onNewProject: () -> Unit,
+    onImport: () -> Unit
+) {
+    val arabic = language == AppLanguage.ARABIC
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .height(230.dp)
+            .clip(RoundedCornerShape(24.dp))
+            .background(Brush.linearGradient(listOf(Color(0xFF17104A), Color(0xFF0D2744), Color(0xFF07111F))))
+            .border(1.dp, Color(0x332F7BFF), RoundedCornerShape(24.dp))
+    ) {
+        Box(
+            Modifier.fillMaxSize().background(
+                Brush.radialGradient(
+                    colors = listOf(Color(0x556E3BFF), Color.Transparent),
+                    radius = 520f
+                )
+            )
+        )
+        Column(
+            Modifier.fillMaxSize().padding(22.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = if (arabic) Alignment.End else Alignment.Start
+        ) {
+            Text(
+                if (arabic) "استوديو فيديو احترافي" else "Professional video studio",
+                color = Color.White.copy(alpha = .72f),
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium
+            )
+            Spacer(Modifier.height(6.dp))
+            Text(
+                if (arabic) "اصنع فيديوك من الفكرة إلى التصدير" else "Turn your idea into a finished video",
+                color = Color.White,
+                fontSize = 25.sp,
+                lineHeight = 30.sp,
+                fontWeight = FontWeight.ExtraBold,
+                textAlign = if (arabic) TextAlign.End else TextAlign.Start
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                if (arabic) "قص دقيق، صوت، نصوص، مؤثرات، فلاتر، انتقالات وطبقات داخل محرر واحد." else "Precise cuts, audio, text, effects, filters, transitions and layers in one editor.",
+                color = Color(0xFFB8C4D8),
+                fontSize = 11.sp,
+                lineHeight = 16.sp,
+                textAlign = if (arabic) TextAlign.End else TextAlign.Start
+            )
+            Spacer(Modifier.height(17.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(
+                    onClick = onNewProject,
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF7547FF)),
+                    contentPadding = PaddingValues(horizontal = 15.dp, vertical = 9.dp)
+                ) {
+                    Icon(Icons.Default.Add, null, Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text(if (arabic) "مشروع جديد" else "New project", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                }
+                OutlinedButton(
+                    onClick = onImport,
+                    shape = RoundedCornerShape(14.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x554F8BFF)),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 9.dp)
+                ) {
+                    Icon(Icons.Default.FileOpen, null, Modifier.size(17.dp))
+                    Spacer(Modifier.width(5.dp))
+                    Text(if (arabic) "استيراد" else "Import", fontSize = 12.sp)
+                }
+            }
+        }
+    }
+}
 
 @Composable
-private fun AiPhotoStudioEntry(language: AppLanguage, onClick: () -> Unit) {
-    val arabic = language == AppLanguage.ARABIC
-    Card(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).clickable(onClick = onClick), shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFF171B2A))) {
-        Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(54.dp).clip(RoundedCornerShape(16.dp)).background(Brush.linearGradient(listOf(Color(0xFFFF4F9A), Color(0xFF7048FF)))), contentAlignment = Alignment.Center) {
-                Icon(Icons.Default.AutoAwesome, null, tint = Color.White, modifier = Modifier.size(30.dp))
+private fun HomeTopBar(
+    language: AppLanguage,
+    onLanguageSelected: (AppLanguage) -> Unit,
+    onOpenSettings: () -> Unit
+) {
+    var languageMenu by remember { mutableStateOf(false) }
+    Surface(color = Color(0xFF070C16), shadowElevation = 5.dp) {
+        Row(
+            Modifier.fillMaxWidth().height(66.dp).padding(horizontal = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = onOpenSettings) {
+                Icon(Icons.Default.Settings, null, tint = Color(0xFFD4DCEB))
             }
-            Spacer(Modifier.width(14.dp))
-            Column(Modifier.weight(1f)) {
-                Text(if (arabic) "استوديو AI للصور" else "AI Photo Studio", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 17.sp)
-                Spacer(Modifier.height(3.dp))
-                Text(if (arabic) "حوّل صورك إلى أنماط فنية واحفظها أو افتحها في المحرر" else "Transform photos, save them, or open them in the video editor", color = Color.White.copy(alpha = 0.72f), fontSize = 12.sp)
+            Column(Modifier.weight(1f).padding(horizontal = 8.dp)) {
+                Text("VideoForge", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 18.sp)
+                Text(
+                    if (language == AppLanguage.ARABIC) "محرر فيديو احترافي" else "Professional video editor",
+                    color = Color(0xFF8492A8), fontSize = 9.sp
+                )
             }
-            Text(if (arabic) "فتح" else "Open", color = Color.White, fontWeight = FontWeight.SemiBold)
+            Box {
+                IconButton(onClick = { languageMenu = true }) {
+                    Icon(Icons.Default.Language, null, tint = Color(0xFFB7C5DA))
+                }
+                DropdownMenu(expanded = languageMenu, onDismissRequest = { languageMenu = false }) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.arabic)) },
+                        onClick = { languageMenu = false; onLanguageSelected(AppLanguage.ARABIC) }
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.english)) },
+                        onClick = { languageMenu = false; onLanguageSelected(AppLanguage.ENGLISH) }
+                    )
+                }
+            }
         }
+    }
+}
+
+@Composable
+private fun ActionCards(
+    language: AppLanguage,
+    onImport: () -> Unit,
+    onTemplates: () -> Unit,
+    onCapture: () -> Unit
+) {
+    val arabic = language == AppLanguage.ARABIC
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+        HomeActionCard(
+            Modifier.weight(1f),
+            Icons.Default.VideoLibrary,
+            if (arabic) "استيراد" else "Import",
+            if (arabic) "فيديو وصور" else "Video & photos",
+            Color(0xFF7445FF),
+            onImport
+        )
+        HomeActionCard(
+            Modifier.weight(1f),
+            Icons.Default.AutoAwesomeMotion,
+            if (arabic) "قوالب" else "Templates",
+            if (arabic) "ابدأ بسرعة" else "Start faster",
+            Color(0xFF00BFAF),
+            onTemplates
+        )
+        HomeActionCard(
+            Modifier.weight(1f),
+            Icons.Default.Videocam,
+            if (arabic) "تصوير" else "Camera",
+            if (arabic) "التقط الآن" else "Record now",
+            Color(0xFF287BFF),
+            onCapture
+        )
+    }
+}
+
+@Composable
+private fun HomeActionCard(
+    modifier: Modifier,
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    accent: Color,
+    onClick: () -> Unit
+) {
+    Column(
+        modifier
+            .height(118.dp)
+            .clip(RoundedCornerShape(18.dp))
+            .background(Brush.linearGradient(listOf(accent.copy(alpha = .30f), Color(0xFF0D1625))))
+            .border(1.dp, accent.copy(alpha = .18f), RoundedCornerShape(18.dp))
+            .clickable(onClick = onClick)
+            .padding(8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Box(
+            Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(accent.copy(alpha = .18f)),
+            contentAlignment = Alignment.Center
+        ) { Icon(icon, null, Modifier.size(23.dp), tint = Color.White) }
+        Spacer(Modifier.height(7.dp))
+        Text(title, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+        Text(subtitle, color = Color(0xFF9CAAC0), fontSize = 9.sp, maxLines = 1)
     }
 }
 
