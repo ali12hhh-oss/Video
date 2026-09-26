@@ -1174,19 +1174,19 @@ private fun RecentProjects(
     if (projects.isEmpty()) {
         Surface(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
-            color = Color.White, shape = RoundedCornerShape(16.dp), shadowElevation = 1.dp
+            color = Color(0xFF0C1521), shape = RoundedCornerShape(16.dp), shadowElevation = 0.dp
         ) {
             Row(Modifier.padding(horizontal = 16.dp, vertical = 20.dp), verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(48.dp).clip(RoundedCornerShape(14.dp)).background(Color(0xFFF0EBFF)), contentAlignment = Alignment.Center) {
-                    Icon(Icons.Default.VideoLibrary, null, tint = Color(0xFF6D3DFF), modifier = Modifier.size(27.dp))
+                Box(Modifier.size(48.dp).clip(RoundedCornerShape(14.dp)).background(Color(0xFF21163D)), contentAlignment = Alignment.Center) {
+                    Icon(Icons.Default.VideoLibrary, null, tint = Color(0xFF9D70FF), modifier = Modifier.size(27.dp))
                 }
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
-                    Text(stringResource(R.string.no_saved_projects), fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    Text(stringResource(R.string.no_saved_projects), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                     Spacer(Modifier.height(3.dp))
-                    Text(stringResource(R.string.create_first_project), color = Color(0xFF667085), fontSize = 10.sp)
+                    Text(stringResource(R.string.create_first_project), color = Color(0xFF8D9AB0), fontSize = 10.sp)
                 }
-                Icon(Icons.Default.ChevronRight, null, tint = Color(0xFF667085))
+                Icon(Icons.Default.ChevronRight, null, tint = Color(0xFF8D9AB0))
             }
         }
         return
@@ -1199,7 +1199,7 @@ private fun RecentProjects(
                 thumbnail = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { loadVideoThumbnail(context, project.uri) }
             }
             Column(
-                Modifier.width(166.dp).clip(RoundedCornerShape(16.dp)).background(Color.White)
+                Modifier.width(166.dp).clip(RoundedCornerShape(16.dp)).background(Color(0xFF0C1521))
                     .clickable { onOpenProject(project) }.padding(8.dp)
             ) {
                 Box(Modifier.fillMaxWidth().height(96.dp).clip(RoundedCornerShape(11.dp)).background(Color(0xFFE9EDF5))) {
@@ -1221,8 +1221,8 @@ private fun RecentProjects(
                     }
                 }
                 Spacer(Modifier.height(7.dp))
-                Text(project.name, color = Color(0xFF101828), fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 1)
-                Text(formatProjectDate(project.dateModifiedSeconds), color = Color(0xFF475467), fontSize = 10.sp, maxLines = 1)
+                Text(project.name, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                Text(formatProjectDate(project.dateModifiedSeconds), color = Color(0xFF8D9AB0), fontSize = 10.sp, maxLines = 1)
             }
         }
     }
@@ -2192,35 +2192,87 @@ private fun EditorScreen(
         bottomBar = {
             Surface(color = Color(0xFF080D17), tonalElevation = 12.dp, shadowElevation = 12.dp) {
                 CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
-                    Row(Modifier.fillMaxWidth().padding(horizontal = 7.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        val dockTools = listOf(
-                            Triple("edit", Icons.Default.ContentCut, if(language==AppLanguage.ARABIC) "قص" else "Trim"),
-                            Triple("audio", Icons.Default.MusicNote, if(language==AppLanguage.ARABIC) "صوت" else "Audio"),
-                            Triple("effects", Icons.Default.AutoAwesome, if(language==AppLanguage.ARABIC) "مؤثرات" else "Effects"),
-                            Triple("filters", Icons.Default.FilterVintage, if(language==AppLanguage.ARABIC) "فلاتر" else "Filters"),
-                            Triple("text", Icons.Default.TextFields, if(language==AppLanguage.ARABIC) "نص" else "Text"),
-                            Triple("more", Icons.Default.MoreHoriz, if(language==AppLanguage.ARABIC) "المزيد" else "More")
-                        )
-                        dockTools.forEach { (id, icon, label) ->
-                            val selectedTool = activeEditorTool == id
-                            Column(
-                                Modifier.weight(1f).clip(RoundedCornerShape(12.dp))
-                                    .background(if(selectedTool) Brush.linearGradient(listOf(Color(0xFF6C3BFF), Color(0xFF2F7BFF))) else Brush.linearGradient(listOf(Color(0xFF101827), Color(0xFF101827))))
-                                    .clickable { activeEditorTool = id }
-                                    .padding(vertical = 5.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) {
-                                Icon(icon, null, tint = if(selectedTool) Color.White else Color(0xFFB9C3D6), modifier = Modifier.size(20.dp))
-                                Text(label, color = if(selectedTool) Color.White else Color(0xFF9BA7BB), fontSize = 8.sp, maxLines = 1)
+                    Column(Modifier.fillMaxWidth()) {
+                        // Professional mobile editing dock: primary tools stay visible, while secondary
+                        // tools remain reachable by horizontal scrolling instead of being buried in one
+                        // oversized "More" bucket.
+                        LazyRow(
+                            modifier = Modifier.fillMaxWidth(),
+                            contentPadding = PaddingValues(horizontal = 7.dp),
+                            horizontalArrangement = Arrangement.spacedBy(5.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            val dockTools = listOf(
+                                Triple("edit", Icons.Default.ContentCut, if(language==AppLanguage.ARABIC) "تحرير" else "Edit"),
+                                Triple("audio", Icons.Default.MusicNote, if(language==AppLanguage.ARABIC) "صوت" else "Audio"),
+                                Triple("text", Icons.Default.TextFields, if(language==AppLanguage.ARABIC) "نص" else "Text"),
+                                Triple("effects", Icons.Default.AutoAwesome, if(language==AppLanguage.ARABIC) "مؤثرات" else "Effects"),
+                                Triple("filters", Icons.Default.FilterVintage, if(language==AppLanguage.ARABIC) "فلاتر" else "Filters"),
+                                Triple("adjust", Icons.Default.Tune, if(language==AppLanguage.ARABIC) "لون" else "Adjust"),
+                                Triple("canvas", Icons.Default.CropFree, if(language==AppLanguage.ARABIC) "قصّ" else "Canvas"),
+                                Triple("layers", Icons.Default.Layers, if(language==AppLanguage.ARABIC) "طبقات" else "Layers"),
+                                Triple("more", Icons.Default.MoreHoriz, if(language==AppLanguage.ARABIC) "المزيد" else "More")
+                            )
+                            items(dockTools, key = { it.first }) { (id, icon, label) ->
+                                val selectedTool = activeEditorTool == id
+                                Column(
+                                    Modifier
+                                        .width(66.dp)
+                                        .height(58.dp)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(
+                                            if (selectedTool)
+                                                Brush.linearGradient(listOf(Color(0xFF6C3BFF), Color(0xFF2F7BFF)))
+                                            else
+                                                Brush.linearGradient(listOf(Color(0xFF101827), Color(0xFF101827)))
+                                        )
+                                        .clickable { activeEditorTool = id }
+                                        .padding(vertical = 5.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Center
+                                ) {
+                                    Icon(
+                                        icon,
+                                        null,
+                                        tint = if(selectedTool) Color.White else Color(0xFFB9C3D6),
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Text(
+                                        label,
+                                        color = if(selectedTool) Color.White else Color(0xFF9BA7BB),
+                                        fontSize = 8.sp,
+                                        maxLines = 1
+                                    )
+                                }
+                            }
+                            item(key = "add-media") {
+                                Box(
+                                    Modifier
+                                        .size(58.dp)
+                                        .clip(RoundedCornerShape(14.dp))
+                                        .background(Brush.linearGradient(listOf(Color(0xFF7B2CFF), Color(0xFF1677FF))))
+                                        .clickable { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)) },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(Icons.Default.Add, null, tint = Color.White, modifier = Modifier.size(25.dp))
+                                }
                             }
                         }
-                        Box(
-                            Modifier.size(46.dp).clip(RoundedCornerShape(14.dp))
-                                .background(Brush.linearGradient(listOf(Color(0xFF7B2CFF), Color(0xFF1677FF))))
-                                .clickable { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)) },
-                            contentAlignment = Alignment.Center
+                        Row(
+                            Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 2.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(Icons.Default.Add, null, tint = Color.White, modifier = Modifier.size(24.dp))
+                            Text(
+                                if (language == AppLanguage.ARABIC) "الأدوات مرتبة حسب نوع العمل" else "Tools are grouped by workflow",
+                                color = Color(0xFF66758C),
+                                fontSize = 8.sp,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Text(
+                                if (language == AppLanguage.ARABIC) "اسحب لعرض المزيد" else "Swipe for more",
+                                color = Color(0xFF53647A),
+                                fontSize = 8.sp
+                            )
                         }
                     }
                 }
