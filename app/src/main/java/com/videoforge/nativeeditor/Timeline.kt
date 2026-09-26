@@ -98,7 +98,16 @@ private fun loadClipThumbnails(context: android.content.Context, uri: Uri, count
         val durationUs = (retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 1L) * 1000L
         val frames = (0 until count).mapNotNull { index ->
             val atUs = if (count <= 1) 0L else (durationUs * index / (count - 1)).coerceIn(0L, durationUs)
-            retriever.getFrameAtTime(atUs, android.media.MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+            if (Build.VERSION.SDK_INT >= 27) {
+                retriever.getScaledFrameAtTime(
+                    atUs,
+                    android.media.MediaMetadataRetriever.OPTION_CLOSEST_SYNC,
+                    240,
+                    135
+                )
+            } else {
+                retriever.getFrameAtTime(atUs, android.media.MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+            }
         }
         retriever.release()
         frames
