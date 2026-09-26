@@ -89,7 +89,7 @@ private fun timelineClipDurationForUi(clip: Clip): Long {
 private fun loadClipThumbnails(context: android.content.Context, uri: Uri, count: Int = 6): List<Bitmap> {
     return try {
         val retriever = android.media.MediaMetadataRetriever()
-        retriever.setDataSource(uri)
+        retriever.setDataSource(context, uri)
         val durationUs = (retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 1L) * 1000L
         val frames = (0 until count).mapNotNull { index ->
             val atUs = if (count <= 1) 0L else (durationUs * index / (count - 1)).coerceIn(0L, durationUs)
