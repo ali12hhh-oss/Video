@@ -2121,6 +2121,7 @@ private fun EditorScreen(
     var previewError by remember { mutableStateOf<String?>(null) }
     var previewToggleToken by remember { mutableIntStateOf(0) }
     var exportSettings by remember { mutableStateOf(ExportSettings()) }
+    var musicSourceDurationMs by remember(projectId, settings.musicUri) { mutableLongStateOf(0L) }
     var status by remember { mutableStateOf("") }
     var lastExportUri by remember { mutableStateOf<Uri?>(null) }
     var watermarkRemovedForExport by rememberSaveable(projectId) { mutableStateOf(false) }
@@ -2128,6 +2129,19 @@ private fun EditorScreen(
 
     LaunchedEffect(Unit) {
         WatermarkRewardManager.load(context)
+    }
+    LaunchedEffect(settings.musicUri) {
+        musicSourceDurationMs = if (settings.musicUri.isBlank()) 0L else mediaDurationMs(context, Uri.parse(settings.musicUri))
+        if (musicSourceDurationMs > 0L) {
+            val maxStart = (musicSourceDurationMs - 300L).coerceAtLeast(0L)
+            val safeStart = settings.musicStartMs.coerceIn(0L, maxStart)
+            val maxDuration = (musicSourceDurationMs - safeStart).coerceAtLeast(300L)
+            val safeDuration = settings.musicDurationMs.coerceIn(0L, maxDuration)
+            if (safeStart != settings.musicStartMs || safeDuration != settings.musicDurationMs) {
+                settings = settings.copy(musicStartMs = safeStart, musicDurationMs = safeDuration)
+                EditorSettingsRepository.save(context, projectId, settings)
+            }
+        }
     }
 
     fun watchRewardedAdForWatermark() {
@@ -2664,6 +2678,7 @@ private fun EditorScreen(
                 musicUri = settings.musicUri,
                 musicStartMs = settings.musicStartMs,
                 musicDurationMs = settings.musicDurationMs,
+                musicSourceDurationMs = musicSourceDurationMs,
                 musicVolume = settings.musicVolume,
                 musicFadeIn = settings.musicFadeIn,
                 musicFadeOut = settings.musicFadeOut,
@@ -2674,8 +2689,10 @@ private fun EditorScreen(
                 audioFadeOut = maxOf(settings.fadeOut, current?.audioFadeOut ?: 0f),
                 onAudioTrackClick = { activeEditorTool = "audio" },
                 onMusicTrim = { start, duration ->
-                    val safeStart = start.coerceAtLeast(0L)
-                    val safeDuration = duration.coerceAtLeast(1L)
+                    val safeSource = musicSourceDurationMs
+                    val safeStart = if (safeSource > 0L) start.coerceIn(0L, (safeSource - 300L).coerceAtLeast(0L)) else start.coerceAtLeast(0L)
+                    val maxDuration = if (safeSource > 0L) (safeSource - safeStart).coerceAtLeast(300L) else Long.MAX_VALUE
+                    val safeDuration = duration.coerceIn(1L, maxDuration)
                     updateSettings(settings.copy(musicStartMs = safeStart, musicDurationMs = safeDuration))
                 },
                 onSelect = { clip -> current = clip; playheadMs = timelinePositionOf(clips, clip) },
