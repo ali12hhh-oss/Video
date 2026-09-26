@@ -1491,7 +1491,8 @@ private fun EditorFeaturePanel(
     onMoveLeft: () -> Unit, onMoveRight: () -> Unit, onFreeze: () -> Unit,
     onExtractAudio: () -> Unit, onAudioKeyframes: () -> Unit, onMusicKeyframes: () -> Unit,
     onTextDialog: () -> Unit, onTextAnimation: () -> Unit, onSubtitles: () -> Unit,
-    onLayersDialog: () -> Unit, onVideoKeyframes: () -> Unit, onMarkers: () -> Unit
+    onLayersDialog: () -> Unit, onVideoKeyframes: () -> Unit, onMarkers: () -> Unit,
+    onOpenAdvancedTool: (String) -> Unit
 ) {
     if (activeTool == null) return
     var adjustFeature by remember(activeTool) { mutableStateOf("brightness") }
@@ -1644,17 +1645,17 @@ private fun EditorFeaturePanel(
                                     "mute" -> onSettingsLiveChange(settings.copy(muted=!settings.muted))
                                     "keys" -> onAudioKeyframes(); "music" -> onMusicKeyframes()
                                 }
-                                "text" -> when(id) { "text" -> Unit; "animation" -> onTextAnimation(); "textLayers" -> onLayersDialog() }
+                                "text" -> when(id) { "text" -> onOpenAdvancedTool("text"); "animation" -> onTextAnimation(); "textLayers" -> onLayersDialog() }
                                 "effects" -> effectFeature=id
                                 "filters" -> onSettingsLiveChange(settings.copy(filter=id))
                                 "adjust" -> adjustFeature=id
                                 "canvas" -> when(id) {
-                                    "crop" -> onSettingsLiveChange(settings.copy(cropZoom=(settings.cropZoom+0.1f).coerceAtMost(3f)))
-                                    "rotate" -> onSettingsLiveChange(settings.copy(rotation=(settings.rotation+90)%360))
-                                    "flip" -> onSettingsLiveChange(settings.copy(flipHorizontal=!settings.flipHorizontal))
+                                    "crop" -> onOpenAdvancedTool("crop")
+                                    "rotate" -> onOpenAdvancedTool("rotate")
+                                    "flip" -> onOpenAdvancedTool("flip")
                                     else -> onSettingsLiveChange(settings.copy(aspect=id))
                                 }
-                                "transition" -> if(id!="none") onSettingsLiveChange(settings.copy(transition=id))
+                                "transition" -> if(id=="none") onSettingsLiveChange(settings.copy(transition="none")) else onOpenAdvancedTool("transition")
                                 "subtitles" -> when(id) { "open" -> onSubtitles(); "markers" -> onMarkers() }
                                 "layers" -> when(id) { "manage","text","pip" -> onLayersDialog() }
                                 "videoKeyframes" -> when(id) { "video" -> onVideoKeyframes(); "markers" -> onMarkers() }
@@ -2528,7 +2529,8 @@ private fun EditorScreen(
                 onSubtitles = { tool="subtitles" },
                 onLayersDialog = { showLayers=true },
                 onVideoKeyframes = { showVideoKeyframes=true },
-                onMarkers = { showMarkers=true }
+                onMarkers = { showMarkers=true },
+                onOpenAdvancedTool = { tool = it }
             )
 
 
