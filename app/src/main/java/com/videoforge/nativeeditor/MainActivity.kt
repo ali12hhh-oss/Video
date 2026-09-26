@@ -19,6 +19,7 @@ import android.util.Size
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.foundation.background
@@ -436,7 +437,7 @@ private fun VideoForgeApp() {
                             selected = 0
                             showEditor = true
                         },
-                        onNewProject = { launchMediaPicker() }
+                        onNewProject = { projectId = ProjectRepository.newId(); projectName = context.getString(R.string.new_project); clips = emptyList(); selected = 0; showEditor = true }
                     )
                 } else {
                     HomeScreen(
@@ -465,7 +466,7 @@ private fun VideoForgeApp() {
                     },
                     selected = selected,
                     onSelected = { selected = it },
-                    onNewProject = { launchMediaPicker() },
+                    onNewProject = { projectId = ProjectRepository.newId(); projectName = context.getString(R.string.new_project); clips = emptyList(); showEditor = true },
                     onImport = {
                         launchMediaPicker()
                     },
@@ -589,7 +590,7 @@ private fun ProjectsScreen(
     var projects by remember { mutableStateOf(emptyList<RecentProject>()) }
 
     LaunchedEffect(Unit) {
-        projects = RecentProjectsRepository.load(context, includeDeviceVideos = false)
+        projects = RecentProjectsRepository.load(context, includeDeviceVideos = true)
     }
 
     val filtered = projects.filter { project ->
@@ -2277,44 +2278,22 @@ private fun EditorScreen(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    val picker = rememberLauncherForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        if (result.resultCode == Activity.RESULT_OK) {
-            val data = result.data
-            val uris = buildList {
-                data?.data?.let(::add)
-                data?.clipData?.let { clipData ->
-                    for (i in 0 until clipData.itemCount) add(clipData.getItemAt(i).uri)
-                }
-            }.distinct().take(20)
-            if (uris.isNotEmpty()) {
-                val added = uris.mapIndexed { i, uri ->
-                    persistUriAccess(context, uri)
-                    val duration = defaultClipDurationMs(context, uri)
-                    Clip(
-                        uri = uri,
-                        name = context.getString(R.string.clip_number, clips.size + i + 1),
-                        durationMs = duration,
-                        trimStartMs = 0L,
-                        trimEndMs = duration
-                    )
-                }
-                commitClips(clips + added)
-                current = added.firstOrNull()
+    val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(20)) { uris ->
+        if (uris.isNotEmpty()) {
+            val added = uris.mapIndexed { i, uri ->
+                persistUriAccess(context, uri)
+                val duration = defaultClipDurationMs(context, uri)
+                Clip(
+                    uri = uri,
+                    name = context.getString(R.string.clip_number, clips.size + i + 1),
+                    durationMs = duration,
+                    trimStartMs = 0L,
+                    trimEndMs = duration
+                )
             }
+            commitClips(clips + added)
+            current = added.first()
         }
-    }
-
-    fun launchMediaPicker() {
-        picker.launch(
-            Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
-                addCategory(Intent.CATEGORY_OPENABLE)
-                type = "*/*"
-                putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("image/*", "video/*"))
-                putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
-            }
-        )
     }
     fun extractAudioFromCurrent() {
         val clip = current
@@ -2408,21 +2387,12 @@ private fun EditorScreen(
         }
     }
 
-    val replaceLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        val uri = if (result.resultCode == Activity.RESULT_OK) result.data?.data else null
+    val replaceLauncher = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         val selected = current
         if (uri != null && selected != null) {
             persistUriAccess(context, uri)
-            val duration = defaultClipDurationMs(context, uri)
-            val updated = selected.copy(
-                uri = uri,
-                name = uri.lastPathSegment?.substringAfterLast('/')?.ifBlank { selected.name } ?: selected.name,
-                durationMs = duration,
-                trimStartMs = 0L,
-                trimEndMs = duration
-            )
+            val duration = mediaDurationMs(context, uri).coerceAtLeast(0L)
+            val updated = selected.copy(uri = uri, name = uri.lastPathSegment?.substringAfterLast('/')?.ifBlank { selected.name } ?: selected.name, durationMs = duration, trimStartMs = 0L, trimEndMs = duration)
             commitClips(clips.map { if (it == selected) updated else it })
             current = updated
             playheadMs = timelinePositionOf(clips.map { if (it == selected) updated else it }, updated)
@@ -2430,20 +2400,7 @@ private fun EditorScreen(
         }
     }
 
-    fun launchReplacePicker() {
-        replaceLauncher.launch(
-            Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
-                addCategory(Intent.CATEGORY_OPENABLE)
-                type = "*/*"
-                putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("image/*", "video/*"))
-            }
-        )
-    }
-
-    val overlayImageLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        val uri = if (result.resultCode == Activity.RESULT_OK) result.data?.data else null
+    val overlayImageLauncher = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) {
             persistUriAccess(context, uri)
             val newLayer = PipLayer(uri = uri.toString())
@@ -2455,19 +2412,7 @@ private fun EditorScreen(
         }
     }
 
-    fun launchOverlayImagePicker() {
-        overlayImageLauncher.launch(
-            Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
-                addCategory(Intent.CATEGORY_OPENABLE)
-                type = "image/*"
-            }
-        )
-    }
-
-    val aiCutoutLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        val uri = if (result.resultCode == Activity.RESULT_OK) result.data?.data else null
+    val aiCutoutLauncher = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) {
             persistUriAccess(context, uri)
             exportScope.launch {
@@ -2483,15 +2428,6 @@ private fun EditorScreen(
                 } else status = if (language == AppLanguage.ARABIC) "تعذر قص الصورة — تحقق من توفر نموذج ML Kit" else "AI cutout failed — check ML Kit model availability"
             }
         }
-    }
-
-    fun launchAiCutoutPicker() {
-        aiCutoutLauncher.launch(
-            Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
-                addCategory(Intent.CATEGORY_OPENABLE)
-                type = "image/*"
-            }
-        )
     }
 
 
@@ -2580,7 +2516,7 @@ private fun EditorScreen(
                                             }
                                         }
                                     },
-                                    onReplace = { launchReplacePicker() },
+                                    onReplace = { replaceLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)) },
                                     onMoveLeft = {
                                         val clip=current
                                         if(clip!=null){ val i=clips.indexOf(clip); if(i>0) commitClips(clips.toMutableList().also{it.add(i-1,it.removeAt(i))}) }
@@ -2808,7 +2744,7 @@ private fun EditorScreen(
                     EditorSettingsRepository.save(context, projectId, settings)
                     playheadMs = (offset + newLocal).coerceIn(0L, timelineTotalDuration(clips))
                 },
-                onAddMedia = { launchMediaPicker() },
+                onAddMedia = { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)) },
                 textLayerNames = settings.textLayers.mapIndexed { i, layer -> layer.name.ifBlank { (if (language == AppLanguage.ARABIC) "نص " else "Text ") + (i + 1) } },
                 filterName = settings.filter
             )
@@ -2891,7 +2827,7 @@ private fun EditorScreen(
                         }
                     }
                     Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).clickable{
-                        launchMediaPicker();showMoreTools=false
+                        picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo));showMoreTools=false
                     }.padding(horizontal=12.dp,vertical=11.dp),verticalAlignment=Alignment.CenterVertically){
                         Text(if(language==AppLanguage.ARABIC)"إضافة فيديو أو صورة" else "Add video or image",color=Color.White,fontSize=12.sp,modifier=Modifier.weight(1f))
                         Icon(Icons.Default.AddPhotoAlternate,null,tint=Color(0xFF7C5CFF),modifier=Modifier.size(19.dp))
@@ -2935,7 +2871,7 @@ private fun EditorScreen(
             "canvas" -> CanvasDialog(settings, language, { updateSettings(it) }, { tool = null })
             "transition" -> TransitionDialog(settings, language, { updateSettings(it) }, { tool = null })
             "sticker" -> StickerDialog(settings, language, { updateSettings(it) }, { tool = null })
-            "overlay" -> OverlayDialog(settings, language, { updateSettings(it) }, { launchOverlayImagePicker() }, { launchAiCutoutPicker() }, { tool = null })
+            "overlay" -> OverlayDialog(settings, language, { updateSettings(it) }, { overlayImageLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }, { aiCutoutLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }, { tool = null })
             "rotate" -> RotateDialog(settings, language, { updateSettings(it) }, { tool = null })
             "flip" -> FlipDialog(settings, language, { updateSettings(it) }, { tool = null })
             "crop" -> CropDialog(settings, language, { updateSettings(it) }, { tool = null })
@@ -3005,7 +2941,7 @@ private fun EditorScreen(
                     tool = null
                 },
                                 onReplace = {
-                    replaceLauncher.launch(Intent(Intent.ACTION_OPEN_DOCUMENT).apply { addCategory(Intent.CATEGORY_OPENABLE); type = "video/*" })
+                    replaceLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly))
                 },
 onDuplicate = {
                     val clip = current
