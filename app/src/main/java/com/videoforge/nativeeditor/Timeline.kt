@@ -20,6 +20,9 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCut
 import androidx.compose.material.icons.filled.Image as ImageIcon
 import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.TextFields
+import androidx.compose.material.icons.filled.Photo
 import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Icon
@@ -41,6 +44,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -202,8 +206,16 @@ fun Timeline(
     val scroll = rememberScrollState()
     val timelineWidth = 760.dp
     val laneHeight = 56.dp
-    val videoClips = clips.filter { !isImageUri(LocalContext.current, it.uri) && !it.isFreezeFrame }
-    val imageClips = clips.filter { isImageUri(LocalContext.current, it.uri) || it.isFreezeFrame }
+    val context = LocalContext.current
+    fun imageUri(uri: Uri): Boolean {
+        val type = runCatching { context.contentResolver.getType(uri) }.getOrNull()
+        if (type != null) return type.startsWith("image/")
+        val name = uri.lastPathSegment?.lowercase().orEmpty()
+        return name.endsWith(".jpg") || name.endsWith(".jpeg") || name.endsWith(".png") ||
+            name.endsWith(".webp") || name.endsWith(".heic") || name.endsWith(".heif")
+    }
+    val videoClips = clips.filter { !imageUri(it.uri) && !it.isFreezeFrame }
+    val imageClips = clips.filter { imageUri(it.uri) || it.isFreezeFrame }
 
     fun clipStartMs(clip: Clip): Long = clips.takeWhile { it != clip }.sumOf { timelineClipDurationForUi(it) }
     fun xFor(time: Long, density: Float): Float =
@@ -381,7 +393,7 @@ fun Timeline(
 
                         TrackLane(
                             label = "Images",
-                            labelIcon = Icons.Default.Image,
+                            labelIcon = Icons.Default.Photo,
                             tint = Color(0xFF33D6B2),
                             laneClips = imageClips
                         )
