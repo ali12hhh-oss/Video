@@ -1498,6 +1498,10 @@ private fun EditorFeaturePanel(
     var effectFeature by remember(activeTool) { mutableStateOf("blur") }
     var audioFeature by remember(activeTool) { mutableStateOf("volume") }
 
+    val clipSummary = current?.let { clip ->
+        if (language == AppLanguage.ARABIC) "المقطع المحدد • ${clip.durationMs / 1000}s" else "Selected clip • ${clip.durationMs / 1000}s"
+    } ?: if (language == AppLanguage.ARABIC) "اختر مقطعًا من المخطط الزمني" else "Select a clip on the timeline"
+
     val mainTitle = when (activeTool) {
         "edit" -> if (language == AppLanguage.ARABIC) "تحرير المقطع" else "Edit clip"
         "audio" -> if (language == AppLanguage.ARABIC) "الصوت" else "Audio"
@@ -1519,10 +1523,10 @@ private fun EditorFeaturePanel(
             Triple("split", Icons.Default.CallSplit, if(language==AppLanguage.ARABIC)"تقسيم" else "Split"),
             Triple("duplicate", Icons.Default.ContentCopy, if(language==AppLanguage.ARABIC)"تكرار" else "Duplicate"),
             Triple("replace", Icons.Default.SwapHoriz, if(language==AppLanguage.ARABIC)"استبدال" else "Replace"),
-            Triple("delete", Icons.Default.Delete, if(language==AppLanguage.ARABIC)"حذف" else "Delete"),
-            Triple("left", Icons.Default.KeyboardArrowLeft, if(language==AppLanguage.ARABIC)"يسار" else "Left"),
-            Triple("right", Icons.Default.KeyboardArrowRight, if(language==AppLanguage.ARABIC)"يمين" else "Right"),
-            Triple("freeze", Icons.Default.AcUnit, if(language==AppLanguage.ARABIC)"تجميد" else "Freeze")
+            Triple("freeze", Icons.Default.AcUnit, if(language==AppLanguage.ARABIC)"تجميد" else "Freeze"),
+            Triple("left", Icons.Default.KeyboardArrowLeft, if(language==AppLanguage.ARABIC)"تحريك يسار" else "Move left"),
+            Triple("right", Icons.Default.KeyboardArrowRight, if(language==AppLanguage.ARABIC)"تحريك يمين" else "Move right"),
+            Triple("delete", Icons.Default.Delete, if(language==AppLanguage.ARABIC)"حذف" else "Delete")
         )
         "audio" -> listOf(
             Triple("volume", Icons.Default.VolumeUp, if(language==AppLanguage.ARABIC)"مستوى الصوت" else "Volume"),
@@ -1601,8 +1605,18 @@ private fun EditorFeaturePanel(
     ) {
         Column(Modifier.padding(vertical = 7.dp)) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(mainTitle, fontWeight = FontWeight.Bold, fontSize = 12.sp, modifier = Modifier.weight(1f))
-                Text(if(language==AppLanguage.ARABIC)"لوحة ثابتة أسفل المخطط" else "Inline panel below timeline", color=Color(0xFF8F9CAF), fontSize=8.sp)
+                Column(Modifier.weight(1f)) {
+                    Text(mainTitle, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    Text(clipSummary, color = Color(0xFF7F8DA3), fontSize = 8.sp, maxLines = 1)
+                }
+                Surface(color = Color(0xFF172235), shape = RoundedCornerShape(8.dp)) {
+                    Text(
+                        if (language == AppLanguage.ARABIC) "أدوات" else "Tools",
+                        color = Color(0xFFB9C3D6),
+                        fontSize = 8.sp,
+                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 4.dp)
+                    )
+                }
             }
             LazyRow(
                 Modifier.fillMaxWidth(),
@@ -2208,8 +2222,9 @@ private fun EditorScreen(
                                 Triple("text", Icons.Default.TextFields, if(language==AppLanguage.ARABIC) "نص" else "Text"),
                                 Triple("effects", Icons.Default.AutoAwesome, if(language==AppLanguage.ARABIC) "مؤثرات" else "Effects"),
                                 Triple("filters", Icons.Default.FilterVintage, if(language==AppLanguage.ARABIC) "فلاتر" else "Filters"),
-                                Triple("adjust", Icons.Default.Tune, if(language==AppLanguage.ARABIC) "لون" else "Adjust"),
-                                Triple("canvas", Icons.Default.CropFree, if(language==AppLanguage.ARABIC) "قصّ" else "Canvas"),
+                                Triple("adjust", Icons.Default.Tune, if(language==AppLanguage.ARABIC) "ضبط" else "Adjust"),
+                                Triple("canvas", Icons.Default.CropFree, if(language==AppLanguage.ARABIC) "لوحة" else "Canvas"),
+                                Triple("transition", Icons.Default.SwapHoriz, if(language==AppLanguage.ARABIC) "انتقال" else "Transition"),
                                 Triple("layers", Icons.Default.Layers, if(language==AppLanguage.ARABIC) "طبقات" else "Layers"),
                                 Triple("more", Icons.Default.MoreHoriz, if(language==AppLanguage.ARABIC) "المزيد" else "More")
                             )
