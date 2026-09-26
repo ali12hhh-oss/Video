@@ -1690,6 +1690,75 @@ private fun EditorFeaturePanel(
                 }
             }
 
+            if (activeTool == "filters") {
+                val filterValues = listOf("none","warm","cool","mono","vintage","dramatic","soft")
+                val filterLabels = if (language == AppLanguage.ARABIC)
+                    listOf("بدون","دافئ","بارد","أبيض وأسود","فنتج","درامي","ناعم")
+                else listOf("None","Warm","Cool","Mono","Vintage","Dramatic","Soft")
+                val context = LocalContext.current
+                var filterPreview by remember(current?.uri) { mutableStateOf<android.graphics.Bitmap?>(null) }
+                LaunchedEffect(current?.uri) {
+                    filterPreview = current?.let { selectedClip ->
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                            loadVideoThumbnail(context, selectedClip.uri)
+                        }
+                    }
+                }
+                LazyRow(
+                    Modifier.fillMaxWidth(),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(filterValues.size) { index ->
+                        val id = filterValues[index]
+                        val selected = settings.filter == id
+                        Column(
+                            Modifier.width(82.dp).clip(RoundedCornerShape(12.dp))
+                                .clickable { onSettingsLiveChange(settings.copy(filter=id)) }
+                                .background(if (selected) Color(0xFF241B3D) else Color(0xFF111925))
+                                .padding(5.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Box(
+                                Modifier.fillMaxWidth().height(54.dp).clip(RoundedCornerShape(9.dp)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (filterPreview != null) {
+                                    Image(
+                                        bitmap = filterPreview!!.asImageBitmap(),
+                                        contentDescription = null,
+                                        contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                    Box(
+                                        Modifier.fillMaxSize().background(
+                                            when (id) {
+                                                "warm" -> Color(0x55FF8A45)
+                                                "cool" -> Color(0x553C8DFF)
+                                                "mono" -> Color(0x66777777)
+                                                "vintage" -> Color(0x554B2A18)
+                                                "dramatic" -> Color(0x55402058)
+                                                "soft" -> Color(0x443B5C9A)
+                                                else -> Color.Transparent
+                                            }
+                                        )
+                                    )
+                                } else {
+                                    Icon(Icons.Default.FilterAlt, null, tint = Color(0xFF9B7BFF))
+                                }
+                                if (selected) {
+                                    Box(Modifier.align(Alignment.TopEnd).padding(4.dp).size(18.dp)
+                                        .clip(RoundedCornerShape(9.dp)).background(Color(0xFF9B7BFF)),
+                                        contentAlignment = Alignment.Center) {
+                                        Icon(Icons.Default.Check, null, tint = Color.White, modifier = Modifier.size(12.dp))
+                                    }
+                                }
+                            }
+                            Text(filterLabels[index], fontSize=8.sp, maxLines=1, color=Color.White, modifier=Modifier.padding(top=5.dp))
+                        }
+                    }
+                }
+            } else {
             LazyRow(
                 Modifier.fillMaxWidth(),
                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 5.dp),
@@ -1782,6 +1851,7 @@ private fun EditorFeaturePanel(
                 }
             }
 
+            }
             if(activeTool=="text") {
                 EditorTextPanel(settings=settings,language=language,onChange=onSettingsLiveChange,onAnimation=onTextAnimation,onLayers=onLayersDialog)
             }
@@ -1941,8 +2011,45 @@ private fun EditorTextPanel(
                 OutlinedTextField(value=layer.text,onValueChange={edit(layer.copy(text=it))},modifier=Modifier.fillMaxWidth(),minLines=2,maxLines=4,label={Text(if(language==AppLanguage.ARABIC)"النص" else "Text")},placeholder={Text(if(language==AppLanguage.ARABIC)"اكتب النص هنا…" else "Type your text…")})
                 Text(if(language==AppLanguage.ARABIC)"قوالب سريعة" else "Quick templates",fontWeight=FontWeight.SemiBold,fontSize=10.sp)
                 LazyRow(horizontalArrangement=Arrangement.spacedBy(6.dp),contentPadding=PaddingValues(bottom=2.dp)){items(presets){preset->AssistChip(onClick={edit(layer.copy(text=preset))},label={Text(preset,fontSize=9.sp)})}}
-                Text(if(language==AppLanguage.ARABIC)"الخط" else "Font",fontWeight=FontWeight.SemiBold,fontSize=10.sp)
-                LazyRow(horizontalArrangement=Arrangement.spacedBy(6.dp),contentPadding=PaddingValues(bottom=2.dp)){items(fontOptions(),key={it.key}){font->FilterChip(selected=layer.font==font.key,onClick={edit(layer.copy(font=font.key))},label={Text(if(language==AppLanguage.ARABIC)font.ar else font.en,fontSize=9.sp)})}}
+                Text(if(language==AppLanguage.ARABIC)"معاينة الخط" else "Font preview",fontWeight=FontWeight.SemiBold,fontSize=10.sp)
+                Text(
+                    text = layer.text.ifBlank { if(language==AppLanguage.ARABIC) "معاينة النص العربي" else "Preview text" },
+                    fontFamily = fontFamilyFor(layer.font, layer.bold),
+                    fontSize = 24.sp,
+                    fontWeight = if (layer.bold) FontWeight.Bold else FontWeight.Normal,
+                    color = Color(layer.color.toInt()),
+                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
+                        .background(Color(0xFF151D2A)).padding(horizontal=12.dp, vertical=10.dp),
+                    textAlign = if (language == AppLanguage.ARABIC) TextAlign.Right else TextAlign.Left,
+                    maxLines = 2
+                )
+                LazyRow(horizontalArrangement=Arrangement.spacedBy(7.dp),contentPadding=PaddingValues(bottom=2.dp)){
+                    items(fontOptions(),key={it.key}){font->
+                        val active = layer.font == font.key
+                        Surface(
+                            modifier = Modifier.width(128.dp).clip(RoundedCornerShape(12.dp)).clickable { edit(layer.copy(font=font.key)) },
+                            color = if (active) Color(0xFF2A2145) else Color(0xFF141B28),
+                            shape = RoundedCornerShape(12.dp),
+                            border = if (active) androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF9B7BFF)) else null
+                        ) {
+                            Column(Modifier.padding(horizontal=10.dp, vertical=8.dp), horizontalAlignment=Alignment.CenterHorizontally) {
+                                Text(
+                                    text = if (language == AppLanguage.ARABIC) "أبجد هوز" else "Aa Bb",
+                                    fontFamily = FontFamily(Font(font.regular)),
+                                    fontSize = 20.sp,
+                                    fontWeight = FontWeight.Normal,
+                                    maxLines = 1
+                                )
+                                Text(
+                                    text = if (language == AppLanguage.ARABIC) font.ar else font.en,
+                                    fontSize = 8.sp,
+                                    color = if (active) Color(0xFFD4C4FF) else Color(0xFF9BA7BA),
+                                    maxLines = 1
+                                )
+                            }
+                        }
+                    }
+                }
                 Row(verticalAlignment=Alignment.CenterVertically){Text(if(language==AppLanguage.ARABIC)"الحجم ${layer.size.toInt()}" else "Size ${layer.size.toInt()}",fontSize=10.sp,modifier=Modifier.weight(1f));Switch(checked=layer.bold,onCheckedChange={edit(layer.copy(bold=it))});Text(if(language==AppLanguage.ARABIC)"عريض" else "Bold",fontSize=9.sp)}
                 Slider(layer.size,{edit(layer.copy(size=it))},valueRange=10f..120f)
                 Text(if(language==AppLanguage.ARABIC)"لون النص" else "Text color",fontWeight=FontWeight.SemiBold,fontSize=10.sp)
