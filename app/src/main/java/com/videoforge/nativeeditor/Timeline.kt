@@ -217,6 +217,20 @@ fun Timeline(
     }
     val videoClips = clips.filter { !imageUri(it.uri) && !it.isFreezeFrame }
     val imageClips = clips.filter { imageUri(it.uri) || it.isFreezeFrame }
+    val activeTrackCount =
+        (if (videoClips.isNotEmpty()) 1 else 0) +
+        (if (imageClips.isNotEmpty()) 1 else 0) +
+        (if (pipLayerCount > 0) 1 else 0) +
+        (if (textLayerNames.isNotEmpty()) 1 else 0) +
+        (if (musicUri.isNotBlank()) 1 else 0)
+    val activeTracksHeight =
+        (if (videoClips.isNotEmpty()) 56 else 0) +
+        (if (imageClips.isNotEmpty()) 56 else 0) +
+        (if (pipLayerCount > 0) 42 else 0) +
+        (if (textLayerNames.isNotEmpty()) 42 else 0) +
+        (if (musicUri.isNotBlank()) 48 else 0) +
+        ((activeTrackCount - 1).coerceAtLeast(0) * 5)
+    val timelineBoxHeight = (24 + 25 + activeTracksHeight + 8).dp
 
     fun clipStartMs(clip: Clip): Long = clips.takeWhile { it != clip }.sumOf { timelineClipDurationForUi(it) }
     fun xFor(time: Long, density: Float): Float =
@@ -250,7 +264,7 @@ fun Timeline(
         Box(
             Modifier
                 .fillMaxWidth()
-                .heightIn(min = 230.dp, max = 310.dp)
+                .height(timelineBoxHeight)
                 .clip(RoundedCornerShape(12.dp))
                 .background(Color(0xFF07111F))
                 .border(1.dp, Color(0xFF172D48), RoundedCornerShape(12.dp))
