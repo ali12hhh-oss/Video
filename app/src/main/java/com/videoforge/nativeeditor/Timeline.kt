@@ -199,6 +199,7 @@ fun Timeline(
     onVideoKeyframeMove: (Long, Long) -> Unit,
     onAddMedia: () -> Unit = {},
     textLayerNames: List<String> = emptyList(),
+    pipLayerCount: Int = 0,
     filterName: String = "none"
 ) {
     val total = clips.sumOf { timelineClipDurationForUi(it) }.coerceAtLeast(1L)
@@ -397,6 +398,46 @@ fun Timeline(
                             tint = Color(0xFF33D6B2),
                             laneClips = imageClips
                         )
+
+                        // PIP / graphics lane gives overlays a real place in the timeline.
+                        Box(
+                            Modifier.fillMaxWidth().height(42.dp)
+                                .clip(RoundedCornerShape(7.dp))
+                                .background(Color(0xFF10162A))
+                        ) {
+                            Icon(
+                                Icons.Default.Image,
+                                contentDescription = "PIP",
+                                tint = Color(0xFF7EC8FF),
+                                modifier = Modifier.align(Alignment.CenterStart).padding(start = 6.dp).size(15.dp)
+                            )
+                            repeat(pipLayerCount.coerceAtMost(4)) { i ->
+                                val left = (0.08f + i * 0.18f).coerceAtMost(0.72f)
+                                Box(
+                                    Modifier.fillMaxHeight().fillMaxWidth(0.22f)
+                                        .offset(x = with(density) { (left * widthPx).toDp() })
+                                        .padding(vertical = 4.dp)
+                                        .clip(RoundedCornerShape(5.dp))
+                                        .background(Color(0xFF24658A))
+                                ) {
+                                    Text(
+                                        "PIP ${i + 1}",
+                                        color = Color.White,
+                                        fontSize = 7.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.align(Alignment.Center)
+                                    )
+                                }
+                            }
+                            if (pipLayerCount == 0) {
+                                Text(
+                                    "PIP / صور",
+                                    color = Color(0xFF6D7F98),
+                                    fontSize = 8.sp,
+                                    modifier = Modifier.align(Alignment.Center)
+                                )
+                            }
+                        }
 
                         // Text lane: real selectable text segments rather than detached chips.
                         Box(
