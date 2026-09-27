@@ -400,11 +400,31 @@ private fun VideoForgeApp() {
     CompositionLocalProvider(LocalLayoutDirection provides direction) {
         MaterialTheme(
             colorScheme = darkColorScheme(
-                background = Color(0xFF05070C),
-                surface = Color(0xFF10131B),
-                surfaceVariant = Color(0xFF171B25),
-                primary = Color(0xFF7C4DFF),
-                secondary = Color(0xFF00D9C6)
+                primary = Color(0xFF8A5CFF),
+                onPrimary = Color.White,
+                primaryContainer = Color(0xFF24164A),
+                onPrimaryContainer = Color(0xFFE8DEFF),
+                secondary = Color(0xFF2D8CFF),
+                onSecondary = Color.White,
+                secondaryContainer = Color(0xFF102B4A),
+                onSecondaryContainer = Color(0xFFD8EBFF),
+                tertiary = Color(0xFF00D8C4),
+                background = Color(0xFF020711),
+                onBackground = Color(0xFFF4F7FC),
+                surface = Color(0xFF08111F),
+                onSurface = Color(0xFFF4F7FC),
+                surfaceVariant = Color(0xFF0E1A2B),
+                onSurfaceVariant = Color(0xFF91A2BA),
+                outline = Color(0xFF294568),
+                outlineVariant = Color(0xFF182B45),
+                error = Color(0xFFFF667A)
+            ),
+            shapes = Shapes(
+                extraSmall = RoundedCornerShape(7.dp),
+                small = RoundedCornerShape(10.dp),
+                medium = RoundedCornerShape(14.dp),
+                large = RoundedCornerShape(18.dp),
+                extraLarge = RoundedCornerShape(22.dp)
             )
         ) {
             if (showBrandSplash) {
@@ -763,14 +783,23 @@ private fun HomeScreen(
 
     MaterialTheme(
         colorScheme = darkColorScheme(
-            primary = Color(0xFF7147FF),
-            secondary = Color(0xFF2D7DFF),
-            background = Color(0xFF020914),
-            surface = Color(0xFF071426),
-            surfaceVariant = Color(0xFF0A192B),
+            primary = Color(0xFF8A5CFF),
+            secondary = Color(0xFF2D8CFF),
+            tertiary = Color(0xFF00D8C4),
+            background = Color(0xFF020711),
+            surface = Color(0xFF08111F),
+            surfaceVariant = Color(0xFF0E1A2B),
             onBackground = Color.White,
             onSurface = Color.White,
-            onSurfaceVariant = Color(0xFF93A5BD)
+            onSurfaceVariant = Color(0xFF91A2BA),
+            outline = Color(0xFF294568)
+        ),
+        shapes = Shapes(
+            extraSmall = RoundedCornerShape(7.dp),
+            small = RoundedCornerShape(10.dp),
+            medium = RoundedCornerShape(14.dp),
+            large = RoundedCornerShape(18.dp),
+            extraLarge = RoundedCornerShape(22.dp)
         )
     ) {
         CompositionLocalProvider(
@@ -1235,7 +1264,7 @@ private fun SettingsSheet(
                     Icon(Icons.Default.Language, null, tint = Color(0xFF6D3DFF))
                     Spacer(Modifier.width(10.dp))
                     Column(Modifier.weight(1f)) {
-                        Text(stringResource(R.string.language), color = Color(0xFF172033), fontWeight = FontWeight.SemiBold)
+                        Text(stringResource(R.string.language), color = Color.White, fontWeight = FontWeight.SemiBold)
                         Text(
                             if (language == AppLanguage.ARABIC) "العربية" else "English",
                             color = Color(0xFF667085),
