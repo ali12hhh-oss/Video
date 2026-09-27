@@ -428,7 +428,7 @@ private fun VideoForgeApp() {
             )
         ) {
             if (showBrandSplash) {
-                BrandSplashScreen()
+                BrandSplashScreen(language = language)
             } else if (showEditor) {
                 EditorScreen(
                     projectId = projectId,
@@ -528,7 +528,8 @@ private fun VideoForgeApp() {
 }
 
 @Composable
-private fun BrandSplashScreen() {
+private fun BrandSplashScreen(language: AppLanguage) {
+    val arabic = language == AppLanguage.ARABIC
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -555,7 +556,7 @@ private fun BrandSplashScreen() {
         ) {
             Image(
                 painter = painterResource(R.drawable.videoforge_logo),
-                contentDescription = "VideoForge",
+                contentDescription = if (arabic) "محرر الفيديو" else "VideoForge",
                 contentScale = androidx.compose.ui.layout.ContentScale.Fit,
                 modifier = Modifier
                     .width(260.dp)
@@ -583,7 +584,7 @@ private fun BrandSplashScreen() {
             }
             Spacer(Modifier.height(16.dp))
             Text(
-                "Create Amazing Videos",
+                if (arabic) "اصنع فيديوهات مذهلة" else "Create Amazing Videos",
                 color = Color.White.copy(alpha = 0.78f),
                 fontSize = 12.sp,
                 letterSpacing = 1.2.sp,
