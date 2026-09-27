@@ -1270,24 +1270,60 @@ private fun SettingsSheet(
 ) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        containerColor = Color(0xFF08111F)
+        containerColor = Color(0xFF07101D),
+        dragHandle = {
+            Box(
+                Modifier
+                    .padding(top = 5.dp)
+                    .size(width = 42.dp, height = 4.dp)
+                    .clip(RoundedCornerShape(4.dp))
+                    .background(Color(0xFF35506F))
+            )
+        }
     ) {
         Column(
-            Modifier.fillMaxWidth().verticalScroll(rememberScrollState())
-                .padding(horizontal = 18.dp, vertical = 8.dp)
+            Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 14.dp, vertical = 6.dp)
         ) {
-            Text(
-                stringResource(R.string.settings),
-                color = Color.White,
-                fontSize = 22.sp,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(Modifier.height(4.dp))
-            Text(
-                if (language == AppLanguage.ARABIC) "إعدادات VideoForge والمحرر" else "VideoForge and editor settings",
-                color = Color(0xFF8EA0B8),
-                fontSize = 11.sp
-            )
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(
+                        Brush.horizontalGradient(
+                            listOf(Color(0xFF101B31), Color(0xFF0A1628))
+                        )
+                    )
+                    .border(1.dp, Color(0x332D8CFF), RoundedCornerShape(16.dp))
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    Modifier
+                        .size(42.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Brush.linearGradient(listOf(Color(0xFF6B3DFF), Color(0xFF2D8CFF)))),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Default.Settings, null, tint = Color.White, modifier = Modifier.size(22.dp))
+                }
+                Spacer(Modifier.width(11.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        stringResource(R.string.settings),
+                        color = Color.White,
+                        fontSize = 19.sp,
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                    Text(
+                        if (language == AppLanguage.ARABIC) "تحكم سريع في تجربة المحرر" else "Quick controls for your editing experience",
+                        color = Color(0xFF8EA0B8),
+                        fontSize = 9.sp
+                    )
+                }
+            }
 
             Spacer(Modifier.height(18.dp))
             Text(
@@ -1403,10 +1439,10 @@ private fun SettingsInfoRow(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
-                Modifier.size(40.dp).clip(RoundedCornerShape(11.dp)).background(Color(0xFFEDE8FF)),
+                Modifier.size(40.dp).clip(RoundedCornerShape(11.dp)).background(Color(0xFF18243A)),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(icon, null, tint = Color(0xFF9B7BFF))
+                Icon(icon, null, tint = Color(0xFF9E86FF), modifier = Modifier.size(21.dp))
             }
             Spacer(Modifier.width(11.dp))
             Column(Modifier.weight(1f)) {
@@ -1427,21 +1463,57 @@ private fun HelpSheet(
     val arabic = language == AppLanguage.ARABIC
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        containerColor = Color(0xFF0A111D)
+        containerColor = Color(0xFF07101D),
+        dragHandle = {
+            Box(
+                Modifier
+                    .padding(top = 5.dp)
+                    .size(width = 42.dp, height = 4.dp)
+                    .clip(RoundedCornerShape(4.dp))
+                    .background(Color(0xFF35506F))
+            )
+        }
     ) {
         Column(
             Modifier
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 18.dp, vertical = 10.dp)
+                .padding(horizontal = 14.dp, vertical = 6.dp)
         ) {
-            Text(
-                if (arabic) "دليل الاستخدام" else "How to use",
-                color = Color.White,
-                fontSize = 22.sp,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(Modifier.height(14.dp))
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(Color(0xFF0D1929))
+                    .border(1.dp, Color(0x332D8CFF), RoundedCornerShape(16.dp))
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    Modifier
+                        .size(42.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Brush.linearGradient(listOf(Color(0xFF00BFAE), Color(0xFF2D8CFF)))),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Default.HelpOutline, null, tint = Color.White, modifier = Modifier.size(22.dp))
+                }
+                Spacer(Modifier.width(11.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        if (arabic) "دليل الاستخدام" else "How to use",
+                        color = Color.White,
+                        fontSize = 19.sp,
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                    Text(
+                        if (arabic) "خطوات سريعة للبدء والتحرير" else "Quick steps to start editing",
+                        color = Color(0xFF8EA0B8),
+                        fontSize = 9.sp
+                    )
+                }
+            }
+            Spacer(Modifier.height(12.dp))
             val items = if (arabic) listOf(
                 "١. اضغط «مشروع جديد» لبدء تحرير فيديو.",
                 "٢. اضغط «مشاريعي» لفتح المشاريع المحفوظة.",
@@ -1459,21 +1531,33 @@ private fun HelpSheet(
                 "6. The editor toolbar contains trim, text, audio, speed and more.",
                 "7. Use Export to save the finished video."
             )
-            items.forEach {
+            items.forEachIndexed { index, item ->
                 Row(
                     Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 7.dp),
-                    verticalAlignment = Alignment.Top
+                        .padding(bottom = 8.dp)
+                        .clip(RoundedCornerShape(13.dp))
+                        .background(Color(0xFF0C1828))
+                        .border(1.dp, Color(0x221F5D99), RoundedCornerShape(13.dp))
+                        .padding(horizontal = 11.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        Icons.Default.CheckCircle,
-                        contentDescription = null,
-                        tint = Color(0xFF7650FF),
-                        modifier = Modifier.size(19.dp)
-                    )
+                    Box(
+                        Modifier
+                            .size(28.dp)
+                            .clip(RoundedCornerShape(9.dp))
+                            .background(Color(0xFF18284A)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            (index + 1).toString(),
+                            color = Color(0xFFB79AFF),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.ExtraBold
+                        )
+                    }
                     Spacer(Modifier.width(10.dp))
-                    Text(it, color = Color(0xFFD8E0EC), fontSize = 12.sp, lineHeight = 19.sp)
+                    Text(item, color = Color(0xFFD8E0EC), fontSize = 11.sp, lineHeight = 17.sp)
                 }
             }
             Spacer(Modifier.height(20.dp))
