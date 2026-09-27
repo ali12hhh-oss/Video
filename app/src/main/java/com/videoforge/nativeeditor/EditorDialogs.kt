@@ -1,6 +1,29 @@
+
+@Composable
+private fun ReferenceDialogTitle(text: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(bottom = 2.dp),
+        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+    ) {
+        Box(
+            Modifier.size(width = 4.dp, height = 24.dp)
+                .clip(RoundedCornerShape(3.dp))
+                .background(Brush.verticalGradient(listOf(Color(0xFF9A63FF), Color(0xFF2D8CFF))))
+        )
+        Spacer(Modifier.width(9.dp))
+        Text(text, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold)
+    }
+}
 package com.videoforge.nativeeditor
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
@@ -157,7 +180,7 @@ fun VideoKeyframeDialog(
  val existing=remember(playheadMs,s.subtitles){s.subtitles.firstOrNull{playheadMs>=it.startMs&&playheadMs<it.endMs}}
  var t by remember(existing?.id){mutableStateOf(existing?.text?:"")}
  var durationSec by remember(existing?.id){mutableFloatStateOf(((existing?.endMs?.minus(existing.startMs)?:2000L).coerceAtLeast(1000L)/1000f).coerceIn(1f,30f))}
- AlertDialog(onDismissRequest=onDismiss,title={Text(if(ar)"الترجمة" else "Subtitles")},text={Column(Modifier.verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(8.dp)){
+ AlertDialog(onDismissRequest=onDismiss,title={ReferenceDialogTitle(if(ar)"الترجمة" else "Subtitles")},text={Column(Modifier.verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(8.dp)){
   Text(formatTimelineTime(playheadMs),fontSize=11.sp)
   OutlinedTextField(value=t,onValueChange={t=it},label={Text(if(ar)"النص" else "Text")},modifier=Modifier.fillMaxWidth(),minLines=2)
   Text(if(ar)"مدة الترجمة: "+"%.1f".format(durationSec)+" ث" else "Subtitle duration: "+"%.1f".format(durationSec)+" s",fontSize=11.sp); Slider(value=durationSec,onValueChange={durationSec=it},valueRange=1f..30f)
