@@ -1757,6 +1757,51 @@ private fun EditorFeaturePanel(
                         }
                     }
                 }
+            } else if (activeTool == "effects") {
+                val effectIds=listOf("blur","mosaic")
+                val context=LocalContext.current
+                var effectPreview by remember(current?.uri){mutableStateOf<android.graphics.Bitmap?>(null)}
+                LaunchedEffect(current?.uri){effectPreview=current?.let{withContext(kotlinx.coroutines.Dispatchers.IO){loadVideoThumbnail(context,it.uri)}}}
+                LazyRow(Modifier.fillMaxWidth(),contentPadding=PaddingValues(horizontal=8.dp,vertical=6.dp),horizontalArrangement=Arrangement.spacedBy(8.dp)){
+                    items(effectIds){id->
+                        val selected=effectFeature==id
+                        Column(Modifier.width(96.dp).clip(RoundedCornerShape(12.dp)).background(if(selected)Color(0xFF241B3D)else Color(0xFF111925)).clickable{effectFeature=id}.padding(5.dp),horizontalAlignment=Alignment.CenterHorizontally){
+                            Box(Modifier.fillMaxWidth().height(58.dp).clip(RoundedCornerShape(9.dp))){
+                                if(effectPreview!=null)Image(effectPreview!!.asImageBitmap(),null,contentScale=androidx.compose.ui.layout.ContentScale.Crop,modifier=Modifier.fillMaxSize())
+                                else Box(Modifier.fillMaxSize().background(Color(0xFF182235)))
+                                if(id=="blur")Box(Modifier.fillMaxSize().background(Color(0x66AAB7D0)).graphicsLayer{alpha=.72f})
+                                else Canvas(Modifier.fillMaxSize()){val w=size.width;val h=size.height;for(x in 0..8)drawLine(Color.White.copy(alpha=.22f),Offset(x*w/8f,0f),Offset(x*w/8f,h),2f);for(y in 0..5)drawLine(Color.White.copy(alpha=.22f),Offset(0f,y*h/5f),Offset(w,y*h/5f),2f)}
+                            }
+                            Text(if(id=="blur")if(language==AppLanguage.ARABIC)"ضبابية" else "Blur" else if(language==AppLanguage.ARABIC)"بكسلة" else "Mosaic",fontSize=8.sp,color=Color.White,modifier=Modifier.padding(top=5.dp))
+                        }
+                    }
+                }
+            } else if (activeTool == "transition") {
+                val transitionIds=listOf("none","fade","slide","zoom","wipe","flash","spin","glitch")
+                LazyRow(Modifier.fillMaxWidth(),contentPadding=PaddingValues(horizontal=8.dp,vertical=6.dp),horizontalArrangement=Arrangement.spacedBy(8.dp)){
+                    items(transitionIds){id->
+                        val selected=settings.transition==id
+                        Column(Modifier.width(92.dp).clip(RoundedCornerShape(12.dp)).background(if(selected)Color(0xFF241B3D)else Color(0xFF111925)).clickable{onSettingsLiveChange(settings.copy(transition=id))}.padding(5.dp),horizontalAlignment=Alignment.CenterHorizontally){
+                            Box(Modifier.fillMaxWidth().height(54.dp).clip(RoundedCornerShape(9.dp)).background(Color(0xFF111A2B))){
+                                Canvas(Modifier.fillMaxSize()){
+                                    val mid=size.width/2f
+                                    drawRect(Color(0xFF4D6EA8),topLeft=Offset(5f,8f),size=androidx.compose.ui.geometry.Size(mid-8f,size.height-16f))
+                                    drawRect(Color(0xFF9A62C8),topLeft=Offset(mid+3f,8f),size=androidx.compose.ui.geometry.Size(mid-8f,size.height-16f))
+                                    when(id){
+                                        "fade"->drawRect(Color.Black.copy(alpha=.35f),topLeft=Offset(mid-12f,8f),size=androidx.compose.ui.geometry.Size(24f,size.height-16f))
+                                        "slide"->drawLine(Color.White,Offset(mid-20f,size.height/2f),Offset(mid+20f,size.height/2f),5f)
+                                        "zoom"->drawCircle(Color.White.copy(alpha=.75f),8f,Offset(mid,size.height/2f))
+                                        "wipe"->drawRect(Color.White.copy(alpha=.7f),topLeft=Offset(mid-4f,8f),size=androidx.compose.ui.geometry.Size(8f,size.height-16f))
+                                        "flash"->drawCircle(Color.White,12f,Offset(mid,size.height/2f))
+                                        "spin"->drawArc(Color.White.copy(alpha=.8f),0f,270f,false,Offset(mid-15f,size.height/2f-15f),androidx.compose.ui.geometry.Size(30f,30f),style=androidx.compose.ui.graphics.drawscope.Stroke(3f))
+                                        "glitch"->{drawLine(Color.Cyan,Offset(mid-18f,18f),Offset(mid+18f,35f),3f);drawLine(Color.Magenta,Offset(mid-18f,35f),Offset(mid+18f,18f),3f)}
+                                    }
+                                }
+                            }
+                            Text(id.replaceFirstChar{it.uppercase()},fontSize=8.sp,color=Color.White,modifier=Modifier.padding(top=5.dp))
+                        }
+                    }
+                }
             } else {
             LazyRow(
                 Modifier.fillMaxWidth(),
