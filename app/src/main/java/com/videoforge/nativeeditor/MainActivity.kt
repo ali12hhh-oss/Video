@@ -1761,7 +1761,7 @@ private fun EditorFeaturePanel(
                 val effectIds=listOf("blur","mosaic")
                 val context=LocalContext.current
                 var effectPreview by remember(current?.uri){mutableStateOf<android.graphics.Bitmap?>(null)}
-                LaunchedEffect(current?.uri){effectPreview=current?.let{withContext(kotlinx.coroutines.Dispatchers.IO){loadVideoThumbnail(context,it.uri)}}}
+                LaunchedEffect(current?.uri){effectPreview=current?.let{kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO){loadVideoThumbnail(context,it.uri)}}}
                 LazyRow(Modifier.fillMaxWidth(),contentPadding=PaddingValues(horizontal=8.dp,vertical=6.dp),horizontalArrangement=Arrangement.spacedBy(8.dp)){
                     items(effectIds){id->
                         val selected=effectFeature==id
