@@ -200,8 +200,10 @@ fun Timeline(
     onAddMedia: () -> Unit = {},
     textLayerNames: List<String> = emptyList(),
     pipLayerCount: Int = 0,
-    filterName: String = "none"
+    filterName: String = "none",
+    language: AppLanguage = AppLanguage.ENGLISH
 ) {
+    val arabic = language == AppLanguage.ARABIC
     val total = clips.sumOf { timelineClipDurationForUi(it) }.coerceAtLeast(1L)
     val safePlayhead = playheadMs.coerceIn(0L, total)
     val scroll = rememberScrollState()
@@ -427,7 +429,7 @@ fun Timeline(
                             ) {
                                 Icon(
                                     Icons.Default.Photo,
-                                    contentDescription = "PIP",
+                                    contentDescription = if (arabic) "صورة داخل صورة" else "Picture in picture",
                                     tint = Color(0xFF7EC8FF),
                                     modifier = Modifier.align(Alignment.CenterStart).padding(start = 6.dp).size(15.dp)
                                 )
@@ -441,7 +443,7 @@ fun Timeline(
                                             .background(Color(0xFF24658A))
                                     ) {
                                         Text(
-                                            "PIP ${i + 1}",
+                                            if (arabic) "صورة ${i + 1}" else "PIP ${i + 1}",
                                             color = Color.White,
                                             fontSize = 7.sp,
                                             fontWeight = FontWeight.Bold,
@@ -461,7 +463,7 @@ fun Timeline(
                             ) {
                                 Icon(
                                     Icons.Default.TextFields,
-                                    contentDescription = "Text",
+                                    contentDescription = if (arabic) "نص" else "Text",
                                     tint = Color(0xFFC69BFF),
                                     modifier = Modifier.align(Alignment.CenterStart).padding(start = 6.dp).size(15.dp)
                                 )
@@ -499,7 +501,7 @@ fun Timeline(
                             ) {
                                 Icon(
                                     Icons.Default.MusicNote,
-                                    contentDescription = "Audio",
+                                    contentDescription = if (arabic) "صوت" else "Audio",
                                     tint = Color(0xFF39BFFF),
                                     modifier = Modifier.align(Alignment.CenterStart).padding(start = 6.dp).size(16.dp)
                                 )
