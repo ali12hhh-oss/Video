@@ -361,6 +361,10 @@ private fun VideoForgeApp() {
             if (uris.isNotEmpty()) {
                 pendingMediaUris = uris.take(20)
                 showTemplatePicker = true
+            } else {
+                editorInitialTool = null
+                pendingMediaUris = emptyList()
+                pendingTemplateId = "default"
             }
         }
     }
@@ -437,6 +441,8 @@ private fun VideoForgeApp() {
                             projectName = project.name
                             clips = project.clips
                             selected = 0
+                            editorInitialTool = null
+                            pendingTemplateId = "default"
                             showEditor = true
                         },
                         onNewProject = { launchMediaPicker() }
