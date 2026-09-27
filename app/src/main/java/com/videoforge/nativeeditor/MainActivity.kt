@@ -2372,11 +2372,11 @@ private fun EditorTextPanel(
             Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
                 LazyRow(Modifier.weight(1f),horizontalArrangement=Arrangement.spacedBy(6.dp),contentPadding=PaddingValues(end=6.dp)) {
                     items(layers.indices.toList(),key={it}) { i ->
-                        FilterChip(selected=i==selected,onClick={selected=i},label={Text(if(layers[i].name.isBlank()) "T${i+1}" else layers[i].name.take(10),fontSize=9.sp)},leadingIcon={Icon(if(layers[i].visible) Icons.Default.Visibility else Icons.Default.VisibilityOff,null,Modifier.size(14.dp))})
+                        FilterChip(selected=i==selected,onClick={selected=i},label={Text(if(layers[i].name.isBlank()) (if(language==AppLanguage.ARABIC) "نص ${i+1}" else "Text ${i+1}") else layers[i].name.take(10),fontSize=9.sp)},leadingIcon={Icon(if(layers[i].visible) Icons.Default.Visibility else Icons.Default.VisibilityOff,null,Modifier.size(14.dp))})
                     }
                 }
                 IconButton(onClick={
-                    layers=layers+TextLayer(name="Text ${layers.size+1}",y=(-0.55f+layers.size.coerceAtMost(4)*0.22f))
+                    layers=layers+TextLayer(name=if(language==AppLanguage.ARABIC) "نص ${layers.size+1}" else "Text ${layers.size+1}",y=(-0.55f+layers.size.coerceAtMost(4)*0.22f))
                     selected=layers.lastIndex
                     val first=layers.firstOrNull()
                     onChange(settings.copy(textLayers=layers,text=first?.text.orEmpty(),textSize=first?.size?:settings.textSize,textColor=first?.color?:settings.textColor,textFont=first?.font?:settings.textFont,textVisible=true))
@@ -4694,7 +4694,7 @@ private fun OverlayDialog(
                     val active=index==selected
                     Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).background(if(active) Color(0xFF25203A) else Color(0xFF151922)).clickable{selected=index}.padding(6.dp), verticalAlignment=Alignment.CenterVertically) {
                         Text((index+1).toString(), color=if(active) Color(0xFFB88CFF) else Color.Gray, fontWeight=FontWeight.Bold, modifier=Modifier.width(22.dp))
-                        Text("PIP " + (index+1), Modifier.weight(1f), maxLines=1, fontSize=11.sp)
+                        Text((if(language==AppLanguage.ARABIC) "PIP " else "PIP ") + (index+1), Modifier.weight(1f), maxLines=1, fontSize=11.sp)
                         IconButton(onClick={ if(index>0){ val n=layers.toMutableList(); val t=n[index-1]; n[index-1]=n[index]; n[index]=t; layers=n; selected=index-1 } }, enabled=index>0, modifier=Modifier.size(30.dp)){ Icon(Icons.Default.KeyboardArrowUp,null,Modifier.size(18.dp)) }
                         IconButton(onClick={ if(index<layers.lastIndex){ val n=layers.toMutableList(); val t=n[index+1]; n[index+1]=n[index]; n[index]=t; layers=n; selected=index+1 } }, enabled=index<layers.lastIndex, modifier=Modifier.size(30.dp)){ Icon(Icons.Default.KeyboardArrowDown,null,Modifier.size(18.dp)) }
                         IconButton(onClick={ layers=layers.filterIndexed{i,_->i!=index}; selected=(selected.coerceAtMost(layers.lastIndex)).coerceAtLeast(0) }, modifier=Modifier.size(30.dp)){ Icon(Icons.Default.DeleteOutline,null,Modifier.size(18.dp)) }
