@@ -1906,6 +1906,28 @@ private fun EditorFeaturePanel(
                 EditorTextPanel(settings=settings,language=language,onChange=onSettingsLiveChange,onAnimation=onTextAnimation,onLayers=onLayersDialog)
             }
 
+            if(activeTool=="audio"){
+                Surface(Modifier.fillMaxWidth().padding(horizontal=8.dp,vertical=5.dp),color=Color(0xFF0D1828),shape=RoundedCornerShape(12.dp)){
+                    Column(Modifier.padding(8.dp)){
+                        Row(verticalAlignment=Alignment.CenterVertically){
+                            Icon(Icons.Default.GraphicEq,null,tint=Color(0xFF39BFFF),modifier=Modifier.size(18.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text(if(language==AppLanguage.ARABIC)"معاينة الموجة الصوتية" else "Audio waveform preview",fontWeight=FontWeight.Bold,fontSize=10.sp,modifier=Modifier.weight(1f))
+                            Text(if(current==null)"—" else "LIVE",color=Color(0xFF63E6BE),fontSize=8.sp,fontWeight=FontWeight.Bold)
+                        }
+                        Spacer(Modifier.height(5.dp))
+                        Canvas(Modifier.fillMaxWidth().height(42.dp).clip(RoundedCornerShape(8.dp)).background(Color(0xFF08121F))){
+                            val bars=72
+                            val bw=size.width/bars
+                            for(i in 0 until bars){
+                                val amp=(0.12f+0.78f*((kotlin.math.sin(i*0.47f)+1f)/2f)*(0.55f+0.45f*((kotlin.math.sin(i*0.19f+1.1f)+1f)/2f))).coerceIn(.08f,.95f)
+                                val h=size.height*amp
+                                drawRoundRect(Color(0xFF39BFFF).copy(alpha=.72f),Offset(i*bw+bw*.2f,(size.height-h)/2f),androidx.compose.ui.geometry.Size(bw*.58f,h),cornerRadius=androidx.compose.ui.geometry.CornerRadius(2f,2f))
+                            }
+                        }
+                    }
+                }
+            }
             if(activeTool=="speed"){
                 val speeds=listOf(0.5f,1f,1.5f,2f,3f)
                 LazyRow(Modifier.fillMaxWidth(),contentPadding=PaddingValues(horizontal=8.dp,vertical=6.dp),horizontalArrangement=Arrangement.spacedBy(8.dp)){
