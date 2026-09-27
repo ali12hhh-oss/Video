@@ -2946,6 +2946,7 @@ private fun EditorScreen(
             }
             Timeline(
                 clips = clips, current = current, playheadMs = playheadMs,
+                language = language,
                 videoKeyframes = settings.videoKeyframes,
                 textKeyframes = settings.textLayers.flatMap { it.keyframes },
                 audioKeyframes = current?.let { selected ->
