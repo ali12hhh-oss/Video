@@ -613,7 +613,9 @@ private fun ProjectsScreen(
         query.isBlank() || project.name.contains(query, ignoreCase = true)
     }
 
-    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+    CompositionLocalProvider(
+        LocalLayoutDirection provides if (arabic) LayoutDirection.Rtl else LayoutDirection.Ltr
+    ) {
         Scaffold(
             containerColor = Color(0xFF020914),
             topBar = {
@@ -793,7 +795,7 @@ private fun ProjectsScreen(
                                                 modifier = Modifier.padding(horizontal = 7.dp, vertical = 4.dp)
                                             )
                                         }
-                                        Icon(Icons.Default.ChevronLeft, null, tint = Color(0xFF7387A2), modifier = Modifier.size(17.dp))
+                                        Icon(if (arabic) Icons.Default.ChevronLeft else Icons.Default.ChevronRight, null, tint = Color(0xFF7387A2), modifier = Modifier.size(17.dp))
                                     }
                                 }
                             }
@@ -854,6 +856,7 @@ private fun HomeScreen(
                 containerColor = Color(0xFF020914),
                 bottomBar = {
                     HomeBottomBar(
+                        language = language,
                         selected = selected,
                         onSelected = onSelected,
                         onExplore = onOpenTemplates,
@@ -869,6 +872,7 @@ private fun HomeScreen(
                         .padding(start = 12.dp, end = 12.dp, top = 5.dp, bottom = 10.dp)
                 ) {
                     HomeTopBar(
+                        language = language,
                         onOpenSettings = onOpenSettings
                     )
 
@@ -1119,8 +1123,10 @@ private fun HomeAppIcon() {
 
 @Composable
 private fun HomeTopBar(
+    language: AppLanguage,
     onOpenSettings: () -> Unit
 ) {
+    val arabic = language == AppLanguage.ARABIC
     Row(
         Modifier
             .fillMaxWidth()
@@ -1145,14 +1151,14 @@ private fun HomeTopBar(
             horizontalAlignment = Alignment.Start
         ) {
             Text(
-                "محرر الفيديو",
+                if (arabic) "محرر الفيديو" else "Video Editor",
                 color = Color.White,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.ExtraBold,
                 letterSpacing = (-0.2).sp
             )
             Text(
-                "ابدأ - اصنع قصتك",
+                if (arabic) "ابدأ - اصنع قصتك" else "Start — create your story",
                 color = Color(0xFF8E9EB5),
                 fontSize = 9.sp,
                 fontWeight = FontWeight.Medium
@@ -1167,7 +1173,7 @@ private fun HomeTopBar(
         ) {
             Icon(
                 Icons.Default.Settings,
-                contentDescription = "الإعدادات",
+                contentDescription = if (arabic) "الإعدادات" else "Settings",
                 tint = Color(0xFFD6E0EF),
                 modifier = Modifier.size(24.dp)
             )
@@ -1177,6 +1183,7 @@ private fun HomeTopBar(
 
 @Composable
 private fun HomeBottomBar(
+    language: AppLanguage,
     selected: Int,
     onSelected: (Int) -> Unit,
     onExplore: () -> Unit,
@@ -1197,32 +1204,33 @@ private fun HomeBottomBar(
                 .padding(horizontal = 7.dp, vertical = 5.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            val arabic = language == AppLanguage.ARABIC
             HomeNavItem(
                 Modifier.weight(1f),
                 selected = selected == 3,
                 icon = Icons.Default.Person,
-                label = "حسابي",
+                label = if (arabic) "حسابي" else "Profile",
                 onClick = onAccount
             )
             HomeNavItem(
                 Modifier.weight(1f),
                 selected = false,
                 icon = Icons.Default.Explore,
-                label = "استكشاف",
+                label = if (arabic) "استكشاف" else "Explore",
                 onClick = onExplore
             )
             HomeNavItem(
                 Modifier.weight(1f),
                 selected = selected == 1,
                 icon = Icons.Default.Folder,
-                label = "مشاريع",
+                label = if (arabic) "مشاريع" else "Projects",
                 onClick = { onSelected(1) }
             )
             HomeNavItem(
                 Modifier.weight(1f),
                 selected = selected == 0,
                 icon = Icons.Default.Home,
-                label = "الرئيسية",
+                label = if (arabic) "الرئيسية" else "Home",
                 onClick = { onSelected(0) }
             )
         }
