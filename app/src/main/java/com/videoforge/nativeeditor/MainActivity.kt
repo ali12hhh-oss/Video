@@ -1826,6 +1826,25 @@ private fun EditorFeaturePanel(
         )
     }
 
+    val panelSubtitle = when (activeTool) {
+        "edit" -> if (language == AppLanguage.ARABIC) "قص وترتيب المقاطع بدقة" else "Trim and arrange clips precisely"
+        "audio" -> if (language == AppLanguage.ARABIC) "الموسيقى والصوت والموجة الصوتية" else "Music, sound and waveform controls"
+        "text" -> if (language == AppLanguage.ARABIC) "النصوص والخطوط والحركة المباشرة" else "Text, fonts and direct motion"
+        "filters" -> if (language == AppLanguage.ARABIC) "معاينات فورية قبل تطبيق الفلتر" else "Live previews before applying a filter"
+        "effects" -> if (language == AppLanguage.ARABIC) "مؤثرات بصرية مع تحكم دقيق" else "Visual effects with precise controls"
+        "adjust" -> if (language == AppLanguage.ARABIC) "ألوان وإضاءة وتدرج احترافي" else "Professional color and light controls"
+        "canvas" -> if (language == AppLanguage.ARABIC) "المقاس والقص والدوران" else "Aspect ratio, crop and rotation"
+        "speed" -> if (language == AppLanguage.ARABIC) "تحكم سريع في إيقاع المقطع" else "Fast control of clip pacing"
+        "transition" -> if (language == AppLanguage.ARABIC) "انتقالات سلسة بين المقاطع" else "Smooth transitions between clips"
+        "subtitles" -> if (language == AppLanguage.ARABIC) "ترجمة وعلامات زمنية منظمة" else "Organized subtitles and markers"
+        "layers" -> if (language == AppLanguage.ARABIC) "إدارة النصوص والصور فوق الفيديو" else "Manage text and image layers"
+        "videoKeyframes" -> if (language == AppLanguage.ARABIC) "حركة دقيقة باستخدام الإطارات المفتاحية" else "Precise motion with keyframes"
+        "sticker" -> if (language == AppLanguage.ARABIC) "ملصقات وإيموجيات بمعاينات مرئية" else "Stickers and emojis with visual previews"
+        "overlay" -> if (language == AppLanguage.ARABIC) "إضافة الصور وطبقات PIP" else "Add images and PIP layers"
+        "markers" -> if (language == AppLanguage.ARABIC) "تنظيم اللحظات المهمة على الخط الزمني" else "Organize important timeline moments"
+        else -> if (language == AppLanguage.ARABIC) "أدوات تحرير احترافية" else "Professional editing tools"
+    }
+
     Surface(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 5.dp),
         color = Color(0xFF08111F),
@@ -1864,8 +1883,9 @@ private fun EditorFeaturePanel(
                 }
                 Spacer(Modifier.width(9.dp))
                 Column(Modifier.weight(1f)) {
-                    Text(mainTitle, color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp)
-                    Text(clipSummary, color = Color(0xFF8FA1BB), fontSize = 9.sp, maxLines = 1)
+                    Text(mainTitle, color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp, maxLines = 1)
+                    Text(panelSubtitle, color = Color(0xFF8FA1BB), fontSize = 8.sp, maxLines = 1)
+                    Text(clipSummary, color = Color(0xFF667A96), fontSize = 7.sp, maxLines = 1)
                 }
                 Surface(
                     color = Color(0xFF101D30),
