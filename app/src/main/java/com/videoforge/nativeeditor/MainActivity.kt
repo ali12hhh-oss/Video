@@ -3088,7 +3088,7 @@ private fun EditorScreen(
     if (showMarkers) {
         MarkerDialog(settings, playheadMs, language, { updateSettings(it) }, { ms -> playheadMs = ms }, { showMarkers = false })
     }
-    if (showTrim && current != null) TrimDialog(clip = current!!, onDismiss = { showTrim = false }, onApply = { start, end ->
+    if (showTrim && current != null) TrimDialog(clip = current!!, language = language, onDismiss = { showTrim = false }, onApply = { start, end ->
         val old = current!!; val updated = old.copy(trimStartMs = start, trimEndMs = end)
         commitClips(clips.map { if (it == old) updated else it }); current = updated; showTrim = false
         status = if (language == AppLanguage.ARABIC) "تم تطبيق القص" else "Trim applied"
@@ -4470,7 +4470,7 @@ private fun EffectsDialog(s: EditorSettings, language: AppLanguage, onChange:(Ed
 @Composable private fun CanvasDialog(s:EditorSettings,language:AppLanguage,onChange:(EditorSettings)->Unit,onDismiss:()->Unit){
     val vals=listOf("16:9","9:16","1:1","4:5","2:3","3:4","3:2","21:9");
     val labels=if(language==AppLanguage.ARABIC) listOf("أفقي 16:9","عمودي 9:16","مربع 1:1","عمودي 4:5","صورة 2:3","عمودي 3:4","صورة 3:2","سينمائي عريض 21:9") else listOf("Landscape 16:9","Portrait 9:16","Square 1:1","Portrait 4:5","Photo 2:3","Portrait 3:4","Photo 3:2","Ultra-wide 21:9")
-    SimpleChoiceDialog(if(language==AppLanguage.ARABIC)"مقاس الفيديو"else"Canvas / Aspect ratio",labels,null,onDismiss){onChange(s.copy(aspect=vals[it]));onDismiss()}
+    SimpleChoiceDialog(if(language==AppLanguage.ARABIC)"مقاس الفيديو"else"Canvas / Aspect ratio",labels,null,language,onDismiss){onChange(s.copy(aspect=vals[it]));onDismiss()}
 }
 
 @Composable private fun TransitionDialog(s:EditorSettings,language:AppLanguage,onChange:(EditorSettings)->Unit,onDismiss:()->Unit){
