@@ -1129,7 +1129,7 @@ private fun HomeSecondaryCard(
 }
 
 @Composable
-private fun HomeAppIcon() {
+private fun HomeAppIcon(arabic: Boolean = false) {
     Image(
         painter = painterResource(R.mipmap.ic_launcher),
         contentDescription = if (arabic) "محرر الفيديو" else "Video editor",
