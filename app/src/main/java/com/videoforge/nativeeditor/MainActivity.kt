@@ -1038,8 +1038,8 @@ private fun HomeReferenceHero(
         Modifier
             .fillMaxWidth()
             .height(160.dp)
-            .clip(RoundedCornerShape(15.dp))
-            .border(1.dp, Color(0x332B7CFF), RoundedCornerShape(15.dp))
+            .clip(RoundedCornerShape(16.dp))
+            .border(1.dp, Color(0x443B8BFF), RoundedCornerShape(16.dp))
             .clickable(onClick = onOpen)
     ) {
         Image(
@@ -1048,6 +1048,60 @@ private fun HomeReferenceHero(
             contentScale = androidx.compose.ui.layout.ContentScale.Crop,
             modifier = Modifier.fillMaxSize()
         )
+        Box(
+            Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        listOf(Color.Transparent, Color(0xD9020711))
+                    )
+                )
+        )
+        Row(
+            Modifier
+                .align(Alignment.BottomStart)
+                .fillMaxWidth()
+                .padding(horizontal = 13.dp, vertical = 11.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                Modifier
+                    .size(36.dp)
+                    .clip(RoundedCornerShape(11.dp))
+                    .background(Brush.linearGradient(listOf(Color(0xFF6B3DFF), Color(0xFF2D8CFF)))),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Default.PlayArrow, null, tint = Color.White, modifier = Modifier.size(22.dp))
+            }
+            Spacer(Modifier.width(9.dp))
+            Column(Modifier.weight(1f)) {
+                Text(
+                    if (arabic) "ابدأ مشروعك الآن" else "Start your project",
+                    color = Color.White,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.ExtraBold
+                )
+                Text(
+                    if (arabic) "اختر الفيديو أو الصور وابدأ التحرير" else "Choose media and start editing",
+                    color = Color(0xFFC2CCDA),
+                    fontSize = 9.sp
+                )
+            }
+            Box(
+                Modifier
+                    .clip(RoundedCornerShape(9.dp))
+                    .background(Color.White.copy(alpha = .12f))
+                    .border(1.dp, Color.White.copy(alpha = .18f), RoundedCornerShape(9.dp))
+                    .padding(horizontal = 9.dp, vertical = 6.dp)
+            ) {
+                Text(
+                    if (arabic) "فتح" else "Open",
+                    color = Color.White,
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
     }
 }
 
