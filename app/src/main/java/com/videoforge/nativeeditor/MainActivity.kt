@@ -1828,23 +1828,65 @@ private fun EditorFeaturePanel(
 
     Surface(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 5.dp),
-        color = Color(0xFF0C1420), shape = RoundedCornerShape(14.dp)
+        color = Color(0xFF08111F),
+        shape = RoundedCornerShape(16.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF203A61))
     ) {
-        Column(Modifier.padding(vertical = 7.dp)) {
-            Row(Modifier.fillMaxWidth().padding(horizontal = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text(mainTitle, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                    Text(clipSummary, color = Color(0xFF7F8DA3), fontSize = 8.sp, maxLines = 1)
+        Column(Modifier.padding(horizontal = 10.dp, vertical = 8.dp)) {
+            Row(
+                Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                val headerIcon = when (activeTool) {
+                    "edit" -> Icons.Default.ContentCut
+                    "audio" -> Icons.Default.MusicNote
+                    "text" -> Icons.Default.TextFields
+                    "effects" -> Icons.Default.AutoAwesome
+                    "filters" -> Icons.Default.FilterVintage
+                    "adjust" -> Icons.Default.Tune
+                    "canvas" -> Icons.Default.CropFree
+                    "transition" -> Icons.Default.Transform
+                    "subtitles" -> Icons.Default.Subtitles
+                    "layers" -> Icons.Default.Layers
+                    "videoKeyframes" -> Icons.Default.Timeline
+                    "speed" -> Icons.Default.Speed
+                    "sticker" -> Icons.Default.EmojiEmotions
+                    "overlay" -> Icons.Default.PictureInPictureAlt
+                    "markers" -> Icons.Default.Bookmark
+                    else -> Icons.Default.Tune
                 }
-                Surface(color = Color(0xFF172235), shape = RoundedCornerShape(8.dp)) {
+                Box(
+                    Modifier.size(34.dp).clip(RoundedCornerShape(10.dp))
+                        .background(Brush.linearGradient(listOf(Color(0xFF6B3CFF), Color(0xFF2585FF)))),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(headerIcon, null, tint = Color.White, modifier = Modifier.size(18.dp))
+                }
+                Spacer(Modifier.width(9.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(mainTitle, color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp)
+                    Text(clipSummary, color = Color(0xFF8FA1BB), fontSize = 9.sp, maxLines = 1)
+                }
+                Surface(
+                    color = Color(0xFF101D30),
+                    shape = RoundedCornerShape(9.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF28476F))
+                ) {
                     Text(
                         if (language == AppLanguage.ARABIC) "أدوات" else "Tools",
-                        color = Color(0xFFB9C3D6),
+                        color = Color(0xFFB9C9DF),
                         fontSize = 8.sp,
-                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 4.dp)
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp)
                     )
                 }
             }
+            Spacer(Modifier.height(7.dp))
+            Box(
+                Modifier.fillMaxWidth().height(1.dp)
+                    .background(Brush.horizontalGradient(listOf(Color.Transparent, Color(0xFF365F91), Color.Transparent)))
+            )
+            Spacer(Modifier.height(3.dp))
             if (activeTool == "edit" && current != null) {
                 Row(
                     Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 2.dp),
