@@ -670,6 +670,25 @@ private fun ProjectsScreen(
 
                 Spacer(Modifier.height(14.dp))
 
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        if (arabic) "المشاريع الأخيرة" else "Recent projects",
+                        color = Color.White,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        filtered.size.toString(),
+                        color = Color(0xFF8294AD),
+                        fontSize = 9.sp
+                    )
+                }
+                Spacer(Modifier.height(8.dp))
+
                 if (filtered.isEmpty()) {
                     Box(Modifier.fillMaxWidth().height(300.dp), contentAlignment = Alignment.Center) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
