@@ -2052,7 +2052,18 @@ private fun EditorFeaturePanel(
                                     }
                                 }
                             }
-                            Text(id.replaceFirstChar{it.uppercase()},fontSize=8.sp,color=Color.White,modifier=Modifier.padding(top=5.dp))
+                            val transitionLabel = when (id) {
+                                "none" -> if (language == AppLanguage.ARABIC) "بدون" else "None"
+                                "fade" -> if (language == AppLanguage.ARABIC) "تلاشي" else "Fade"
+                                "slide" -> if (language == AppLanguage.ARABIC) "انزلاق" else "Slide"
+                                "zoom" -> if (language == AppLanguage.ARABIC) "تكبير" else "Zoom"
+                                "wipe" -> if (language == AppLanguage.ARABIC) "مسح" else "Wipe"
+                                "flash" -> if (language == AppLanguage.ARABIC) "وميض" else "Flash"
+                                "spin" -> if (language == AppLanguage.ARABIC) "دوران" else "Spin"
+                                "glitch" -> if (language == AppLanguage.ARABIC) "تشويش" else "Glitch"
+                                else -> id
+                            }
+                            Text(transitionLabel,fontSize=8.sp,color=Color.White,modifier=Modifier.padding(top=5.dp))
                         }
                     }
                 }
