@@ -406,7 +406,7 @@ fun Timeline(
                                 .background(Color(0xFF10162A))
                         ) {
                             Icon(
-                                Icons.Default.Image,
+                                ImageIcon,
                                 contentDescription = "PIP",
                                 tint = Color(0xFF7EC8FF),
                                 modifier = Modifier.align(Alignment.CenterStart).padding(start = 6.dp).size(15.dp)
