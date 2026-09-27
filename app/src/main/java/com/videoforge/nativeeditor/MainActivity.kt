@@ -621,22 +621,54 @@ private fun ProjectsScreen(
             containerColor = Color(0xFF020914),
             topBar = {
                 Row(
-                    Modifier.fillMaxWidth().height(62.dp).padding(horizontal = 10.dp),
+                    Modifier.fillMaxWidth().height(70.dp).padding(horizontal = 10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    IconButton(onClick = onBackHome) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, if (arabic) "رجوع" else "Back", tint = Color.White)
+                    IconButton(
+                        onClick = onBackHome,
+                        modifier = Modifier.size(42.dp).clip(RoundedCornerShape(12.dp))
+                    ) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            if (arabic) "رجوع" else "Back",
+                            tint = Color(0xFFDDE7F5),
+                            modifier = Modifier.size(22.dp)
+                        )
                     }
+                    Spacer(Modifier.width(3.dp))
+                    Box(
+                        Modifier.size(38.dp).clip(RoundedCornerShape(11.dp))
+                            .background(Brush.linearGradient(listOf(Color(0xFF7047FF), Color(0xFF2585FF)))),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Default.VideoLibrary, null, tint = Color.White, modifier = Modifier.size(20.dp))
+                    }
+                    Spacer(Modifier.width(10.dp))
                     Column(Modifier.weight(1f)) {
-                        Text(if (arabic) "مشاريعي" else "My projects", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
-                        Text(if (arabic) "مشاريع الفيديو المحفوظة" else "Saved video projects", color = Color(0xFF8294AD), fontSize = 9.sp)
+                        Text(
+                            if (arabic) "مشاريعي" else "My projects",
+                            color = Color.White,
+                            fontSize = 19.sp,
+                            fontWeight = FontWeight.ExtraBold
+                        )
+                        Text(
+                            if (arabic) "مكتبة مشاريع الفيديو" else "Your video project library",
+                            color = Color(0xFF8294AD),
+                            fontSize = 9.sp
+                        )
                     }
-                    IconButton(onClick = onNewProject) {
-                        Box(
-                            Modifier.size(38.dp).clip(RoundedCornerShape(11.dp))
-                                .background(Brush.linearGradient(listOf(Color(0xFF7547FF), Color(0xFF2D73FF)))),
-                            contentAlignment = Alignment.Center
-                        ) { Icon(Icons.Default.Add, null, tint = Color.White) }
+                    Box(
+                        Modifier.size(40.dp).clip(RoundedCornerShape(12.dp))
+                            .background(Brush.linearGradient(listOf(Color(0xFF7547FF), Color(0xFF2D73FF))))
+                            .clickable(onClick = onNewProject),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Default.Add,
+                            if (arabic) "مشروع جديد" else "New project",
+                            tint = Color.White,
+                            modifier = Modifier.size(22.dp)
+                        )
                     }
                 }
             },
@@ -653,9 +685,9 @@ private fun ProjectsScreen(
                 OutlinedTextField(
                     value = query,
                     onValueChange = { query = it },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
                     singleLine = true,
-                    shape = RoundedCornerShape(14.dp),
+                    shape = RoundedCornerShape(15.dp),
                     leadingIcon = { Icon(Icons.Default.Search, null, tint = Color(0xFF8FA2BC)) },
                     placeholder = { Text(if (arabic) "ابحث عن مشروع..." else "Search projects...", color = Color(0xFF71849D)) },
                     colors = OutlinedTextFieldDefaults.colors(
@@ -676,17 +708,32 @@ private fun ProjectsScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        if (arabic) "المشاريع الأخيرة" else "Recent projects",
-                        color = Color.White,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        filtered.size.toString(),
-                        color = Color(0xFF8294AD),
-                        fontSize = 9.sp
-                    )
+                    Column {
+                        Text(
+                            if (arabic) "المشاريع الأخيرة" else "Recent projects",
+                            color = Color.White,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.ExtraBold
+                        )
+                        Text(
+                            if (arabic) "استمر من حيث توقفت" else "Continue where you left off",
+                            color = Color(0xFF71849D),
+                            fontSize = 9.sp
+                        )
+                    }
+                    Surface(
+                        shape = RoundedCornerShape(9.dp),
+                        color = Color(0xFF101D31),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x223B72B7))
+                    ) {
+                        Text(
+                            filtered.size.toString(),
+                            color = Color(0xFFBBA5FF),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp)
+                        )
+                    }
                 }
                 Spacer(Modifier.height(8.dp))
 
