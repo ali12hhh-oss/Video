@@ -2710,7 +2710,7 @@ private fun EditorScreen(
     Scaffold(
         containerColor = Color(0xFF050912),
         topBar = {
-            CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+            CompositionLocalProvider(LocalLayoutDirection provides if (language == AppLanguage.ARABIC) LayoutDirection.Rtl else LayoutDirection.Ltr) {
                 Surface(color = Color(0xFF07111F), tonalElevation = 0.dp) {
                     Row(Modifier.fillMaxWidth().height(58.dp).padding(horizontal = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                         IconButton(onClick = onBack) {
@@ -3254,7 +3254,7 @@ private fun EditorPreview(
             contentAlignment = Alignment.Center
         ) {
         if (clip == null) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) { Icon(Icons.Default.VideoLibrary, null, Modifier.size(54.dp), tint = Color.Gray); Text("Add media", color = Color.Gray, fontSize = 11.sp) }
+            Column(horizontalAlignment = Alignment.CenterHorizontally) { Icon(Icons.Default.VideoLibrary, null, Modifier.size(54.dp), tint = Color.Gray); Text(if (LocalLayoutDirection.current == LayoutDirection.Rtl) "أضف وسائط" else "Add media", color = Color.Gray, fontSize = 11.sp) }
         } else {
             val player = remember(clip.uri, clip.isFreezeFrame, clip.freezeDurationMs, clip.durationMs) {
                 ExoPlayer.Builder(context).build().apply {
