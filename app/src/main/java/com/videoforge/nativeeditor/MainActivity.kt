@@ -359,13 +359,8 @@ private fun VideoForgeApp() {
                 }
             }.distinct()
             if (uris.isNotEmpty()) {
-                pendingMediaUris=uris.take(20)
-                showTemplatePicker=true
-            }
-                }
-                projectName = clips.firstOrNull()?.name ?: context.getString(R.string.new_project)
-                ProjectRepository.save(context, projectId, clips, projectName)
-                showEditor = true
+                pendingMediaUris = uris.take(20)
+                showTemplatePicker = true
             }
         }
     }
@@ -1421,22 +1416,34 @@ private fun applyEditorTemplate(settings:EditorSettings,id:String):EditorSetting
 @Composable private fun TemplatePickerSheet(language:AppLanguage,selectedTemplateId:String,onSelect:(String)->Unit,onDismiss:()->Unit){val ar=language==AppLanguage.ARABIC;ModalBottomSheet(onDismissRequest=onDismiss,containerColor=Color(0xFF080E18)){Column(Modifier.fillMaxWidth().padding(12.dp)){Text(if(ar)"اختر قالب المشروع" else "Choose project template",fontSize=20.sp,fontWeight=FontWeight.Bold);Text(if(ar)"معاينة القالب قبل التحرير، أو استخدم الافتراضي." else "Preview the layout before editing, or use the default.",color=Color(0xFF8D9AB0),fontSize=10.sp);Spacer(Modifier.height(10.dp));LazyRow(horizontalArrangement=Arrangement.spacedBy(8.dp)){items(EDITOR_TEMPLATES,key={it.id}){t->val selected=selectedTemplateId==t.id;Column(Modifier.width(132.dp).clip(RoundedCornerShape(16.dp)).background(if(selected)Color(0xFF1B1730)else Color(0xFF101827)).border(if(selected)1.dp else 0.dp,t.accent,RoundedCornerShape(16.dp)).clickable{onSelect(t.id)}.padding(7.dp)){TemplateVisualPreview(t,Modifier.fillMaxWidth().height(112.dp));Spacer(Modifier.height(6.dp));Text(if(ar)t.titleAr else t.titleEn,fontWeight=FontWeight.Bold,fontSize=11.sp);Text(if(ar)t.descriptionAr else t.descriptionEn,color=Color(0xFF8D9AB0),fontSize=8.sp,maxLines=2)}}};Spacer(Modifier.height(8.dp));OutlinedButton(onClick=onDismiss,modifier=Modifier.fillMaxWidth()){Text(if(ar)"استخدام الافتراضي" else "Use default")};Spacer(Modifier.height(10.dp))}}}
 @Composable
 private fun TemplatesSheet(onDismiss: () -> Unit, onUseTemplate: (String) -> Unit) {
-    val templates=EDITOR_TEMPLATES.filter{it.id!="default"}
-        Triple(Icons.Default.MovieFilter, stringResource(R.string.template_cinematic), stringResource(R.string.template_cinematic_desc)),
-        Triple(Icons.Default.Favorite, stringResource(R.string.template_social), stringResource(R.string.template_social_desc)),
-        Triple(Icons.Default.Bolt, stringResource(R.string.template_fast), stringResource(R.string.template_fast_desc))
-    )
+    val templates = EDITOR_TEMPLATES.filter { it.id != "default" }
     ModalBottomSheet(onDismissRequest = onDismiss, containerColor = Color(0xFF0A111D)) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
             Text(stringResource(R.string.ready_templates), fontSize = 22.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(12.dp))
-            LazyRow(horizontalArrangement=Arrangement.spacedBy(9.dp),contentPadding=PaddingValues(bottom=8.dp)){items(templates,key={it.id}){t->Column(Modifier.width(145.dp).clip(RoundedCornerShape(16.dp)).background(Color(0xFF111B2A)).clickable{onUseTemplate(t.id)}.padding(7.dp)){TemplateVisualPreview(t,Modifier.fillMaxWidth().height(118.dp));Spacer(Modifier.height(6.dp));Text(t.titleAr,fontWeight=FontWeight.Bold,fontSize=11.sp);Text(t.descriptionAr,color=Color.Gray,fontSize=8.sp,maxLines=2)}}}
-            Spacer(Modifier.height(8.dp));OutlinedButton(onClick={onUseTemplate("default")},modifier=Modifier.fillMaxWidth()){Text("الافتراضي / Default")}
+            LazyRow(horizontalArrangement=Arrangement.spacedBy(9.dp), contentPadding=PaddingValues(bottom=8.dp)) {
+                items(templates, key={it.id}) { t ->
+                    Column(
+                        Modifier.width(145.dp).clip(RoundedCornerShape(16.dp))
+                            .background(Color(0xFF111B2A))
+                            .clickable { onUseTemplate(t.id) }
+                            .padding(7.dp)
+                    ) {
+                        TemplateVisualPreview(t, Modifier.fillMaxWidth().height(118.dp))
+                        Spacer(Modifier.height(6.dp))
+                        Text(t.titleAr, fontWeight=FontWeight.Bold, fontSize=11.sp)
+                        Text(t.descriptionAr, color=Color.Gray, fontSize=8.sp, maxLines=2)
+                    }
+                }
+            }
+            Spacer(Modifier.height(8.dp))
+            OutlinedButton(onClick={onUseTemplate("default")}, modifier=Modifier.fillMaxWidth()) {
+                Text("الافتراضي / Default")
+            }
             Spacer(Modifier.height(18.dp))
         }
     }
 }
-
 private data class EditorSnapshot(
     val clips: List<Clip>,
     val settings: EditorSettings,
