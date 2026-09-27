@@ -1160,7 +1160,7 @@ private fun HomeTopBar(
                 .border(1.dp, Color(0x332E7EFF), RoundedCornerShape(12.dp)),
             contentAlignment = Alignment.Center
         ) {
-            HomeAppIcon()
+            HomeAppIcon(arabic = arabic)
         }
 
         Spacer(Modifier.width(9.dp))
