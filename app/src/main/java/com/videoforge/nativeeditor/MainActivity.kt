@@ -1207,17 +1207,10 @@ private fun HomeBottomBar(
             val arabic = language == AppLanguage.ARABIC
             HomeNavItem(
                 Modifier.weight(1f),
-                selected = selected == 3,
-                icon = Icons.Default.Person,
-                label = if (arabic) "حسابي" else "Profile",
-                onClick = onAccount
-            )
-            HomeNavItem(
-                Modifier.weight(1f),
-                selected = false,
-                icon = Icons.Default.Explore,
-                label = if (arabic) "استكشاف" else "Explore",
-                onClick = onExplore
+                selected = selected == 0,
+                icon = Icons.Default.Home,
+                label = if (arabic) "الرئيسية" else "Home",
+                onClick = { onSelected(0) }
             )
             HomeNavItem(
                 Modifier.weight(1f),
@@ -1228,10 +1221,17 @@ private fun HomeBottomBar(
             )
             HomeNavItem(
                 Modifier.weight(1f),
-                selected = selected == 0,
-                icon = Icons.Default.Home,
-                label = if (arabic) "الرئيسية" else "Home",
-                onClick = { onSelected(0) }
+                selected = false,
+                icon = Icons.Default.Explore,
+                label = if (arabic) "استكشاف" else "Explore",
+                onClick = onExplore
+            )
+            HomeNavItem(
+                Modifier.weight(1f),
+                selected = selected == 3,
+                icon = Icons.Default.Person,
+                label = if (arabic) "حسابي" else "Profile",
+                onClick = onAccount
             )
         }
     }
