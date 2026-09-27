@@ -335,6 +335,9 @@ private fun VideoForgeApp() {
     var showSettings by remember { mutableStateOf(false) }
     var showHelp by remember { mutableStateOf(false) }
     var editorInitialTool by remember { mutableStateOf<String?>(null) }
+    var pendingMediaUris by remember { mutableStateOf<List<Uri>>(emptyList()) }
+    var pendingTemplateId by remember { mutableStateOf("default") }
+    var showTemplatePicker by remember { mutableStateOf(false) }
     var showBrandSplash by rememberSaveable { mutableStateOf(true) }
 
     LaunchedEffect(Unit) {
@@ -356,19 +359,9 @@ private fun VideoForgeApp() {
                 }
             }.distinct()
             if (uris.isNotEmpty()) {
-                projectId = ProjectRepository.newId()
-                clips = uris.take(20).mapIndexed { i, uri ->
-                    persistUriAccess(context, uri)
-                    run {
-                    val duration = defaultClipDurationMs(context, uri)
-                    Clip(
-                        uri = uri,
-                        name = context.getString(R.string.clip_number, i + 1),
-                        durationMs = duration,
-                        trimStartMs = 0L,
-                        trimEndMs = duration
-                    )
-                }
+                pendingMediaUris=uris.take(20)
+                showTemplatePicker=true
+            }
                 }
                 projectName = clips.firstOrNull()?.name ?: context.getString(R.string.new_project)
                 ProjectRepository.save(context, projectId, clips, projectName)
@@ -377,8 +370,9 @@ private fun VideoForgeApp() {
         }
     }
 
-    fun launchMediaPicker(initialTool: String? = null) {
+    fun launchMediaPicker(initialTool: String? = null, templateId: String? = null) {
         editorInitialTool = initialTool
+        pendingTemplateId = templateId ?: "default"
         picker.launch(
             Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
                 addCategory(Intent.CATEGORY_OPENABLE)
@@ -388,6 +382,8 @@ private fun VideoForgeApp() {
             }
         )
     }
+
+    fun openPendingMedia(templateId:String){val uris=pendingMediaUris;if(uris.isEmpty())return;projectId=ProjectRepository.newId();clips=uris.mapIndexed{i,uri->persistUriAccess(context,uri);val d=defaultClipDurationMs(context,uri);Clip(uri=uri,name=context.getString(R.string.clip_number,i+1),durationMs=d,trimStartMs=0L,trimEndMs=d)};projectName=clips.firstOrNull()?.name ?: context.getString(R.string.new_project);ProjectRepository.save(context,projectId,clips,projectName);pendingMediaUris=emptyList();pendingTemplateId=templateId;showTemplatePicker=false;showEditor=true}
 
     val direction = if (language == AppLanguage.ARABIC) LayoutDirection.Rtl else LayoutDirection.Ltr
     val configuration = LocalConfiguration.current
@@ -429,6 +425,7 @@ private fun VideoForgeApp() {
                     },
                     onBack = { showEditor = false; editorInitialTool = null },
                     initialTool = editorInitialTool,
+                    initialTemplate = pendingTemplateId,
                     language = language,
                     onLanguageSelected = {
                         language = it
@@ -499,10 +496,12 @@ private fun VideoForgeApp() {
         )
     }
 
+    if(showTemplatePicker){TemplatePickerSheet(language,pendingTemplateId,{id->openPendingMedia(id)},{openPendingMedia("default")})}
+
     if (showTemplates) {
-        TemplatesSheet(onDismiss = { showTemplates = false }, onUseTemplate = {
+        TemplatesSheet(onDismiss = { showTemplates = false }, onUseTemplate = { templateId ->
             showTemplates = false
-            launchMediaPicker()
+            launchMediaPicker(templateId = templateId)
         })
     }
 }
@@ -1408,9 +1407,21 @@ private fun HelpSheet(
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
+private data class EditorTemplate(val id:String,val titleAr:String,val titleEn:String,val descriptionAr:String,val descriptionEn:String,val aspect:String,val filter:String="none",val speed:Float=1f,val accent:Color)
+private val EDITOR_TEMPLATES=listOf(
+EditorTemplate("default","افتراضي","Default","يحافظ على الفيديو أو الصورة كما هي","Keeps the media natural","16:9",accent=Color(0xFF607DFF)),
+EditorTemplate("cinematic","سينمائي","Cinematic","إطار عريض ولمسة لونية دافئة","Wide frame with a warm look","21:9","warm",accent=Color(0xFFFF9B54)),
+EditorTemplate("social","اجتماعي","Social","مقاس عمودي للمحتوى القصير","Vertical layout for short-form content","9:16","vivid",accent=Color(0xFFFF4FD8)),
+EditorTemplate("square","مربع","Square","مربع متوازن للفيديو والصور","Balanced square canvas","1:1",accent=Color(0xFF42D7FF)),
+EditorTemplate("portrait","صورة","Portrait","قالب عمودي للصور والمنشورات","Portrait photo layout","4:5","soft",accent=Color(0xFFB88CFF)),
+EditorTemplate("fast","سريع","Fast","إيقاع سريع مع مقاس عمودي","Fast rhythm with a vertical canvas","9:16","vivid",1.25f,Color(0xFF7CFF7A))
+)
+private fun applyEditorTemplate(settings:EditorSettings,id:String):EditorSettings{val t=EDITOR_TEMPLATES.firstOrNull{it.id==id}?:EDITOR_TEMPLATES.first();return settings.copy(aspect=t.aspect,filter=t.filter,speed=t.speed)}
+@Composable private fun TemplateVisualPreview(t:EditorTemplate,modifier:Modifier=Modifier){Box(modifier.clip(RoundedCornerShape(14.dp)).background(Brush.linearGradient(listOf(Color(0xFF0D1628),t.accent.copy(alpha=.42f),Color(0xFF090C15)))),contentAlignment=Alignment.Center){Box(Modifier.fillMaxHeight(.72f).aspectRatio(when(t.aspect){"9:16"->.5625f;"1:1"->1f;"4:5"->.8f;"21:9"->2.33f;else->1.777f}).clip(RoundedCornerShape(8.dp)).background(Color.Black.copy(alpha=.72f)).border(1.dp,t.accent.copy(alpha=.8f),RoundedCornerShape(8.dp))){Box(Modifier.fillMaxSize().background(Brush.linearGradient(listOf(t.accent.copy(alpha=.28f),Color.Transparent,Color.White.copy(alpha=.06f)))));Icon(if(t.aspect=="1:1")Icons.Default.CropSquare else Icons.Default.MovieFilter,null,tint=Color.White,modifier=Modifier.size(22.dp).align(Alignment.Center))};Surface(Modifier.align(Alignment.BottomStart).padding(6.dp),color=Color.Black.copy(alpha=.58f),shape=RoundedCornerShape(6.dp)){Text(t.aspect,fontSize=7.sp,color=Color.White,modifier=Modifier.padding(horizontal=5.dp,vertical=3.dp))}}}
+@Composable private fun TemplatePickerSheet(language:AppLanguage,selectedTemplateId:String,onSelect:(String)->Unit,onDismiss:()->Unit){val ar=language==AppLanguage.ARABIC;ModalBottomSheet(onDismissRequest=onDismiss,containerColor=Color(0xFF080E18)){Column(Modifier.fillMaxWidth().padding(12.dp)){Text(if(ar)"اختر قالب المشروع" else "Choose project template",fontSize=20.sp,fontWeight=FontWeight.Bold);Text(if(ar)"معاينة القالب قبل التحرير، أو استخدم الافتراضي." else "Preview the layout before editing, or use the default.",color=Color(0xFF8D9AB0),fontSize=10.sp);Spacer(Modifier.height(10.dp));LazyRow(horizontalArrangement=Arrangement.spacedBy(8.dp)){items(EDITOR_TEMPLATES,key={it.id}){t->val selected=selectedTemplateId==t.id;Column(Modifier.width(132.dp).clip(RoundedCornerShape(16.dp)).background(if(selected)Color(0xFF1B1730)else Color(0xFF101827)).border(if(selected)1.dp else 0.dp,t.accent,RoundedCornerShape(16.dp)).clickable{onSelect(t.id)}.padding(7.dp)){TemplateVisualPreview(t,Modifier.fillMaxWidth().height(112.dp));Spacer(Modifier.height(6.dp));Text(if(ar)t.titleAr else t.titleEn,fontWeight=FontWeight.Bold,fontSize=11.sp);Text(if(ar)t.descriptionAr else t.descriptionEn,color=Color(0xFF8D9AB0),fontSize=8.sp,maxLines=2)}}};Spacer(Modifier.height(8.dp));OutlinedButton(onClick=onDismiss,modifier=Modifier.fillMaxWidth()){Text(if(ar)"استخدام الافتراضي" else "Use default")};Spacer(Modifier.height(10.dp))}}}
 @Composable
-private fun TemplatesSheet(onDismiss: () -> Unit, onUseTemplate: () -> Unit) {
-    val templates = listOf(
+private fun TemplatesSheet(onDismiss: () -> Unit, onUseTemplate: (String) -> Unit) {
+    val templates=EDITOR_TEMPLATES.filter{it.id!="default"}
         Triple(Icons.Default.MovieFilter, stringResource(R.string.template_cinematic), stringResource(R.string.template_cinematic_desc)),
         Triple(Icons.Default.Favorite, stringResource(R.string.template_social), stringResource(R.string.template_social_desc)),
         Triple(Icons.Default.Bolt, stringResource(R.string.template_fast), stringResource(R.string.template_fast_desc))
@@ -1419,23 +1430,8 @@ private fun TemplatesSheet(onDismiss: () -> Unit, onUseTemplate: () -> Unit) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
             Text(stringResource(R.string.ready_templates), fontSize = 22.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(12.dp))
-            templates.forEach { (icon, title, desc) ->
-                Row(
-                    Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Color(0xFF111B2A)).clickable { onUseTemplate() }.padding(14.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(Modifier.size(44.dp).clip(RoundedCornerShape(12.dp)).background(Color(0xFF28185C)), contentAlignment = Alignment.Center) {
-                        Icon(icon, null, tint = Color(0xFFC9A7FF))
-                    }
-                    Spacer(Modifier.width(12.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text(title, fontWeight = FontWeight.Bold)
-                        Text(desc, color = Color.Gray, fontSize = 11.sp)
-                    }
-                    Icon(Icons.Default.ChevronRight, null, tint = Color.LightGray)
-                }
-                Spacer(Modifier.height(8.dp))
-            }
+            LazyRow(horizontalArrangement=Arrangement.spacedBy(9.dp),contentPadding=PaddingValues(bottom=8.dp)){items(templates,key={it.id}){t->Column(Modifier.width(145.dp).clip(RoundedCornerShape(16.dp)).background(Color(0xFF111B2A)).clickable{onUseTemplate(t.id)}.padding(7.dp)){TemplateVisualPreview(t,Modifier.fillMaxWidth().height(118.dp));Spacer(Modifier.height(6.dp));Text(t.titleAr,fontWeight=FontWeight.Bold,fontSize=11.sp);Text(t.descriptionAr,color=Color.Gray,fontSize=8.sp,maxLines=2)}}}
+            Spacer(Modifier.height(8.dp));OutlinedButton(onClick={onUseTemplate("default")},modifier=Modifier.fillMaxWidth()){Text("الافتراضي / Default")}
             Spacer(Modifier.height(18.dp))
         }
     }
@@ -2096,12 +2092,14 @@ private fun EditorScreen(
     onProjectNameChanged: (String) -> Unit,
     onBack: () -> Unit,
     initialTool: String? = null,
+    initialTemplate: String? = null,
     language: AppLanguage,
     onLanguageSelected: (AppLanguage) -> Unit
 ) {
     val context = LocalContext.current
     var current by remember { mutableStateOf(clips.firstOrNull()) }
     var settings by remember(projectId) { mutableStateOf(EditorSettingsRepository.load(context, projectId)) }
+    LaunchedEffect(projectId,initialTemplate){initialTemplate?.let{id->val next=applyEditorTemplate(settings,id);settings=next;EditorSettingsRepository.save(context,projectId,next)}}
     var showTrim by remember { mutableStateOf(false) }
     var showExport by remember { mutableStateOf(false) }
     var showKeyframes by remember { mutableStateOf(false) }
@@ -3362,6 +3360,7 @@ private fun EditorPreview(
                         .offset(x=((layer.x+animX)*120).dp, y=(layer.y*90).dp)
                         .rotate(layer.rotation)
                         .scale(layer.scale*animScale)
+                        .clickable{selectedLayerId=layer.id}
                         .pointerInput(layer.id, selected) {
                             detectTransformGestures { _, pan, zoom, rotation ->
                                 selectedLayerId = layer.id
@@ -3390,6 +3389,7 @@ private fun EditorPreview(
                         Text(displayText, color=Color(layer.strokeColor).copy(alpha=layer.alpha*animAlpha), fontSize=commonSize, fontWeight=commonWeight, fontFamily=commonFont, textAlign=when(layer.textAlign){"start"->TextAlign.Start;"end"->TextAlign.End;else->TextAlign.Center}, lineHeight=(layer.size*layer.lineHeightMultiplier).sp, letterSpacing=layer.letterSpacing.sp, style=androidx.compose.ui.text.TextStyle(drawStyle=androidx.compose.ui.graphics.drawscope.Stroke(width=layer.strokeWidth)))
                     }
                     Text(displayText, color=Color(layer.color).copy(alpha=layer.alpha*animAlpha), fontSize=commonSize, fontWeight=commonWeight, fontFamily=commonFont, textAlign=TextAlign.Center, style=androidx.compose.ui.text.TextStyle(lineHeight=(layer.size*layer.lineHeightMultiplier).sp, letterSpacing=layer.letterSpacing.sp, textAlign=when(layer.textAlign){"start"->TextAlign.Start;"end"->TextAlign.End;else->TextAlign.Center}, shadow=if(layer.glowEnabled) androidx.compose.ui.graphics.Shadow(Color(layer.glowColor), Offset.Zero, layer.glowRadius) else if(layer.shadowEnabled) androidx.compose.ui.graphics.Shadow(Color(layer.shadowColor), Offset(layer.shadowDx, layer.shadowDy), layer.shadowRadius) else null))
+                    if(selected){IconButton(onClick={val next=settings.textLayers.filterNot{it.id==layer.id};onSettingsChange(settings.copy(textLayers=next,text=next.firstOrNull()?.text.orEmpty(),textVisible=next.any{it.visible&&it.text.isNotBlank()}));selectedLayerId=next.firstOrNull()?.id},modifier=Modifier.align(Alignment.TopEnd).size(26.dp)){Icon(Icons.Default.Close,null,tint=Color.White,modifier=Modifier.size(15.dp))}}
                 }
             }
             if (previewLayers.isNotEmpty()) {
