@@ -385,109 +385,110 @@ fun Timeline(
                             }
                         }
 
-                        TrackLane(
-                            label = "Video",
-                            labelIcon = Icons.Default.Videocam,
-                            tint = Color(0xFF55A8FF),
-                            laneClips = videoClips
-                        )
-
-                        TrackLane(
-                            label = "Images",
-                            labelIcon = Icons.Default.Photo,
-                            tint = Color(0xFF33D6B2),
-                            laneClips = imageClips
-                        )
-
-                        // PIP / graphics lane gives overlays a real place in the timeline.
-                        Box(
-                            Modifier.fillMaxWidth().height(42.dp)
-                                .clip(RoundedCornerShape(7.dp))
-                                .background(Color(0xFF10162A))
-                        ) {
-                            Icon(
-                                Icons.Default.Photo,
-                                contentDescription = "PIP",
-                                tint = Color(0xFF7EC8FF),
-                                modifier = Modifier.align(Alignment.CenterStart).padding(start = 6.dp).size(15.dp)
+                        if (videoClips.isNotEmpty()) {
+                            TrackLane(
+                                label = "Video",
+                                labelIcon = Icons.Default.Videocam,
+                                tint = Color(0xFF55A8FF),
+                                laneClips = videoClips
                             )
-                            repeat(pipLayerCount.coerceAtMost(4)) { i ->
-                                val left = (0.08f + i * 0.18f).coerceAtMost(0.72f)
-                                Box(
-                                    Modifier.fillMaxHeight().fillMaxWidth(0.22f)
-                                        .offset(x = with(density) { (left * widthPx).toDp() })
-                                        .padding(vertical = 4.dp)
-                                        .clip(RoundedCornerShape(5.dp))
-                                        .background(Color(0xFF24658A))
-                                ) {
-                                    Text(
-                                        "PIP ${i + 1}",
-                                        color = Color.White,
-                                        fontSize = 7.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        modifier = Modifier.align(Alignment.Center)
-                                    )
-                                }
-                            }
-                            if (pipLayerCount == 0) {
-                                Text(
-                                    "PIP / صور",
-                                    color = Color(0xFF6D7F98),
-                                    fontSize = 8.sp,
-                                    modifier = Modifier.align(Alignment.Center)
+                        }
+
+                        // Image/PIP media gets a lane only after the user actually adds an image.
+                        if (imageClips.isNotEmpty()) {
+                            TrackLane(
+                                label = "Images",
+                                labelIcon = Icons.Default.Photo,
+                                tint = Color(0xFF33D6B2),
+                                laneClips = imageClips
+                            )
+                        }
+
+                        // Graphics/PIP gets its own lane only when a real PIP layer exists.
+                        if (pipLayerCount > 0) {
+                            Box(
+                                Modifier.fillMaxWidth().height(42.dp)
+                                    .clip(RoundedCornerShape(7.dp))
+                                    .background(Color(0xFF10162A))
+                            ) {
+                                Icon(
+                                    Icons.Default.Photo,
+                                    contentDescription = "PIP",
+                                    tint = Color(0xFF7EC8FF),
+                                    modifier = Modifier.align(Alignment.CenterStart).padding(start = 6.dp).size(15.dp)
                                 )
-                            }
-                        }
-
-                        // Text lane: real selectable text segments rather than detached chips.
-                        Box(
-                            Modifier.fillMaxWidth().height(42.dp)
-                                .clip(RoundedCornerShape(7.dp))
-                                .background(Color(0xFF111126))
-                        ) {
-                            Icon(
-                                Icons.Default.TextFields,
-                                contentDescription = "Text",
-                                tint = Color(0xFFC69BFF),
-                                modifier = Modifier.align(Alignment.CenterStart).padding(start = 6.dp).size(15.dp)
-                            )
-                            textLayerNames.forEachIndexed { i, name ->
-                                val left = if (textLayerNames.size == 1) 0.12f else i.toFloat() / textLayerNames.size
-                                val width = (0.32f).coerceAtMost(0.85f)
-                                Box(
-                                    Modifier.fillMaxHeight().fillMaxWidth(width)
-                                        .offset(x = with(density) { (left * widthPx).toDp() })
-                                        .padding(vertical = 4.dp, horizontal = 2.dp)
-                                        .clip(RoundedCornerShape(5.dp))
-                                        .background(TextLayerColors[i % TextLayerColors.size])
-                                        .clickable { onKeyframeSeek(safePlayhead) },
-                                    contentAlignment = Alignment.CenterStart
-                                ) {
-                                    Text(
-                                        "T  $name",
-                                        color = Color.White,
-                                        fontSize = 8.sp,
-                                        maxLines = 1,
-                                        modifier = Modifier.padding(horizontal = 8.dp)
-                                    )
+                                repeat(pipLayerCount.coerceAtMost(4)) { i ->
+                                    val left = (0.08f + i * 0.18f).coerceAtMost(0.72f)
+                                    Box(
+                                        Modifier.fillMaxHeight().fillMaxWidth(0.22f)
+                                            .offset(x = with(density) { (left * widthPx).toDp() })
+                                            .padding(vertical = 4.dp)
+                                            .clip(RoundedCornerShape(5.dp))
+                                            .background(Color(0xFF24658A))
+                                    ) {
+                                        Text(
+                                            "PIP ${i + 1}",
+                                            color = Color.White,
+                                            fontSize = 7.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            modifier = Modifier.align(Alignment.Center)
+                                        )
+                                    }
                                 }
                             }
                         }
 
-                        // Music lane with a visible range and draggable start/end handles.
-                        Box(
-                            Modifier.fillMaxWidth().height(48.dp)
-                                .clip(RoundedCornerShape(7.dp))
-                                .background(Color(0xFF101C2C))
-                                .clickable { onAudioTrackClick() }
-                        ) {
-                            Icon(
-                                Icons.Default.MusicNote,
-                                contentDescription = "Audio",
-                                tint = Color(0xFF39BFFF),
-                                modifier = Modifier.align(Alignment.CenterStart).padding(start = 6.dp).size(16.dp)
-                            )
-                            if (musicUri.isNotBlank()) {
+                        // Text gets a real timeline lane only after the user adds text.
+                        if (textLayerNames.isNotEmpty()) {
+                            Box(
+                                Modifier.fillMaxWidth().height(42.dp)
+                                    .clip(RoundedCornerShape(7.dp))
+                                    .background(Color(0xFF111126))
+                            ) {
+                                Icon(
+                                    Icons.Default.TextFields,
+                                    contentDescription = "Text",
+                                    tint = Color(0xFFC69BFF),
+                                    modifier = Modifier.align(Alignment.CenterStart).padding(start = 6.dp).size(15.dp)
+                                )
+                                textLayerNames.forEachIndexed { i, name ->
+                                    val left = if (textLayerNames.size == 1) 0.12f else i.toFloat() / textLayerNames.size
+                                    val width = (0.32f).coerceAtMost(0.85f)
+                                    Box(
+                                        Modifier.fillMaxHeight().fillMaxWidth(width)
+                                            .offset(x = with(density) { (left * widthPx).toDp() })
+                                            .padding(vertical = 4.dp, horizontal = 2.dp)
+                                            .clip(RoundedCornerShape(5.dp))
+                                            .background(TextLayerColors[i % TextLayerColors.size])
+                                            .clickable { onKeyframeSeek(safePlayhead) },
+                                        contentAlignment = Alignment.CenterStart
+                                    ) {
+                                        Text(
+                                            "T  $name",
+                                            color = Color.White,
+                                            fontSize = 8.sp,
+                                            maxLines = 1,
+                                            modifier = Modifier.padding(horizontal = 8.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        // Audio/music gets a lane only after a real music file is selected.
+                        if (musicUri.isNotBlank()) {
+                            Box(
+                                Modifier.fillMaxWidth().height(48.dp)
+                                    .clip(RoundedCornerShape(7.dp))
+                                    .background(Color(0xFF101C2C))
+                                    .clickable { onAudioTrackClick() }
+                            ) {
+                                Icon(
+                                    Icons.Default.MusicNote,
+                                    contentDescription = "Audio",
+                                    tint = Color(0xFF39BFFF),
+                                    modifier = Modifier.align(Alignment.CenterStart).padding(start = 6.dp).size(16.dp)
+                                )
                                 val start = musicStartMs.coerceIn(0L, total)
                                 val end = (start + musicDurationMs.coerceAtLeast(1L)).coerceIn(start + 1L, total)
                                 val leftFraction = start.toFloat() / total.toFloat()
@@ -543,13 +544,6 @@ fun Timeline(
                                             }
                                     )
                                 }
-                            } else {
-                                Text(
-                                    "إضافة صوت" ,
-                                    color = Color(0xFF7C8DA6),
-                                    fontSize = 9.sp,
-                                    modifier = Modifier.align(Alignment.Center).padding(start = 16.dp)
-                                )
                             }
                         }
                     }
