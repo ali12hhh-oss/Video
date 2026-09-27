@@ -4315,6 +4315,42 @@ private fun VideoPresetDialog(s: EditorSettings, language: AppLanguage, onChange
 }
 
 @Composable
+private fun EditorReferenceTitle(text: String) {
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(7.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                Modifier.size(width = 4.dp, height = 25.dp)
+                    .clip(RoundedCornerShape(3.dp))
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(Color(0xFF9A63FF), Color(0xFF2D8CFF))
+                        )
+                    )
+            )
+            Spacer(Modifier.width(9.dp))
+            Text(
+                text,
+                color = Color.White,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.ExtraBold,
+                maxLines = 1
+            )
+        }
+        Box(
+            Modifier.fillMaxWidth().height(1.dp)
+                .background(
+                    Brush.horizontalGradient(
+                        listOf(Color(0xFF6B3CFF), Color(0xFF2585FF), Color.Transparent)
+                    )
+                )
+        )
+    }
+}
+
+@Composable
 private fun MusicTrimDialog(
     uri: Uri,
     language: AppLanguage,
@@ -4371,7 +4407,7 @@ private fun MusicTrimDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (language == AppLanguage.ARABIC) "اختيار مقطع صوتي" else "Choose audio segment") },
+        title = { EditorReferenceTitle(if (language == AppLanguage.ARABIC) "اختيار مقطع صوتي" else "Choose audio segment") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text(fileName, maxLines = 1, color = Color.White, fontWeight = FontWeight.SemiBold)
@@ -4462,7 +4498,7 @@ private fun FilterDialog(
 
     AlertDialog(
         onDismissRequest=onDismiss,
-        title={Text(if(language==AppLanguage.ARABIC)"الفلاتر" else "Filters")},
+        title={EditorReferenceTitle(if(language==AppLanguage.ARABIC)"الفلاتر" else "Filters")},
         text={
             Column(Modifier.verticalScroll(rememberScrollState())) {
                 Text(
@@ -4545,7 +4581,7 @@ private fun EffectsDialog(s: EditorSettings, language: AppLanguage, onChange:(Ed
     var blockSize by remember(s.mosaicBlockSize){mutableFloatStateOf(s.mosaicBlockSize)}
     var mx by remember(s.mosaicX){mutableFloatStateOf(s.mosaicX)}; var my by remember(s.mosaicY){mutableFloatStateOf(s.mosaicY)}
     var mw by remember(s.mosaicWidth){mutableFloatStateOf(s.mosaicWidth)}; var mh by remember(s.mosaicHeight){mutableFloatStateOf(s.mosaicHeight)}
-    AlertDialog(onDismissRequest=onDismiss,title={Text(if(language==AppLanguage.ARABIC)"المؤثرات" else "Effects")},text={
+    AlertDialog(onDismissRequest=onDismiss,title={EditorReferenceTitle(if(language==AppLanguage.ARABIC)"المؤثرات" else "Effects")},text={
         Column(Modifier.verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(7.dp)){
             Text(if(language==AppLanguage.ARABIC)"المؤثرات والمعالجة" else "Effects & processing",fontWeight=FontWeight.Bold)
             Text(if(language==AppLanguage.ARABIC)"ضبابية ${blur.toInt()}" else "Blur ${blur.toInt()}"); Slider(value=blur,onValueChange={blur=it},valueRange=0f..20f)
@@ -4565,7 +4601,7 @@ private fun EffectsDialog(s: EditorSettings, language: AppLanguage, onChange:(Ed
 }
 @Composable private fun AdjustDialog(s: EditorSettings, language: AppLanguage, onChange:(EditorSettings)->Unit,onDismiss:()->Unit){
     var b by remember{mutableFloatStateOf(s.brightness)};var c by remember{mutableFloatStateOf(s.contrast)};var sat by remember{mutableFloatStateOf(s.saturation)};var hue by remember{mutableFloatStateOf(s.hue)};var temp by remember{mutableFloatStateOf(s.temperature)};var tintValue by remember{mutableFloatStateOf(s.tint)}
-    AlertDialog(onDismissRequest=onDismiss,title={Text(if(language==AppLanguage.ARABIC)"ضبط متقدم" else "Advanced Adjust")},text={Column{Text(if(language==AppLanguage.ARABIC)"السطوع ${(b*100).toInt()}" else "Brightness ${(b*100).toInt()}");Slider(value = b, onValueChange = { v -> b = v }, valueRange = -1f..1f);Text(if(language==AppLanguage.ARABIC)"التباين ${(c*100).toInt()}%" else "Contrast ${(c*100).toInt()}%");Slider(value = c, onValueChange = { v -> c = v }, valueRange = 0f..2f);Text(if(language==AppLanguage.ARABIC)"التشبع ${(sat*100).toInt()}%" else "Saturation ${(sat*100).toInt()}%");Slider(value = sat, onValueChange = { v -> sat = v }, valueRange = 0f..2f);Text(if(language==AppLanguage.ARABIC)"درجة اللون ${hue.toInt()}°" else "Hue ${hue.toInt()}°");Slider(value = hue, onValueChange = { v -> hue = v }, valueRange = -180f..180f);Text(if(language==AppLanguage.ARABIC)"حرارة اللون ${temp.toInt()}" else "Temperature ${temp.toInt()}");Slider(value = temp, onValueChange = { v -> temp = v }, valueRange = -100f..100f);Text(if(language==AppLanguage.ARABIC)"الصبغة ${tintValue.toInt()}" else "Tint ${tintValue.toInt()}");Slider(value = tintValue, onValueChange = { v -> tintValue = v }, valueRange = -100f..100f)}},confirmButton={TextButton(onClick={onChange(s.copy(brightness=b,contrast=c,saturation=sat,hue=hue,temperature=temp,tint=tintValue));onDismiss()}){Text(if(language==AppLanguage.ARABIC)"تطبيق" else "Apply")}},dismissButton={TextButton(onClick=onDismiss){Text(if(language==AppLanguage.ARABIC)"إلغاء" else "Cancel")}})
+    AlertDialog(onDismissRequest=onDismiss,title={EditorReferenceTitle(if(language==AppLanguage.ARABIC)"ضبط متقدم" else "Advanced Adjust")},text={Column{Text(if(language==AppLanguage.ARABIC)"السطوع ${(b*100).toInt()}" else "Brightness ${(b*100).toInt()}");Slider(value = b, onValueChange = { v -> b = v }, valueRange = -1f..1f);Text(if(language==AppLanguage.ARABIC)"التباين ${(c*100).toInt()}%" else "Contrast ${(c*100).toInt()}%");Slider(value = c, onValueChange = { v -> c = v }, valueRange = 0f..2f);Text(if(language==AppLanguage.ARABIC)"التشبع ${(sat*100).toInt()}%" else "Saturation ${(sat*100).toInt()}%");Slider(value = sat, onValueChange = { v -> sat = v }, valueRange = 0f..2f);Text(if(language==AppLanguage.ARABIC)"درجة اللون ${hue.toInt()}°" else "Hue ${hue.toInt()}°");Slider(value = hue, onValueChange = { v -> hue = v }, valueRange = -180f..180f);Text(if(language==AppLanguage.ARABIC)"حرارة اللون ${temp.toInt()}" else "Temperature ${temp.toInt()}");Slider(value = temp, onValueChange = { v -> temp = v }, valueRange = -100f..100f);Text(if(language==AppLanguage.ARABIC)"الصبغة ${tintValue.toInt()}" else "Tint ${tintValue.toInt()}");Slider(value = tintValue, onValueChange = { v -> tintValue = v }, valueRange = -100f..100f)}},confirmButton={TextButton(onClick={onChange(s.copy(brightness=b,contrast=c,saturation=sat,hue=hue,temperature=temp,tint=tintValue));onDismiss()}){Text(if(language==AppLanguage.ARABIC)"تطبيق" else "Apply")}},dismissButton={TextButton(onClick=onDismiss){Text(if(language==AppLanguage.ARABIC)"إلغاء" else "Cancel")}})
 }
 
 @Composable private fun CanvasDialog(s:EditorSettings,language:AppLanguage,onChange:(EditorSettings)->Unit,onDismiss:()->Unit){
@@ -4580,7 +4616,7 @@ private fun EffectsDialog(s: EditorSettings, language: AppLanguage, onChange:(Ed
     var selected=remember{mutableStateOf(s.transition)}
     var duration by remember{mutableFloatStateOf(s.transitionDuration)}
     var intensity by remember{mutableFloatStateOf(s.motionIntensity)}
-    AlertDialog(onDismissRequest=onDismiss,title={Text(if(language==AppLanguage.ARABIC)"انتقالات وتأثيرات الحركة"else"Transitions & Motion")},text={
+    AlertDialog(onDismissRequest=onDismiss,title={EditorReferenceTitle(if(language==AppLanguage.ARABIC)"انتقالات وتأثيرات الحركة"else"Transitions & Motion")},text={
         Column(Modifier.verticalScroll(rememberScrollState())){
             labels.forEachIndexed{i,label->FilterChip(selected=selected.value==vals[i],onClick={selected.value=vals[i]},label={Text(label)},modifier=Modifier.fillMaxWidth().padding(vertical=2.dp))}
             Spacer(Modifier.height(8.dp))
@@ -4607,7 +4643,7 @@ private fun EffectsDialog(s: EditorSettings, language: AppLanguage, onChange:(Ed
     var scale by remember(s.stickerScale){mutableFloatStateOf(s.stickerScale)}
     var rotation by remember(s.stickerRotation){mutableFloatStateOf(s.stickerRotation)}
     var alpha by remember(s.stickerAlpha){mutableFloatStateOf(s.stickerAlpha)}
-    AlertDialog(onDismissRequest=onDismiss,title={Text(if(language==AppLanguage.ARABIC)"الملصقات"else"Stickers")},text={
+    AlertDialog(onDismissRequest=onDismiss,title={EditorReferenceTitle(if(language==AppLanguage.ARABIC)"الملصقات"else"Stickers")},text={
         Column(Modifier.verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(6.dp)){
             LazyRow(horizontalArrangement=Arrangement.spacedBy(5.dp),contentPadding=PaddingValues(vertical=4.dp)){items(vals){v->FilterChip(selected=sticker==v,onClick={sticker=v},label={Text(v,fontSize=20.sp)})}}
             Text(if(language==AppLanguage.ARABIC)"الموضع الأفقي ${(x*100).toInt()}%"else"Horizontal ${(x*100).toInt()}%")
@@ -4644,7 +4680,7 @@ private fun OverlayDialog(
     }
     AlertDialog(
         onDismissRequest=onDismiss,
-        title={ Text(if(language==AppLanguage.ARABIC) "طبقات الصورة / PIP" else "Image / PIP Layers") },
+        title={ EditorReferenceTitle(if(language==AppLanguage.ARABIC) "طبقات الصورة / PIP" else "Image / PIP Layers") },
         text={ Column(Modifier.verticalScroll(rememberScrollState()).fillMaxWidth(), verticalArrangement=Arrangement.spacedBy(6.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement=Arrangement.spacedBy(6.dp)) {
                 Button(onClick=onPickImage, modifier=Modifier.weight(1f)) { Icon(Icons.Default.AddPhotoAlternate,null); Spacer(Modifier.width(4.dp)); Text(if(language==AppLanguage.ARABIC) "إضافة PIP" else "Add PIP") }
