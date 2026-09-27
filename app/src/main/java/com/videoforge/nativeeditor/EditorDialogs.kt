@@ -58,7 +58,7 @@ fun KeyframeDialog(
     }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (ar) "إطار حركة النص" else "Text keyframe") },
+        title = { ReferenceDialogTitle(if (ar) "إطار حركة النص" else "Text keyframe") },
         text = {
             Column(
                 Modifier.verticalScroll(rememberScrollState()),
@@ -137,7 +137,7 @@ fun VideoKeyframeDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (ar) "إطار حركة الفيديو" else "Video keyframe") },
+        title = { ReferenceDialogTitle(if (ar) "إطار حركة الفيديو" else "Video keyframe") },
         text = {
             Column(
                 Modifier.verticalScroll(rememberScrollState()),
@@ -196,7 +196,7 @@ fun LayerManagerDialog(
     val ar = language == AppLanguage.ARABIC
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (ar) "الطبقات" else "Layers") },
+        title = { ReferenceDialogTitle(if (ar) "الطبقات" else "Layers") },
         text = {
             Column(
                 Modifier.verticalScroll(rememberScrollState()),
@@ -288,7 +288,7 @@ fun ExportDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (language == AppLanguage.ARABIC) "تصدير الفيديو" else "Export video") },
+        title = { ReferenceDialogTitle(if (language == AppLanguage.ARABIC) "تصدير الفيديو" else "Export video") },
         text = {
             Column(
                 Modifier.verticalScroll(rememberScrollState()),
