@@ -869,7 +869,7 @@ private fun HomeScreen(
         )
     ) {
         CompositionLocalProvider(
-            LocalLayoutDirection provides LayoutDirection.Rtl
+            LocalLayoutDirection provides if (arabic) LayoutDirection.Rtl else LayoutDirection.Ltr
         ) {
             Scaffold(
                 containerColor = Color(0xFF020914),
@@ -1132,7 +1132,7 @@ private fun HomeSecondaryCard(
 private fun HomeAppIcon() {
     Image(
         painter = painterResource(R.mipmap.ic_launcher),
-        contentDescription = "Video editor",
+        contentDescription = if (arabic) "محرر الفيديو" else "Video editor",
         contentScale = androidx.compose.ui.layout.ContentScale.Fit,
         modifier = Modifier
             .fillMaxSize()
