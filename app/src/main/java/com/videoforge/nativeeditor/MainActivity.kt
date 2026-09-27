@@ -1196,7 +1196,7 @@ private fun SettingsSheet(
 ) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        containerColor = Color.White
+        containerColor = Color(0xFF08111F)
     ) {
         Column(
             Modifier.fillMaxWidth().verticalScroll(rememberScrollState())
@@ -1204,28 +1204,28 @@ private fun SettingsSheet(
         ) {
             Text(
                 stringResource(R.string.settings),
-                color = Color(0xFF172033),
+                color = Color.White,
                 fontSize = 22.sp,
                 fontWeight = FontWeight.Bold
             )
             Spacer(Modifier.height(4.dp))
             Text(
                 if (language == AppLanguage.ARABIC) "إعدادات VideoForge والمحرر" else "VideoForge and editor settings",
-                color = Color(0xFF667085),
+                color = Color(0xFF8EA0B8),
                 fontSize = 11.sp
             )
 
             Spacer(Modifier.height(18.dp))
             Text(
                 if (language == AppLanguage.ARABIC) "عام" else "General",
-                color = Color(0xFF6D3DFF),
+                color = Color(0xFFB58CFF),
                 fontWeight = FontWeight.Bold,
                 fontSize = 12.sp
             )
             Spacer(Modifier.height(7.dp))
             Surface(
                 modifier = Modifier.fillMaxWidth(),
-                color = Color(0xFFF5F7FB),
+                color = Color(0xFF101B2B),
                 shape = RoundedCornerShape(14.dp)
             ) {
                 Row(
@@ -1321,7 +1321,7 @@ private fun SettingsInfoRow(
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth().padding(bottom = 7.dp),
-        color = Color(0xFFF5F7FB),
+        color = Color(0xFF101B2B),
         shape = RoundedCornerShape(14.dp)
     ) {
         Row(
@@ -1332,13 +1332,13 @@ private fun SettingsInfoRow(
                 Modifier.size(40.dp).clip(RoundedCornerShape(11.dp)).background(Color(0xFFEDE8FF)),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(icon, null, tint = Color(0xFF6D3DFF))
+                Icon(icon, null, tint = Color(0xFF9B7BFF))
             }
             Spacer(Modifier.width(11.dp))
             Column(Modifier.weight(1f)) {
-                Text(title, color = Color(0xFF172033), fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+                Text(title, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
                 Spacer(Modifier.height(2.dp))
-                Text(description, color = Color(0xFF667085), fontSize = 9.sp)
+                Text(description, color = Color(0xFF8EA0B8), fontSize = 9.sp)
             }
         }
     }
