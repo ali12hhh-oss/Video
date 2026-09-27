@@ -698,61 +698,106 @@ private fun ProjectsScreen(
                         }
                     }
                 } else {
-                    filtered.forEach { project ->
+                    // Reference-style project gallery: visual cards first, metadata below.
+                    filtered.chunked(2).forEach { rowProjects ->
                         Row(
-                            Modifier.fillMaxWidth().clip(RoundedCornerShape(15.dp))
-                                .background(Color(0xFF071426))
-                                .border(1.dp, Color(0x1E2D7CFF), RoundedCornerShape(15.dp))
-                                .clickable { onOpenProject(project) }.padding(9.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(9.dp)
                         ) {
-                            Box(
-                                Modifier.size(86.dp, 58.dp).clip(RoundedCornerShape(10.dp)).background(Color(0xFF111E31)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                AndroidView(
-                                    factory = { ctx ->
-                                        PlayerView(ctx).apply {
-                                            useController = false
-                                            resizeMode = androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM
-                                            player = ExoPlayer.Builder(ctx).build().also { player ->
-                                                player.setMediaItem(MediaItem.fromUri(project.uri))
-                                                player.prepare()
-                                                player.volume = 0f
-                                            }
-                                        }
-                                    },
-                                    modifier = Modifier.fillMaxSize()
-                                )
-                                Box(
-                                    Modifier.size(28.dp).clip(androidx.compose.foundation.shape.CircleShape).background(Color(0xAA071426)),
-                                    contentAlignment = Alignment.Center
+                            rowProjects.forEach { project ->
+                                Column(
+                                    Modifier
+                                        .weight(1f)
+                                        .clip(RoundedCornerShape(15.dp))
+                                        .background(Color(0xFF071426))
+                                        .border(1.dp, Color(0x222D7CFF), RoundedCornerShape(15.dp))
+                                        .clickable { onOpenProject(project) }
+                                        .padding(7.dp)
                                 ) {
-                                    Icon(Icons.Default.PlayArrow, null, tint = Color.White, modifier = Modifier.size(17.dp))
+                                    Box(
+                                        Modifier
+                                            .fillMaxWidth()
+                                            .height(112.dp)
+                                            .clip(RoundedCornerShape(11.dp))
+                                            .background(Color(0xFF111E31)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        AndroidView(
+                                            factory = { ctx ->
+                                                PlayerView(ctx).apply {
+                                                    useController = false
+                                                    resizeMode = androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                                                    player = ExoPlayer.Builder(ctx).build().also { player ->
+                                                        player.setMediaItem(MediaItem.fromUri(project.uri))
+                                                        player.prepare()
+                                                        player.volume = 0f
+                                                    }
+                                                }
+                                            },
+                                            modifier = Modifier.fillMaxSize()
+                                        )
+                                        Box(
+                                            Modifier
+                                                .size(34.dp)
+                                                .clip(androidx.compose.foundation.shape.CircleShape)
+                                                .background(Color(0xB5071426)),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(Icons.Default.PlayArrow, null, tint = Color.White, modifier = Modifier.size(20.dp))
+                                        }
+                                        Box(
+                                            Modifier
+                                                .align(Alignment.BottomEnd)
+                                                .padding(6.dp)
+                                                .clip(RoundedCornerShape(6.dp))
+                                                .background(Color(0xCC071426))
+                                        ) {
+                                            Text(
+                                                formatDuration(project.durationMs),
+                                                color = Color.White,
+                                                fontSize = 8.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
+                                            )
+                                        }
+                                    }
+                                    Spacer(Modifier.height(8.dp))
+                                    Text(
+                                        project.name,
+                                        color = Color.White,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        maxLines = 1
+                                    )
+                                    Spacer(Modifier.height(3.dp))
+                                    Text(
+                                        project.clips.size.toString() + if (arabic) " مقاطع" else " clips",
+                                        color = Color(0xFF8294AD),
+                                        fontSize = 8.sp
+                                    )
+                                    Spacer(Modifier.height(6.dp))
+                                    Row(
+                                        Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Surface(
+                                            color = Color(0xFF142441),
+                                            shape = RoundedCornerShape(7.dp)
+                                        ) {
+                                            Text(
+                                                if (arabic) "تحرير" else "Edit",
+                                                color = Color(0xFFBBA5FF),
+                                                fontSize = 8.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 4.dp)
+                                            )
+                                        }
+                                        Icon(Icons.Default.ChevronLeft, null, tint = Color(0xFF7387A2), modifier = Modifier.size(17.dp))
+                                    }
                                 }
                             }
-                            Spacer(Modifier.width(10.dp))
-                            Column(Modifier.weight(1f)) {
-                                Text(project.name, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold, maxLines = 1)
-                                Spacer(Modifier.height(4.dp))
-                                Text(
-                                    formatDuration(project.durationMs) + " • " + project.clips.size +
-                                        if (arabic) " مقاطع" else " clips",
-                                    color = Color(0xFF8294AD), fontSize = 9.sp
-                                )
-                                Spacer(Modifier.height(7.dp))
-                                Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                                    Surface(color = Color(0xFF142441), shape = RoundedCornerShape(7.dp)) {
-                                        Text(if (arabic) "تحرير" else "Edit", color = Color(0xFFBBA5FF), fontSize = 8.sp, fontWeight = FontWeight.Bold,
-                                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 4.dp))
-                                    }
-                                    Surface(color = Color(0xFF102B2A), shape = RoundedCornerShape(7.dp)) {
-                                        Text(if (arabic) "محفوظ" else "Saved", color = Color(0xFF6FE0D0), fontSize = 8.sp, fontWeight = FontWeight.Bold,
-                                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 4.dp))
-                                    }
-                                }
-                            }
-                            Icon(Icons.Default.ChevronLeft, null, tint = Color(0xFF7387A2))
+                            if (rowProjects.size == 1) Spacer(Modifier.weight(1f))
                         }
                         Spacer(Modifier.height(9.dp))
                     }
