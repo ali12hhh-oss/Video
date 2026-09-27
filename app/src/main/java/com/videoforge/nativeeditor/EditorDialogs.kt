@@ -1,4 +1,6 @@
 
+package com.videoforge.nativeeditor
+
 @Composable
 private fun ReferenceDialogTitle(text: String) {
     Row(
@@ -14,8 +16,6 @@ private fun ReferenceDialogTitle(text: String) {
         Text(text, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold)
     }
 }
-package com.videoforge.nativeeditor
-
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.BorderStroke
