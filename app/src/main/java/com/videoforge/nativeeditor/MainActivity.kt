@@ -2325,8 +2325,28 @@ private fun EditorTextPanel(
     Surface(Modifier.fillMaxWidth().padding(top=4.dp), color=Color(0xFF0B111C), shape=RoundedCornerShape(16.dp)) {
         Column(Modifier.fillMaxWidth().padding(10.dp)) {
             Row(verticalAlignment=Alignment.CenterVertically) {
-                Text(if(language==AppLanguage.ARABIC) "استوديو النص" else "Text Studio", fontWeight=FontWeight.Bold, fontSize=13.sp, modifier=Modifier.weight(1f))
-                AssistChip(onClick=onLayers,label={Text(if(language==AppLanguage.ARABIC)"الطبقات" else "Layers",fontSize=9.sp)},leadingIcon={Icon(Icons.Default.Layers,null,Modifier.size(15.dp))})
+                Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Box(
+                    Modifier.size(30.dp).clip(RoundedCornerShape(9.dp))
+                        .background(Brush.linearGradient(listOf(Color(0xFF6B3CFF), Color(0xFF2585FF)))),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Default.TextFields, null, tint = Color.White, modifier = Modifier.size(16.dp))
+                }
+                Spacer(Modifier.width(8.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(if(language==AppLanguage.ARABIC) "استوديو النص" else "Text Studio", color=Color.White, fontWeight=FontWeight.ExtraBold, fontSize=13.sp)
+                    Text(if(language==AppLanguage.ARABIC) "تحكم مباشر بالنص والخط والحركة" else "Direct control of text, fonts and motion", color=Color(0xFF8799B3), fontSize=8.sp, maxLines=1)
+                }
+                AssistChip(
+                    onClick=onLayers,
+                    label={Text(if(language==AppLanguage.ARABIC)"الطبقات" else "Layers",fontSize=9.sp)},
+                    leadingIcon={Icon(Icons.Default.Layers,null,Modifier.size(15.dp))}
+                )
+            }
             }
             Spacer(Modifier.height(6.dp))
             Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
