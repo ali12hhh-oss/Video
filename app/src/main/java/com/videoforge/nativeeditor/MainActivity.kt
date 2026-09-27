@@ -1906,6 +1906,42 @@ private fun EditorFeaturePanel(
                 EditorTextPanel(settings=settings,language=language,onChange=onSettingsLiveChange,onAnimation=onTextAnimation,onLayers=onLayersDialog)
             }
 
+            if(activeTool=="speed"){
+                val speeds=listOf(0.5f,1f,1.5f,2f,3f)
+                LazyRow(Modifier.fillMaxWidth(),contentPadding=PaddingValues(horizontal=8.dp,vertical=6.dp),horizontalArrangement=Arrangement.spacedBy(8.dp)){
+                    items(speeds){v->
+                        val selected=settings.speed==v
+                        Column(Modifier.width(82.dp).clip(RoundedCornerShape(12.dp)).background(if(selected)Color(0xFF241B3D)else Color(0xFF111925)).border(if(selected)1.dp else 0.dp,Color(0xFF9B7BFF),RoundedCornerShape(12.dp)).clickable{onSettingsLiveChange(settings.copy(speed=v))}.padding(6.dp),horizontalAlignment=Alignment.CenterHorizontally){
+                            Box(Modifier.fillMaxWidth().height(46.dp).clip(RoundedCornerShape(8.dp)).background(Color(0xFF0B1422)),contentAlignment=Alignment.Center){Text("${v}×",fontSize=17.sp,fontWeight=FontWeight.ExtraBold,color=Color.White)}
+                            Text(if(v==1f)if(language==AppLanguage.ARABIC)"طبيعي" else "Normal" else if(v<1f)if(language==AppLanguage.ARABIC)"بطيء" else "Slow" else if(language==AppLanguage.ARABIC)"سريع" else "Fast",fontSize=8.sp,color=Color(0xFF9BA7BA),modifier=Modifier.padding(top=5.dp))
+                        }
+                    }
+                }
+            }
+            if(activeTool=="canvas"){
+                val ratios=listOf("16:9","9:16","1:1","4:5","21:9")
+                LazyRow(Modifier.fillMaxWidth(),contentPadding=PaddingValues(horizontal=8.dp,vertical=6.dp),horizontalArrangement=Arrangement.spacedBy(8.dp)){
+                    items(ratios){ratio->
+                        val selected=settings.aspect==ratio
+                        val ar=when(ratio){"9:16"->.5625f;"1:1"->1f;"4:5"->.8f;"21:9"->2.33f;else->1.777f}
+                        Column(Modifier.width(82.dp).clip(RoundedCornerShape(12.dp)).background(if(selected)Color(0xFF241B3D)else Color(0xFF111925)).border(if(selected)1.dp else 0.dp,Color(0xFF4C8DFF),RoundedCornerShape(12.dp)).clickable{onSettingsLiveChange(settings.copy(aspect=ratio))}.padding(6.dp),horizontalAlignment=Alignment.CenterHorizontally){
+                            Box(Modifier.fillMaxWidth().height(46.dp),contentAlignment=Alignment.Center){Box(Modifier.fillMaxHeight(.84f).aspectRatio(ar).clip(RoundedCornerShape(5.dp)).background(Brush.linearGradient(listOf(Color(0xFF2E78FF).copy(alpha=.6f),Color(0xFF7B4DFF).copy(alpha=.45f)))).border(1.dp,Color(0xFF8FB5FF),RoundedCornerShape(5.dp)))}
+                            Text(ratio,fontSize=9.sp,fontWeight=FontWeight.Bold,color=Color.White,modifier=Modifier.padding(top=4.dp))
+                        }
+                    }
+                }
+            }
+            if(activeTool=="sticker"){
+                val stickers=listOf("🔥","✨","❤️","😂","🎉","😎","⚡","🌟","🏆","🚀")
+                LazyRow(Modifier.fillMaxWidth(),contentPadding=PaddingValues(horizontal=8.dp,vertical=6.dp),horizontalArrangement=Arrangement.spacedBy(8.dp)){
+                    items(stickers){s->
+                        Column(Modifier.width(62.dp).clip(RoundedCornerShape(12.dp)).background(Color(0xFF111925)).clickable{onOpenAdvancedTool("sticker")}.padding(5.dp),horizontalAlignment=Alignment.CenterHorizontally){
+                            Box(Modifier.fillMaxWidth().height(42.dp).clip(RoundedCornerShape(8.dp)).background(Color(0xFF182338)),contentAlignment=Alignment.Center){Text(s,fontSize=26.sp)}
+                            Text(if(language==AppLanguage.ARABIC)"معاينة" else "Preview",fontSize=7.sp,color=Color(0xFF9BA7BA),modifier=Modifier.padding(top=3.dp))
+                        }
+                    }
+                }
+            }
             if(activeTool=="adjust") {
                 val value=when(adjustFeature) {
                     "brightness" -> settings.brightness; "contrast" -> settings.contrast; "saturation" -> settings.saturation
