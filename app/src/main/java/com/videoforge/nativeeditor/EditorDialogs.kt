@@ -21,17 +21,33 @@ import androidx.compose.ui.unit.sp
 
 @Composable
 private fun ReferenceDialogTitle(text: String) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(bottom = 2.dp),
-        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(7.dp)
     ) {
+        Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+            Box(
+                Modifier.size(width = 4.dp, height = 25.dp)
+                    .clip(RoundedCornerShape(3.dp))
+                    .background(Brush.verticalGradient(listOf(Color(0xFF9A63FF), Color(0xFF2D8CFF))))
+            )
+            Spacer(Modifier.width(9.dp))
+            Text(
+                text,
+                color = Color.White,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.ExtraBold,
+                maxLines = 1
+            )
+        }
         Box(
-            Modifier.size(width = 4.dp, height = 24.dp)
-                .clip(RoundedCornerShape(3.dp))
-                .background(Brush.verticalGradient(listOf(Color(0xFF9A63FF), Color(0xFF2D8CFF))))
+            Modifier.fillMaxWidth().height(1.dp)
+                .background(
+                    Brush.horizontalGradient(
+                        listOf(Color(0xFF6B3CFF), Color(0xFF2585FF), Color.Transparent)
+                    )
+                )
         )
-        Spacer(Modifier.width(9.dp))
-        Text(text, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold)
     }
 }
 
