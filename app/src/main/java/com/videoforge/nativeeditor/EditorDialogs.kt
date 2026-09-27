@@ -11,6 +11,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.ui.Alignment
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -294,16 +297,37 @@ fun ExportDialog(
                 Modifier.verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text(
-                    if (language == AppLanguage.ARABIC) "اختر جودة الفيديو" else "Choose video quality",
-                    fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold
-                )
-                ExportResolution.values().forEach { r ->
-                    FilterChip(
-                        selected = settings.resolution == r,
-                        onClick = { onSettings(settings.copy(resolution = r)) },
-                        label = { Text(r.label) }
-                    )
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp),
+                    color = Color(0xFF0C1728),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF24476F))
+                ) {
+                    Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                Modifier.size(32.dp).clip(RoundedCornerShape(9.dp))
+                                    .background(Brush.linearGradient(listOf(Color(0xFF6B3CFF), Color(0xFF2585FF)))),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("HD", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.ExtraBold)
+                            }
+                            Spacer(Modifier.width(8.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(if (language == AppLanguage.ARABIC) "جودة التصدير" else "Export quality", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 13.sp)
+                                Text(if (language == AppLanguage.ARABIC) "اختر الدقة المناسبة للمشروع" else "Choose the resolution for this project", color = Color(0xFF8396B1), fontSize = 9.sp)
+                            }
+                        }
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(7.dp), contentPadding = PaddingValues(end = 2.dp)) {
+                            items(ExportResolution.values().toList()) { r ->
+                                FilterChip(
+                                    selected = settings.resolution == r,
+                                    onClick = { onSettings(settings.copy(resolution = r)) },
+                                    label = { Text(r.label, fontSize = 10.sp) }
+                                )
+                            }
+                        }
+                    }
                 }
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
