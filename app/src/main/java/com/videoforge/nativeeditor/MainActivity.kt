@@ -2835,6 +2835,9 @@ private fun EditorScreen(
                 musicUri = settings.musicUri,
                 musicStartMs = settings.musicStartMs,
                 musicDurationMs = settings.musicDurationMs,
+                musicTimelineStartMs = settings.musicTimelineStartMs,
+                musicTrackIndex = settings.musicTrackIndex,
+                audioTracks = settings.audioTracks,
                 musicSourceDurationMs = musicSourceDurationMs,
                 musicVolume = settings.musicVolume,
                 musicFadeIn = settings.musicFadeIn,
@@ -2851,6 +2854,13 @@ private fun EditorScreen(
                     val maxDuration = if (safeSource > 0L) (safeSource - safeStart).coerceAtLeast(300L) else Long.MAX_VALUE
                     val safeDuration = duration.coerceIn(300L, maxDuration)
                     updateSettings(settings.copy(musicStartMs = safeStart, musicDurationMs = safeDuration))
+                },
+                onMoveMusicTrack = { newStart, newTrack ->
+                    updateSettings(settings.copy(musicTimelineStartMs = newStart.coerceAtLeast(0L), musicTrackIndex = newTrack.coerceAtLeast(0)))
+                },
+                onMoveAudioTrack = { track, newStart, newTrack ->
+                    val next = settings.audioTracks.map { if (it.id == track.id) it.copy(timelineStartMs = newStart.coerceAtLeast(0L), trackIndex = newTrack.coerceAtLeast(0)) else it }
+                    updateSettings(settings.copy(audioTracks = next))
                 },
                 onSelect = { clip -> current = clip; playheadMs = timelinePositionOf(clips, clip) },
                 onPlayheadChange = { position ->
@@ -2988,9 +2998,29 @@ private fun EditorScreen(
     }
     musicImportUri?.let { uri ->
         MusicTrimDialog(uri, language, onDismiss = { musicImportUri = null }, onConfirm = { start, end ->
-            updateSettings(settings.copy(musicUri = uri.toString(), musicStartMs = start, musicDurationMs = (end - start).coerceAtLeast(1L)))
+            val duration = (end - start).coerceAtLeast(300L)
+            if (settings.musicUri.isBlank()) {
+                updateSettings(settings.copy(
+                    musicUri = uri.toString(),
+                    musicStartMs = start,
+                    musicDurationMs = duration,
+                    musicTimelineStartMs = playheadMs.coerceAtLeast(0L),
+                    musicTrackIndex = 0
+                ))
+            } else {
+                val nextIndex = settings.audioTracks.maxOfOrNull { it.trackIndex }?.plus(1) ?: 1
+                val track = AudioTrack(
+                    uri = uri.toString(),
+                    name = uri.lastPathSegment?.substringAfterLast('/')?.ifBlank { "Audio" } ?: "Audio",
+                    timelineStartMs = playheadMs.coerceAtLeast(0L),
+                    sourceStartMs = start,
+                    durationMs = duration,
+                    trackIndex = nextIndex
+                )
+                updateSettings(settings.copy(audioTracks = settings.audioTracks + track))
+            }
             musicImportUri = null
-            status = if (language == AppLanguage.ARABIC) "تمت إضافة المقطع الصوتي المحدد" else "Selected audio added to the timeline"
+            status = if (language == AppLanguage.ARABIC) "تمت إضافة المقطع الصوتي المحدد كمسار قابل للتحريك" else "Audio added as a movable timeline track"
         })
     }
     if (showAudioKeyframes) {
