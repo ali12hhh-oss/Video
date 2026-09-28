@@ -695,5 +695,3 @@ fun Timeline(
             }
         }
     }
-}
-

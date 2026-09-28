@@ -2857,6 +2857,35 @@ private fun EditorScreen(
             }
         )
     }
+    val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("video/mp4")) { uri ->
+        if (uri != null && clips.isNotEmpty()) {
+            exportInProgress = true
+            exportProgress = 0f
+            status = if (language == AppLanguage.ARABIC) "جاري التصدير…" else "Exporting…"
+            exportScope.launch {
+                val result = runCatching {
+                    ExportEngine(context, context.contentResolver).export(
+                        clips = clips, settings = exportSettings, editor = settings, output = uri,
+                        includeWatermark = !watermarkRemovedForExport,
+                        onProgress = { progress ->
+                            exportProgress = progress.fraction.coerceIn(0f, 1f)
+                            status = progress.message
+                        }
+                    )
+                }.getOrElse { Result.failure(it) }
+                exportInProgress = false
+                status = if (result.isSuccess) {
+                    exportProgress = 1f
+                    lastExportUri = uri
+                    watermarkRemovedForExport = false
+                    if (language == AppLanguage.ARABIC) "تم تصدير الفيديو بنجاح" else "Video exported successfully"
+                } else {
+                    if (language == AppLanguage.ARABIC) "فشل التصدير: ${result.exceptionOrNull()?.message ?: "خطأ"}" else "Export failed: ${result.exceptionOrNull()?.message ?: "Unknown error"}"
+                }
+            }
+        }
+    }
+
     fun startExportDocument() {
         if (clips.isEmpty()) {
             status = if (language == AppLanguage.ARABIC) "لا توجد وسائط للتصدير" else "There is no media to export"
@@ -2894,34 +2923,6 @@ private fun EditorScreen(
         ad.show(activity)
     }
 
-    val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("video/mp4")) { uri ->
-        if (uri != null && clips.isNotEmpty()) {
-            exportInProgress = true
-            exportProgress = 0f
-            status = if (language == AppLanguage.ARABIC) "جاري التصدير…" else "Exporting…"
-            exportScope.launch {
-                val result = runCatching {
-                    ExportEngine(context, context.contentResolver).export(
-                        clips = clips, settings = exportSettings, editor = settings, output = uri,
-                        includeWatermark = !watermarkRemovedForExport,
-                        onProgress = { progress ->
-                            exportProgress = progress.fraction.coerceIn(0f, 1f)
-                            status = progress.message
-                        }
-                    )
-                }.getOrElse { Result.failure(it) }
-                exportInProgress = false
-                status = if (result.isSuccess) {
-                    exportProgress = 1f
-                    lastExportUri = uri
-                    watermarkRemovedForExport = false
-                    if (language == AppLanguage.ARABIC) "تم تصدير الفيديو بنجاح" else "Video exported successfully"
-                } else {
-                    if (language == AppLanguage.ARABIC) "فشل التصدير: ${result.exceptionOrNull()?.message ?: "خطأ"}" else "Export failed: ${result.exceptionOrNull()?.message ?: "Unknown error"}"
-                }
-            }
-        }
-    }
     val subtitleImportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
             runCatching {
