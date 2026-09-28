@@ -3345,7 +3345,8 @@ private fun EditorPreview(
                                 rotation = (settings.rotation + rotation).coerceIn(-180f, 180f).toInt()
                             ))
                         } else {
-                            val base = settings.videoKeyframes.lastOrNull { it.timeMs <= local }
+                            val existing = clip.videoKeyframes.ifEmpty { settings.videoKeyframes }
+                            val base = existing.lastOrNull { it.timeMs <= local }
                             val nextScale = ((base?.scale ?: settings.cropZoom) * zoom).coerceIn(0.5f, 6f)
                             val maxPan = ((nextScale - 1f) / nextScale).coerceIn(0f, 1f)
                             val next = VideoKeyframe(
@@ -3356,7 +3357,9 @@ private fun EditorPreview(
                                 rotation = (base?.rotation ?: settings.rotation.toFloat()) + rotation,
                                 easing = base?.easing ?: "easeInOut"
                             )
-                            onSettingsChange(settings.copy(videoKeyframes = (settings.videoKeyframes.filterNot { it.timeMs == local } + next).sortedBy { it.timeMs }))
+                            val updatedKeys = (existing.filterNot { it.timeMs == local } + next).sortedBy { it.timeMs }
+                            if (clip.videoKeyframes.isNotEmpty()) onClipChange(clip.copy(videoKeyframes = updatedKeys))
+                            else onSettingsChange(settings.copy(videoKeyframes = updatedKeys))
                         }
                     }
                 }
