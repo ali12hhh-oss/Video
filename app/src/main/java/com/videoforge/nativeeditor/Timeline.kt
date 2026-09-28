@@ -203,6 +203,7 @@ fun Timeline(
     onAddMedia: () -> Unit = {},
     onAddAudio: () -> Unit = {},
     onMoveAudioTrack: (AudioTrack, Long, Int) -> Unit = { _, _, _ -> },
+    onTrimAudioTrack: (AudioTrack, Long, Long) -> Unit = { _, _, _ -> },
     onMoveMusicTrack: (Long, Int) -> Unit = { _, _ -> },
     onAddText: () -> Unit = {},
     onMoveClip: (Clip, Long, Int) -> Unit = { _, _, _ -> },
@@ -481,6 +482,19 @@ fun Timeline(
                                             }
                                         }){
                                         Canvas(Modifier.fillMaxSize().padding(horizontal=8.dp,vertical=5.dp)){val bars=42;val bw=size.width/bars;for(i in 0 until bars){val h=(.2f+.7f*((kotlin.math.sin((track.id.hashCode()*.0002f+i*.91f))+1f)/2f));drawRoundRect(Color(0xFFD3B8FF),Offset(i*bw+bw*.2f,(size.height*(1f-h))/2f),androidx.compose.ui.geometry.Size(bw*.55f,size.height*h),cornerRadius=androidx.compose.ui.geometry.CornerRadius(2f,2f))}}
+                                        if (track.durationMs >= 300L) {
+                                            TrimHandle(Alignment.CenterStart) { delta ->
+                                                val oldStart=track.sourceStartMs
+                                                val oldDuration=track.durationMs
+                                                val maxStart=(track.sourceDurationMs-oldDuration).coerceAtLeast(0L)
+                                                val nextStart=(oldStart+delta).coerceIn(0L,maxStart)
+                                                onTrimAudioTrack(track,nextStart,oldDuration-(nextStart-oldStart))
+                                            }
+                                            TrimHandle(Alignment.CenterEnd) { delta ->
+                                                val maxDuration=if(track.sourceDurationMs>0L) (track.sourceDurationMs-track.sourceStartMs).coerceAtLeast(300L) else Long.MAX_VALUE
+                                                onTrimAudioTrack(track,track.sourceStartMs,(track.durationMs+delta).coerceIn(300L,maxDuration))
+                                            }
+                                        }
                                     }
                                 }
                             }
