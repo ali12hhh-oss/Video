@@ -2584,6 +2584,7 @@ private fun EditorScreen(
                     }
                 }
             }
+            }
         },
     ) { pad ->
         Column(Modifier.fillMaxSize().padding(pad)) {
