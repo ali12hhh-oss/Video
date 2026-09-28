@@ -1661,15 +1661,15 @@ private fun EditorFeaturePanel(
             Triple("duplicate", Icons.Default.ContentCopy, if(language==AppLanguage.ARABIC)"تكرار" else "Duplicate"),
             Triple("replace", Icons.Default.SwapHoriz, if(language==AppLanguage.ARABIC)"استبدال" else "Replace"),
             Triple("freeze", Icons.Default.AcUnit, if(language==AppLanguage.ARABIC)"تجميد" else "Freeze"),
-            Triple("left", Icons.AutoMirrored.Filled.KeyboardArrowLeft, if(language==AppLanguage.ARABIC)"تحريك يسار" else "Move left"),
-            Triple("right", Icons.AutoMirrored.Filled.KeyboardArrowRight, if(language==AppLanguage.ARABIC)"تحريك يمين" else "Move right"),
+            Triple("left", Icons.Default.KeyboardArrowLeft, if(language==AppLanguage.ARABIC)"تحريك يسار" else "Move left"),
+            Triple("right", Icons.Default.KeyboardArrowRight, if(language==AppLanguage.ARABIC)"تحريك يمين" else "Move right"),
             Triple("delete", Icons.Default.Delete, if(language==AppLanguage.ARABIC)"حذف" else "Delete")
         )
         "audio" -> listOf(
-            Triple("volume", Icons.AutoMirrored.Filled.VolumeUp, if(language==AppLanguage.ARABIC)"مستوى الصوت" else "Volume"),
-            Triple("mute", Icons.AutoMirrored.Filled.VolumeOff, if(language==AppLanguage.ARABIC)"كتم" else "Mute"),
-            Triple("fadeIn", Icons.AutoMirrored.Filled.TrendingUp, if(language==AppLanguage.ARABIC)"تلاشي دخول" else "Fade in"),
-            Triple("fadeOut", Icons.AutoMirrored.Filled.TrendingDown, if(language==AppLanguage.ARABIC)"تلاشي خروج" else "Fade out"),
+            Triple("volume", Icons.Default.VolumeUp, if(language==AppLanguage.ARABIC)"مستوى الصوت" else "Volume"),
+            Triple("mute", Icons.Default.VolumeOff, if(language==AppLanguage.ARABIC)"كتم" else "Mute"),
+            Triple("fadeIn", Icons.Default.TrendingUp, if(language==AppLanguage.ARABIC)"تلاشي دخول" else "Fade in"),
+            Triple("fadeOut", Icons.Default.TrendingDown, if(language==AppLanguage.ARABIC)"تلاشي خروج" else "Fade out"),
             Triple("keys", Icons.Default.Timeline, if(language==AppLanguage.ARABIC)"مفاتيح الصوت" else "Keyframes"),
             Triple("music", Icons.Default.MusicNote, if(language==AppLanguage.ARABIC)"إضافة صوت" else "Add audio"),
             Triple("extract", Icons.Default.AudioFile, if(language==AppLanguage.ARABIC)"استخراج الصوت" else "Extract")
