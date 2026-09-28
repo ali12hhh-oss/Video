@@ -1493,7 +1493,6 @@ private fun timelineClipAt(clips: List<Clip>, positionMs: Long): Pair<Clip, Long
 
 
 @Composable
-@Composable
 private fun EditorFeaturePreview(
     tool: String,
     feature: String,
