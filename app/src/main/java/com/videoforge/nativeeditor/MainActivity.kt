@@ -212,6 +212,31 @@ private fun isImageUri(context: android.content.Context, uri: Uri): Boolean {
 }
 
 private const val DEFAULT_IMAGE_CLIP_DURATION_MS = 3000L
+
+private fun loadTextTimings(context: android.content.Context, projectId: String): Map<String, TextTimelineTiming> {
+    return runCatching {
+        val raw = context.getSharedPreferences("editor_text_timing", android.content.Context.MODE_PRIVATE)
+            .getString(projectId, null) ?: return emptyMap()
+        val json = org.json.JSONObject(raw)
+        buildMap {
+            json.keys().forEach { id ->
+                val item = json.optJSONObject(id) ?: return@forEach
+                put(id, TextTimelineTiming(item.optLong("start", 0L), item.optLong("end", Long.MAX_VALUE)))
+            }
+        }
+    }.getOrDefault(emptyMap())
+}
+
+private fun saveTextTimings(context: android.content.Context, projectId: String, timings: Map<String, TextTimelineTiming>) {
+    runCatching {
+        val json = org.json.JSONObject()
+        timings.forEach { (id, timing) ->
+            json.put(id, org.json.JSONObject().put("start", timing.startMs).put("end", timing.endMs))
+        }
+        context.getSharedPreferences("editor_text_timing", android.content.Context.MODE_PRIVATE)
+            .edit().putString(projectId, json.toString()).apply()
+    }
+}
 private const val FALLBACK_VIDEO_CLIP_DURATION_MS = 4000L
 
 /** Duration to assign a freshly imported clip so timeline math never divides by a zero-length clip. */
@@ -2757,7 +2782,7 @@ private fun EditorScreen(
     var playheadMs by remember { mutableLongStateOf(0L) }
     // Text timing is maintained per text layer so every caption/title has a real
     // start/end range on the master timeline. New text defaults to the full project.
-    var textTimings by remember(projectId) { mutableStateOf<Map<String, TextTimelineTiming>>(emptyMap()) }
+    var textTimings by remember(projectId) { mutableStateOf(loadTextTimings(context, projectId)) }
     var previewPlaying by remember { mutableStateOf(false) }
     var previewError by remember { mutableStateOf<String?>(null) }
     var previewToggleToken by remember { mutableIntStateOf(0) }
@@ -2879,7 +2904,11 @@ private fun EditorScreen(
         // separate from text styling so dragging a timeline edge never mutates typography.
         val total = timelineTotalDuration(clips).coerceAtLeast(1L)
         val validIds = next.textLayers.mapIndexed { i, _ -> "text-$i" }.toSet()
-        textTimings = textTimings.filterKeys { it in validIds }
+        val total = timelineTotalDuration(clips).coerceAtLeast(1L)
+        textTimings = validIds.associateWith { id ->
+            textTimings[id] ?: TextTimelineTiming(0L, total)
+        }
+        saveTextTimings(context, projectId, textTimings)
         EditorSettingsRepository.save(context, projectId, next)
     }
 
@@ -2888,6 +2917,7 @@ private fun EditorScreen(
         val safeStart = startMs.coerceIn(0L, (total - 300L).coerceAtLeast(0L))
         val safeEnd = endMs.coerceIn(safeStart + 300L, total)
         textTimings = textTimings + (id to TextTimelineTiming(safeStart, safeEnd))
+        saveTextTimings(context, projectId, textTimings)
         playheadMs = safeStart
     }
 
