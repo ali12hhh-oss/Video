@@ -1771,7 +1771,8 @@ private fun TemplatesSheet(language: AppLanguage, onDismiss: () -> Unit, onUseTe
 private data class EditorSnapshot(
     val clips: List<Clip>,
     val settings: EditorSettings,
-    val projectName: String
+    val projectName: String,
+    val textTimings: Map<String, TextTimelineTiming> = emptyMap()
 )
 
 private fun clipTimelineDuration(clip: Clip): Long {
@@ -2358,7 +2359,7 @@ private fun EditorFeaturePanel(
                                     "flip" -> onOpenAdvancedTool("flip")
                                     else -> onSettingsLiveChange(settings.copy(aspect=id))
                                 }
-                                "transition" -> if(id=="none") onSettingsLiveChange(settings.copy(transition="none")) else onOpenAdvancedTool("transition")
+                                "transition" -> onSettingsLiveChange(settings.copy(transition = id))
                                 "subtitles" -> when(id) { "open" -> onSubtitles(); "markers" -> onMarkers() }
                                 "layers" -> when(id) {
                                     "manage" -> onLayersDialog()
@@ -2442,7 +2443,16 @@ private fun EditorFeaturePanel(
                 val stickers=listOf("🔥","✨","❤️","😂","🎉","😎","⚡","🌟","🏆","🚀")
                 LazyRow(Modifier.fillMaxWidth(),contentPadding=PaddingValues(horizontal=8.dp,vertical=6.dp),horizontalArrangement=Arrangement.spacedBy(8.dp)){
                     items(stickers){s->
-                        Column(Modifier.width(62.dp).clip(RoundedCornerShape(12.dp)).background(Color(0xFF111925)).clickable{onOpenAdvancedTool("sticker")}.padding(5.dp),horizontalAlignment=Alignment.CenterHorizontally){
+                        val selected = settings.sticker == s
+                        Column(
+                            Modifier.width(62.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(if (selected) Color(0xFF241B3D) else Color(0xFF111925))
+                                .border(if (selected) 1.dp else 0.dp, Color(0xFF9B7BFF), RoundedCornerShape(12.dp))
+                                .clickable { onSettingsLiveChange(settings.copy(sticker = s)) }
+                                .padding(5.dp),
+                            horizontalAlignment=Alignment.CenterHorizontally
+                        ){
                             Box(Modifier.fillMaxWidth().height(42.dp).clip(RoundedCornerShape(8.dp)).background(Color(0xFF182338)),contentAlignment=Alignment.Center){Text(s,fontSize=26.sp)}
                             Text(if(language==AppLanguage.ARABIC)"معاينة" else "Preview",fontSize=7.sp,color=Color(0xFF9BA7BA),modifier=Modifier.padding(top=3.dp))
                         }
@@ -2955,7 +2965,7 @@ private fun EditorScreen(
     val redoStack = remember(projectId) { mutableStateListOf<EditorSnapshot>() }
 
     fun pushUndo() {
-        undoStack.add(EditorSnapshot(clips, settings, editingName))
+        undoStack.add(EditorSnapshot(clips, settings, editingName, textTimings))
         if (undoStack.size > 50) undoStack.removeAt(0)
         redoStack.clear()
     }
@@ -2966,10 +2976,24 @@ private fun EditorScreen(
         onClipsChanged(next)
     }
 
+    fun syncTextTimings(next: EditorSettings) {
+        val total = timelineTotalDuration(clips).coerceAtLeast(1L)
+        val validIds = next.textLayers.mapIndexed { i, _ -> "text-$i" }.toSet()
+        val synced = validIds.associateWith { id ->
+            val old = textTimings[id]
+            val start = old?.startMs?.coerceIn(0L, (total - 300L).coerceAtLeast(0L)) ?: 0L
+            val end = old?.endMs?.coerceIn(start + 300L, total) ?: total
+            TextTimelineTiming(start, end)
+        }
+        textTimings = synced
+        saveTextTimings(context, projectId, synced)
+    }
+
     fun commitSettings(next: EditorSettings) {
         if (next == settings) return
         pushUndo()
         settings = next
+        syncTextTimings(next)
         EditorSettingsRepository.save(context, projectId, next)
         if (clips.isNotEmpty()) ProjectRepository.save(context, projectId, clips, editingName)
     }
@@ -2980,12 +3004,7 @@ private fun EditorScreen(
         settings = next
         // Keep timing entries aligned with the current layer list. Timing is deliberately
         // separate from text styling so dragging a timeline edge never mutates typography.
-        val total = timelineTotalDuration(clips).coerceAtLeast(1L)
-        val validIds = next.textLayers.mapIndexed { i, _ -> "text-$i" }.toSet()
-        textTimings = validIds.associateWith { id ->
-            textTimings[id] ?: TextTimelineTiming(0L, total)
-        }
-        saveTextTimings(context, projectId, textTimings)
+        syncTextTimings(next)
         EditorSettingsRepository.save(context, projectId, next)
     }
 
@@ -2993,6 +3012,8 @@ private fun EditorScreen(
         val total = timelineTotalDuration(clips).coerceAtLeast(1L)
         val safeStart = startMs.coerceIn(0L, (total - 300L).coerceAtLeast(0L))
         val safeEnd = endMs.coerceIn(safeStart + 300L, total)
+        if (textTimings[id]?.startMs == safeStart && textTimings[id]?.endMs == safeEnd) return
+        pushUndo()
         textTimings = textTimings + (id to TextTimelineTiming(safeStart, safeEnd))
         saveTextTimings(context, projectId, textTimings)
         playheadMs = safeStart
@@ -3001,20 +3022,24 @@ private fun EditorScreen(
 
     fun undo() {
         val snap = undoStack.removeLastOrNull() ?: return
-        redoStack.add(EditorSnapshot(clips, settings, editingName))
+        redoStack.add(EditorSnapshot(clips, settings, editingName, textTimings))
         onClipsChanged(snap.clips)
         settings = snap.settings
         editingName = snap.projectName
+        textTimings = snap.textTimings
+        saveTextTimings(context, projectId, textTimings)
         onProjectNameChanged(snap.projectName)
         EditorSettingsRepository.save(context, projectId, snap.settings)
     }
 
     fun redo() {
         val snap = redoStack.removeLastOrNull() ?: return
-        undoStack.add(EditorSnapshot(clips, settings, editingName))
+        undoStack.add(EditorSnapshot(clips, settings, editingName, textTimings))
         onClipsChanged(snap.clips)
         settings = snap.settings
         editingName = snap.projectName
+        textTimings = snap.textTimings
+        saveTextTimings(context, projectId, textTimings)
         onProjectNameChanged(snap.projectName)
         EditorSettingsRepository.save(context, projectId, snap.settings)
     }
