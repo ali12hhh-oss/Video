@@ -499,45 +499,79 @@ fun Timeline(
                                             .offset(x = with(density) { (leftFraction * widthPx).toDp() })
                                             .padding(vertical = 4.dp, horizontal = 2.dp)
                                             .clip(RoundedCornerShape(5.dp))
-                                            .background(TextLayerColors[i % TextLayerColors.size])
-                                            .clickable { onKeyframeSeek(start) },
+                                            .background(TextLayerColors[i % TextLayerColors.size]),
                                         contentAlignment = Alignment.CenterStart
                                     ) {
+                                        var bodyDragPx by remember(id, start, end) { mutableStateOf(0f) }
                                         Text(
                                             "T  $name",
                                             color = Color.White,
                                             fontSize = 8.sp,
                                             maxLines = 1,
-                                            modifier = Modifier.padding(horizontal = 9.dp)
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .pointerInput(id, start, end, total) {
+                                                    detectDragGestures(
+                                                        onDragStart = { bodyDragPx = 0f },
+                                                        onDragCancel = { bodyDragPx = 0f },
+                                                        onDragEnd = {
+                                                            val delta = (bodyDragPx / widthPx * total).toLong()
+                                                            val duration = (end - start).coerceAtLeast(MIN_TEXT_DURATION_MS)
+                                                            val nextStart = (start + delta).coerceIn(0L, (total - duration).coerceAtLeast(0L))
+                                                            onTextTimingChange(id, nextStart, nextStart + duration)
+                                                            bodyDragPx = 0f
+                                                        }
+                                                    ) { change, drag ->
+                                                        change.consume()
+                                                        bodyDragPx += drag.x
+                                                    }
+                                                }
+                                                .padding(horizontal = 9.dp),
+                                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
                                         )
-                                        // Left and right handles change only the timing range.
                                         Box(
-                                            Modifier.fillMaxHeight().width(8.dp)
+                                            Modifier.fillMaxHeight().width(12.dp)
                                                 .align(Alignment.CenterStart)
-                                                .background(Color.White.copy(alpha = .8f))
+                                                .zIndex(5f)
+                                                .background(Color.White.copy(alpha = .86f))
                                                 .pointerInput(id, start, end, total) {
-                                                    detectDragGestures { change, drag ->
+                                                    var accumulatedPx = 0f
+                                                    detectDragGestures(
+                                                        onDragStart = { accumulatedPx = 0f },
+                                                        onDragCancel = { accumulatedPx = 0f },
+                                                        onDragEnd = {
+                                                            val delta = (accumulatedPx / widthPx * total).toLong()
+                                                            val nextStart = (start + delta).coerceIn(0L, end - MIN_TEXT_DURATION_MS)
+                                                            onTextTimingChange(id, nextStart, end)
+                                                        }
+                                                    ) { change, drag ->
                                                         change.consume()
-                                                        val delta = (drag.x / widthPx * total).toLong()
-                                                        val nextStart = (start + delta).coerceIn(0L, end - MIN_TEXT_DURATION_MS)
-                                                        onTextTimingChange(id, nextStart, end)
+                                                        accumulatedPx += drag.x
                                                     }
                                                 }
                                         )
                                         Box(
-                                            Modifier.fillMaxHeight().width(8.dp)
+                                            Modifier.fillMaxHeight().width(12.dp)
                                                 .align(Alignment.CenterEnd)
-                                                .background(Color.White.copy(alpha = .8f))
+                                                .zIndex(5f)
+                                                .background(Color.White.copy(alpha = .86f))
                                                 .pointerInput(id, start, end, total) {
-                                                    detectDragGestures { change, drag ->
+                                                    var accumulatedPx = 0f
+                                                    detectDragGestures(
+                                                        onDragStart = { accumulatedPx = 0f },
+                                                        onDragCancel = { accumulatedPx = 0f },
+                                                        onDragEnd = {
+                                                            val delta = (accumulatedPx / widthPx * total).toLong()
+                                                            val nextEnd = (end + delta).coerceIn(start + MIN_TEXT_DURATION_MS, total)
+                                                            onTextTimingChange(id, start, nextEnd)
+                                                        }
+                                                    ) { change, drag ->
                                                         change.consume()
-                                                        val delta = (drag.x / widthPx * total).toLong()
-                                                        val nextEnd = (end + delta).coerceIn(start + MIN_TEXT_DURATION_MS, total)
-                                                        onTextTimingChange(id, start, nextEnd)
+                                                        accumulatedPx += drag.x
                                                     }
                                                 }
                                         )
-                                    }
+                                    }                                    }
                                 }
                             }
                         }
