@@ -29,13 +29,14 @@ object LanguageManager {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .edit().putString(KEY_LANGUAGE, language.tag).apply()
 
-        Locale.setDefault(Locale(language.tag))
+        val locale = Locale.forLanguageTag(language.tag)
+        Locale.setDefault(locale)
         val config = Configuration(context.resources.configuration)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            config.setLocales(android.os.LocaleList(Locale(language.tag)))
+            config.setLocales(android.os.LocaleList(locale))
         } else {
             @Suppress("DEPRECATION")
-            config.locale = Locale(language.tag)
+            config.setLocale(locale)
         }
         @Suppress("DEPRECATION")
         context.resources.updateConfiguration(config, context.resources.displayMetrics)
