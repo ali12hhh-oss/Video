@@ -3333,8 +3333,8 @@ private fun EditorScreen(
                                     onPickMusic = { musicImportLauncher.launch(arrayOf("audio/*")) },
                                     onTextDialog = {
                                         tool = null
-                                        showTextInput = false
-                                        activeEditorTool = "text"
+                                        activeEditorTool = null
+                                        showTextInput = true
                                     },
                                     onTextAnimation = { activeEditorTool = "textAnimation" },
                                     onSubtitles = { activeEditorTool = "subtitles" },
@@ -3385,12 +3385,11 @@ private fun EditorScreen(
                                                 val next=clips.filterNot{it==clip}; commitClips(next); current=next.firstOrNull()
                                             }
                                         } else if (id == "text") {
-                                            if (activeEditorTool == id) {
-                                                activeEditorTool = null
+                                            if (showTextInput) {
                                                 showTextInput = false
                                             } else {
-                                                showTextInput = false
-                                                activeEditorTool = "text"
+                                                activeEditorTool = null
+                                                showTextInput = true
                                             }
                                         } else {
                                             showTextInput = false
@@ -3618,6 +3617,18 @@ private fun EditorScreen(
             }
             }
         }
+    }
+
+    if (showTextInput) {
+        TextInputDialog(
+            settings = settings,
+            language = language,
+            onChange = {
+                updateSettings(it)
+                activeEditorTool = "text"
+            },
+            onDismiss = { showTextInput = false }
+        )
     }
 
     if (showKeyframes) {
