@@ -1816,6 +1816,7 @@ private fun EditorFeaturePanel(
     onExtractAudio: () -> Unit, onAudioKeyframes: () -> Unit, onMusicKeyframes: () -> Unit, onPickMusic: () -> Unit,
     onTextDialog: () -> Unit, onTextAnimation: () -> Unit, onSubtitles: () -> Unit,
     onLayersDialog: () -> Unit, onVideoKeyframes: () -> Unit, onMarkers: () -> Unit,
+    playheadMs: Long, onSeek: (Long) -> Unit,
     onOpenAdvancedTool: (String) -> Unit,
     onClosePanel: () -> Unit
 ) {
@@ -2310,7 +2311,13 @@ private fun EditorFeaturePanel(
                                 }
                                 "audio" -> when(id) {
                                     "volume","fadeIn","fadeOut" -> audioFeature=id
-                                    "mute" -> onSettingsLiveChange(settings.copy(muted=!settings.muted))
+                                    "mute" -> {
+                                        if (current != null) {
+                                            onCurrentClipChange(current.copy(audioMuted = !current.audioMuted))
+                                        } else {
+                                            onSettingsLiveChange(settings.copy(muted = !settings.muted))
+                                        }
+                                    }
                                     "keys" -> onAudioKeyframes(); "music" -> onPickMusic()
                                     "extract" -> onExtractAudio()
                                 }
@@ -2366,14 +2373,37 @@ private fun EditorFeaturePanel(
                                     "text" -> onLayersDialog()
                                     "pip" -> onOpenAdvancedTool("overlay")
                                 }
-                                "videoKeyframes" -> when(id) { "video" -> onVideoKeyframes(); "markers" -> onMarkers() }
+                                "videoKeyframes" -> when(id) {
+                                    "video" -> onVideoKeyframes()
+                                    "markers" -> {
+                                        val sorted = settings.markers.sortedBy { it.timeMs }
+                                        val next = sorted.firstOrNull { it.timeMs > playheadMs } ?: sorted.firstOrNull()
+                                        next?.let { onSeek(it.timeMs) }
+                                    }
+                                }
                                 "speed" -> onOpenAdvancedTool("speed")
-                                "sticker" -> onOpenAdvancedTool("sticker")
+                                "sticker" -> when (id) {
+                                    "emoji" -> onSettingsLiveChange(settings.copy(sticker = settings.sticker.ifBlank { "🔥" }))
+                                    "shape" -> onSettingsLiveChange(settings.copy(sticker = "◆"))
+                                    "decor" -> onSettingsLiveChange(settings.copy(sticker = "✦"))
+                                }
                                 "overlay" -> when(id) {
                                     "add","position" -> onOpenAdvancedTool("overlay")
                                     "manage" -> onLayersDialog()
                                 }
-                                "markers" -> onMarkers()
+                                "markers" -> when(id) {
+                                    "add" -> onMarkers()
+                                    "previous" -> {
+                                        val sorted = settings.markers.sortedBy { it.timeMs }
+                                        val previous = sorted.lastOrNull { it.timeMs < playheadMs } ?: sorted.lastOrNull()
+                                        previous?.let { onSeek(it.timeMs) }
+                                    }
+                                    "next" -> {
+                                        val sorted = settings.markers.sortedBy { it.timeMs }
+                                        val next = sorted.firstOrNull { it.timeMs > playheadMs } ?: sorted.firstOrNull()
+                                        next?.let { onSeek(it.timeMs) }
+                                    }
+                                }
                                 else -> when(id) {
                                     "subtitles" -> onOpenAdvancedTool("subtitles")
                                     "freeze" -> onFreeze()
@@ -2440,9 +2470,30 @@ private fun EditorFeaturePanel(
                 }
             }
             if(activeTool=="sticker"){
-                val stickers=listOf("🔥","✨","❤️","😂","🎉","😎","⚡","🌟","🏆","🚀")
+                var stickerCategory by remember(activeTool) { mutableStateOf("emoji") }
+                val categoryItems = when (stickerCategory) {
+                    "shape" -> listOf("◆","●","■","▲","✦","✧","◇","○")
+                    "decor" -> listOf("✦","❖","❀","✿","☀","☾","♛","⚡")
+                    else -> listOf("🔥","✨","❤️","😂","🎉","😎","⚡","🌟","🏆","🚀","🎬","🎵")
+                }
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal=8.dp, vertical=3.dp),
+                    horizontalArrangement=Arrangement.spacedBy(6.dp)
+                ) {
+                    listOf(
+                        "emoji" to (if(language==AppLanguage.ARABIC) "إيموجي" else "Emoji"),
+                        "shape" to (if(language==AppLanguage.ARABIC) "أشكال" else "Shapes"),
+                        "decor" to (if(language==AppLanguage.ARABIC) "زينة" else "Decor")
+                    ).forEach { (id, label) ->
+                        FilterChip(
+                            selected = stickerCategory == id,
+                            onClick = { stickerCategory = id },
+                            label = { Text(label, fontSize = 8.sp) }
+                        )
+                    }
+                }
                 LazyRow(Modifier.fillMaxWidth(),contentPadding=PaddingValues(horizontal=8.dp,vertical=6.dp),horizontalArrangement=Arrangement.spacedBy(8.dp)){
-                    items(stickers){s->
+                    items(categoryItems){s->
                         val selected = settings.sticker == s
                         Column(
                             Modifier.width(62.dp)
@@ -3379,6 +3430,11 @@ private fun EditorScreen(
                                     onLayersDialog = { showLayers=true },
                                     onVideoKeyframes = { showVideoKeyframes=true },
                                     onMarkers = { showMarkers=true },
+                                    playheadMs = playheadMs,
+                                    onSeek = { ms ->
+                                        playheadMs = ms.coerceIn(0L, timelineTotalDuration(clips))
+                                        timelineClipAt(clips, playheadMs)?.let { (clipAt, _) -> current = clipAt }
+                                    },
                                     onOpenAdvancedTool = { advancedTool ->
                                         activeEditorTool = null
                                         tool = advancedTool
