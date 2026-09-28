@@ -1503,7 +1503,6 @@ private fun EditorFeaturePreview(
     val accent = if (selected) Color(0xFFB38CFF) else Color(0xFF6FA8FF)
     when (tool) {
         "filters" -> {
-            val filter = filterPreviewColorFilter(feature)
             Box(Modifier.fillMaxSize().background(Brush.linearGradient(listOf(Color(0xFFB86B48), Color(0xFF345B86)))), contentAlignment = Alignment.Center) {
                 Canvas(Modifier.fillMaxSize()) {
                     drawCircle(Color(0xFFFFC56E).copy(alpha=.75f), size.minDimension*.23f, Offset(size.width*.70f,size.height*.35f))
@@ -1527,19 +1526,19 @@ private fun EditorFeaturePreview(
                 Offset(size.width*x, y + when(feature){"0.5"->18f;"1"->0f;"1.5"->-8f;"2"->-15f;else->-22f} * (if(i%2==0) 1f else .65f))
             }
             for(i in 0 until points.lastIndex) drawLine(accent, points[i], points[i+1], 3f)
-            drawCircle(Color.White, points[2], 3.5f)
+            drawCircle(color = Color.White, radius = 3.5f, center = points[2])
         }
         "transition" -> Canvas(Modifier.fillMaxSize()) {
             drawRect(Color(0xFF29476A), Offset(4f,10f), androidx.compose.ui.geometry.Size(size.width*.32f,size.height-20f))
             drawRect(Color(0xFF6A3F91), Offset(size.width*.68f,10f), androidx.compose.ui.geometry.Size(size.width*.28f,size.height-20f))
             val mid = Offset(size.width*.5f,size.height*.5f)
-            drawCircle(accent, mid, 9f)
+            drawCircle(color = accent, radius = 9f, center = mid)
             drawLine(Color.White.copy(alpha=.8f), Offset(size.width*.38f,mid.y), Offset(size.width*.62f,mid.y), 2.5f)
         }
         "effects" -> Canvas(Modifier.fillMaxSize()) {
             val radius = if(feature=="blur") 15f else 11f
-            drawCircle(Color(0xFF7C5CFF).copy(alpha=.55f), Offset(size.width*.35f,size.height*.5f), radius)
-            drawCircle(Color(0xFF18C8FF).copy(alpha=.55f), Offset(size.width*.58f,size.height*.5f), radius)
+            drawCircle(color = Color(0xFF7C5CFF).copy(alpha=.55f), radius = radius, center = Offset(size.width*.35f,size.height*.5f))
+            drawCircle(color = Color(0xFF18C8FF).copy(alpha=.55f), radius = radius, center = Offset(size.width*.58f,size.height*.5f))
             if(feature=="mosaic") {
                 for(x in 0..5) for(y in 0..3) drawRect(Color(0xFF9B7BFF).copy(alpha=.25f), Offset(size.width*x/6f,size.height*y/4f), androidx.compose.ui.geometry.Size(size.width/6f,size.height/4f), style=androidx.compose.ui.graphics.drawscope.Fill)
             }
@@ -1554,15 +1553,15 @@ private fun EditorFeaturePreview(
             drawLine(Color(0xFF40526B), Offset(6f,size.height*.55f), Offset(size.width-6f,size.height*.55f), 2f)
             val x = when(feature){"previous"->.32f;"next"->.68f;else->.5f}
             drawLine(accent, Offset(size.width*x,8f), Offset(size.width*x,size.height-8f), 3f)
-            drawCircle(accent, Offset(size.width*x,8f), 4f)
+            drawCircle(color = accent, radius = 4f, center = Offset(size.width*x,8f))
         }
         "adjust" -> Canvas(Modifier.fillMaxSize()) {
             val y0=size.height*.55f
             val v=when(feature){"brightness"->.25f;"contrast"->-.2f;"saturation"->.1f;"hue"->-.05f;"temperature"->.18f;else->0f}
             drawLine(Color(0xFF32455E),Offset(5f,y0),Offset(size.width-5f,y0),2f)
-            drawCircle(accent,Offset(size.width*(.5f+v),y0),6f)
-            drawCircle(Color(0xFFFFB74D),Offset(size.width*.25f,y0),3f)
-            drawCircle(Color(0xFF42D6C5),Offset(size.width*.75f,y0),3f)
+            drawCircle(color = accent, radius = 6f, center = Offset(size.width*(.5f+v),y0))
+            drawCircle(color = Color(0xFFFFB74D), radius = 3f, center = Offset(size.width*.25f,y0))
+            drawCircle(color = Color(0xFF42D6C5), radius = 3f, center = Offset(size.width*.75f,y0))
         }
         "text" -> Text(
             if (feature=="position") "T↕" else if (feature=="rotate") "T↻" else if (feature=="color") "T●" else "Aa",
