@@ -2291,13 +2291,14 @@ private fun EditorScreen(
         if (uris.isNotEmpty()) {
             val added = uris.mapIndexed { i, uri ->
                 persistUriAccess(context, uri)
-                val duration = defaultClipDurationMs(context, uri)
+                val capacity = defaultClipDurationMs(context, uri)
+                val initialDuration = if (isImageUri(context, uri)) DEFAULT_IMAGE_CLIP_DURATION_MS else capacity
                 Clip(
                     uri = uri,
                     name = context.getString(R.string.clip_number, clips.size + i + 1),
-                    durationMs = duration,
+                    durationMs = capacity,
                     trimStartMs = 0L,
-                    trimEndMs = duration
+                    trimEndMs = initialDuration
                 )
             }
             commitClips(clips + added)
@@ -2400,8 +2401,9 @@ private fun EditorScreen(
         val selected = current
         if (uri != null && selected != null) {
             persistUriAccess(context, uri)
-            val duration = defaultClipDurationMs(context, uri)
-            val updated = selected.copy(uri = uri, name = uri.lastPathSegment?.substringAfterLast('/')?.ifBlank { selected.name } ?: selected.name, durationMs = duration, trimStartMs = 0L, trimEndMs = duration)
+            val capacity = defaultClipDurationMs(context, uri)
+            val duration = if (isImageUri(context, uri)) DEFAULT_IMAGE_CLIP_DURATION_MS else capacity
+            val updated = selected.copy(uri = uri, name = uri.lastPathSegment?.substringAfterLast('/')?.ifBlank { selected.name } ?: selected.name, durationMs = capacity, trimStartMs = 0L, trimEndMs = duration)
             commitClips(clips.map { if (it == selected) updated else it })
             current = updated
             playheadMs = timelinePositionOf(clips.map { if (it == selected) updated else it }, updated)
