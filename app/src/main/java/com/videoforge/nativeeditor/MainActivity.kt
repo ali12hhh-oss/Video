@@ -4083,7 +4083,7 @@ private fun EditorPreview(
             }
             previewLayers.filter { it.visible }.forEachIndexed { layerIndex, layer ->
                 val selected = selectedLayerId == layer.id
-                val textTiming = textTimings["text-$layerIndex"] ?: TextTimelineTiming(0L, timelineTotalDuration(listOf(clip)).coerceAtLeast(1L))
+                val textTiming = textTimings["text-$layerIndex"] ?: TextTimelineTiming(0L, Long.MAX_VALUE)
                 // Text visibility is controlled by its own timeline range.
                 val textVisibleNow = playheadMs in textTiming.startMs..textTiming.endMs
                 if (!textVisibleNow) return@forEachIndexed
