@@ -186,6 +186,11 @@ class ExportEngine(private val context: Context, private val resolver: ContentRe
                     require(descriptor.length != 0L) { "Background music cannot be read" }
                 } ?: error("Background music cannot be opened")
             }
+            editor.audioTracks.forEachIndexed { index, track ->
+                resolver.openAssetFileDescriptor(Uri.parse(track.uri), "r")?.use { descriptor ->
+                    require(descriptor.length != 0L) { "Audio track ${index + 1} cannot be read" }
+                } ?: error("Audio track ${index + 1} cannot be opened")
+            }
             onProgress(ExportProgress(0.03f, "Preparing project…"))
 
             val edited = clips.mapIndexed { index, clip ->
