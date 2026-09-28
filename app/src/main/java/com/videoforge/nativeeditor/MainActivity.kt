@@ -3844,6 +3844,8 @@ private fun ExportProgressDialog(
     language: AppLanguage,
     progress: Float,
     elapsedSec: Long,
+    etaSec: Long,
+    onCancel: () -> Unit,
     onDismiss: () -> Unit
 ) {
     val ar = language == AppLanguage.ARABIC
@@ -3873,9 +3875,22 @@ private fun ExportProgressDialog(
                     else "The finished video will be available from Share last export when rendering completes.",
                     color = Color(0xFF7D8EA8), fontSize = 9.sp
                 )
+                if (etaSec > 0L && progress < 0.995f) {
+                    Text(
+                        if (ar) "الوقت المتبقي التقريبي: " + (etaSec / 60) + ":" + (etaSec % 60).toString().padStart(2, '0')
+                        else "Estimated remaining: " + (etaSec / 60) + ":" + (etaSec % 60).toString().padStart(2, '0'),
+                        color = Color(0xFF8FD9A8), fontSize = 10.sp
+                    )
+                }
+                Text(
+                    if (ar) "يمكنك إلغاء التصدير لتحرير موارد الجهاز."
+                    else "You can cancel the export to release device resources.",
+                    color = Color(0xFF7D8EA8), fontSize = 9.sp
+                )
             }
         },
-        confirmButton = { TextButton(onClick = onDismiss) { Text(if (ar) "إخفاء" else "Hide") } }
+        confirmButton = { TextButton(onClick = onCancel) { Text(if (ar) "إلغاء التصدير" else "Cancel export") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(if (ar) "إخفاء" else "Hide") } }
     )
 }
 
