@@ -381,10 +381,7 @@ fun Timeline(
                             }
                         }
                         visualTracks.forEach { (trackIndex,laneClips) ->
-                            Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){
-                                Box(Modifier.weight(1f)){TrackLane(trackIndex,laneClips)}
-                                IconButton(onClick=onAddMedia,modifier=Modifier.size(36.dp)){Icon(Icons.Default.Add,contentDescription="Add media",tint=Color.White)}
-                            }
+                            TrackLane(trackIndex,laneClips)
                         }
 
                         // Text lane: real selectable text segments rather than detached chips.
@@ -429,6 +426,7 @@ fun Timeline(
                                     }
                                 }
                             }
+                        }
                         }
 
                         // Audio lanes are real timeline tracks. They stay hidden until audio exists.
