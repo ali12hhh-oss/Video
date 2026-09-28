@@ -1700,10 +1700,10 @@ private fun EditorFeaturePanel(
             }
 
             if (activeTool == "filters") {
-                val filterValues = listOf("none","warm","cool","mono","vintage","dramatic","soft")
+                val filterValues = listOf("none","warm","cool","mono","vivid","sepia","invert","dream","noir","faded","tealOrange","vintage","sunset","ice","dramatic","soft")
                 val filterLabels = if (language == AppLanguage.ARABIC)
                     listOf("بدون","دافئ","بارد","أبيض وأسود","فنتج","درامي","ناعم")
-                else listOf("None","Warm","Cool","Mono","Vintage","Dramatic","Soft")
+                else listOf("None","Warm","Cool","Mono","Vivid","Sepia","Invert","Dream","Noir","Faded","Teal + Orange","Vintage","Sunset","Ice","Dramatic","Soft")
                 val context = LocalContext.current
                 var filterPreview by remember(current?.uri) { mutableStateOf<android.graphics.Bitmap?>(null) }
                 LaunchedEffect(current?.uri) {
