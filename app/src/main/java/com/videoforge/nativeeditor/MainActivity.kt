@@ -3027,7 +3027,8 @@ private fun EditorPreview(
     onPlaybackPosition: (Long) -> Unit = {},
     onPlaybackStateChanged: (Boolean) -> Unit = {},
     onPlaybackError: (String) -> Unit = {},
-    playbackToggleToken: Int = 0
+    playbackToggleToken: Int = 0,
+    onClipChange: (Clip) -> Unit = {}
 ) {
     val context = LocalContext.current
     val ratio = when (settings.aspect) { "9:16" -> 9f/16f; "1:1" -> 1f; "4:5" -> 4f/5f; "2:3" -> 2f/3f; "3:4" -> 3f/4f; "3:2" -> 3f/2f; "21:9" -> 21f/9f; else -> 16f/9f }
@@ -3330,10 +3331,11 @@ private fun EditorPreview(
                 modifier = Modifier.fillMaxSize()
             )
             Box(
-                Modifier.fillMaxSize().pointerInput(clip.uri, playheadMs, settings.videoKeyframes, settings.cropZoom, settings.cropX, settings.cropY, settings.rotation) {
+                Modifier.fillMaxSize().pointerInput(clip.uri, playheadMs, clip.videoKeyframes, settings.videoKeyframes, settings.cropZoom, settings.cropX, settings.cropY, settings.rotation) {
                     detectTransformGestures { _, pan, zoom, rotation ->
                         val local = (playheadMs - clipOffsetMs).coerceIn(0L, clipTimelineDuration(clip))
-                        if (settings.videoKeyframes.isEmpty()) {
+                        val existingVideoKeys = clip.videoKeyframes.ifEmpty { settings.videoKeyframes }
+                        if (existingVideoKeys.isEmpty()) {
                             // Direct manipulation edits the static reframe until the user creates
                             // motion keyframes. This keeps pinch/drag intuitive for normal crops.
                             val nextZoom = (settings.cropZoom * zoom).coerceIn(1f, 6f)
@@ -3345,7 +3347,7 @@ private fun EditorPreview(
                                 rotation = (settings.rotation + rotation).coerceIn(-180f, 180f).toInt()
                             ))
                         } else {
-                            val existing = clip.videoKeyframes.ifEmpty { settings.videoKeyframes }
+                            val existing = existingVideoKeys
                             val base = existing.lastOrNull { it.timeMs <= local }
                             val nextScale = ((base?.scale ?: settings.cropZoom) * zoom).coerceIn(0.5f, 6f)
                             val maxPan = ((nextScale - 1f) / nextScale).coerceIn(0f, 1f)
