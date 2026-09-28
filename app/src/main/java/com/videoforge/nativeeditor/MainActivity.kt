@@ -1501,7 +1501,8 @@ private fun EditorFeaturePanel(
     onExtractAudio: () -> Unit, onAudioKeyframes: () -> Unit, onMusicKeyframes: () -> Unit, onPickMusic: () -> Unit,
     onTextDialog: () -> Unit, onTextAnimation: () -> Unit, onSubtitles: () -> Unit,
     onLayersDialog: () -> Unit, onVideoKeyframes: () -> Unit, onMarkers: () -> Unit,
-    onOpenAdvancedTool: (String) -> Unit
+    onOpenAdvancedTool: (String) -> Unit,
+    onClose: () -> Unit
 ) {
     if (activeTool == null) return
     var adjustFeature by remember(activeTool) { mutableStateOf("brightness") }
@@ -1654,13 +1655,8 @@ private fun EditorFeaturePanel(
                     Text(mainTitle, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                     Text(clipSummary, color = Color(0xFF7F8DA3), fontSize = 8.sp, maxLines = 1)
                 }
-                Surface(color = Color(0xFF172235), shape = RoundedCornerShape(8.dp)) {
-                    Text(
-                        if (language == AppLanguage.ARABIC) "أدوات" else "Tools",
-                        color = Color(0xFFB9C3D6),
-                        fontSize = 8.sp,
-                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 4.dp)
-                    )
+                IconButton(onClick = onClose, modifier = Modifier.size(32.dp)) {
+                    Icon(Icons.Default.Close, null, tint = Color(0xFFB9C3D6), modifier = Modifier.size(18.dp))
                 }
             }
             if (activeTool == "edit" && current != null) {
