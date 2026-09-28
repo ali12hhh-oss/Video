@@ -921,7 +921,7 @@ private fun HomeScreen(
         ) {
             Scaffold(
                 containerColor = Color(0xFF020914),
-                bottomBar = if (!isFullscreenPreview) {
+                bottomBar = {
                     HomeBottomBar(
                         language = language,
                         selected = selected,
@@ -3022,7 +3022,7 @@ private fun EditorScreen(
             }
         },
         bottomBar = {
-            Surface(color = Color(0xFF07111F), tonalElevation = 12.dp, shadowElevation = 14.dp) {
+            if (!isFullscreenPreview) Surface(color = Color(0xFF07111F), tonalElevation = 12.dp, shadowElevation = 14.dp) {
                 Column(Modifier.fillMaxWidth()) {
                     if (activeEditorTool != null) {
                         Box(Modifier.fillMaxWidth().heightIn(max = 175.dp).background(Color(0xFF091321))) {
@@ -3596,7 +3596,10 @@ private fun EditorPreview(
                         } else if (player.playbackState == androidx.media3.common.Player.STATE_IDLE) {
                             player.prepare()
                         }
-                        player.play()
+                        runCatching { player.play() }.onFailure {
+                            onPlaybackError(it.message ?: "Unable to start preview")
+                            onPlaybackStateChanged(false)
+                        }
                     }
                     lastPlaybackToggleToken = playbackToggleToken
                 }
@@ -3610,6 +3613,7 @@ private fun EditorPreview(
                     override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
                         onPlaybackError(error.message ?: "Playback error")
                         onPlaybackStateChanged(false)
+                        runCatching { player.pause() }
                     }
                     override fun onPlaybackStateChanged(state: Int) {
                         if (state == androidx.media3.common.Player.STATE_ENDED) onPlaybackStateChanged(false)
