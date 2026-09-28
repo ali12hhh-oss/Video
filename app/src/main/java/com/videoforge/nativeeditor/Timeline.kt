@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCut
 import androidx.compose.material.icons.filled.Image as ImageIcon
@@ -582,16 +581,6 @@ fun Timeline(
                                 }
                             }
                         }
-
-                        Row(
-                            Modifier.fillMaxWidth().padding(top = 1.dp),
-                            horizontalArrangement = Arrangement.End
-                        ) {
-                            IconButton(onClick = onAddAudio, modifier = Modifier.size(34.dp)) {
-                                Icon(Icons.Default.Add, contentDescription = "Add audio", tint = Color.White)
-                            }
-                        }
-                    }
 
                     // The playhead is a real vertical editing cursor spanning every lane.
                     Box(
