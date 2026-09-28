@@ -1502,6 +1502,20 @@ private fun EditorFeaturePreview(
 ) {
     val accent = if (selected) Color(0xFFB38CFF) else Color(0xFF6FA8FF)
     when (tool) {
+        "edit" -> Canvas(Modifier.fillMaxSize()) {
+            val mid=size.height*.5f
+            drawLine(Color(0xFF344A66),Offset(5f,mid),Offset(size.width-5f,mid),3f)
+            when(feature){
+                "trim"->{drawRoundRect(accent,Offset(7f,mid-10f),androidx.compose.ui.geometry.Size(18f,20f),cornerRadius=androidx.compose.ui.geometry.CornerRadius(4f,4f));drawRoundRect(accent,Offset(size.width-25f,mid-10f),androidx.compose.ui.geometry.Size(18f,20f),cornerRadius=androidx.compose.ui.geometry.CornerRadius(4f,4f))}
+                "split"->{drawLine(accent,Offset(size.width*.5f,6f),Offset(size.width*.5f,size.height-6f),3f);drawLine(Color.White.copy(alpha=.75f),Offset(10f,mid),Offset(size.width-10f,mid),2f)}
+                "duplicate"->{drawRoundRect(accent.copy(alpha=.45f),Offset(13f,10f),androidx.compose.ui.geometry.Size(size.width*.45f,size.height-20f),cornerRadius=androidx.compose.ui.geometry.CornerRadius(5f,5f));drawRoundRect(accent,Offset(22f,16f),androidx.compose.ui.geometry.Size(size.width*.45f,size.height-20f),cornerRadius=androidx.compose.ui.geometry.CornerRadius(5f,5f))}
+                "replace"->{drawLine(accent,Offset(10f,mid),Offset(size.width-10f,mid),3f);drawCircle(Color.White,5f,Offset(size.width*.5f,mid))}
+                "freeze"->{drawLine(accent,Offset(size.width*.5f,5f),Offset(size.width*.5f,size.height-5f),3f);drawLine(accent,Offset(8f,mid),Offset(size.width-8f,mid),3f);drawCircle(Color.White,4f,Offset(size.width*.5f,mid))}
+                "left"->{drawLine(accent,Offset(size.width*.72f,mid),Offset(size.width*.28f,mid),4f);drawLine(accent,Offset(size.width*.28f,mid),Offset(size.width*.4f,mid-8f),4f);drawLine(accent,Offset(size.width*.28f,mid),Offset(size.width*.4f,mid+8f),4f)}
+                "right"->{drawLine(accent,Offset(size.width*.28f,mid),Offset(size.width*.72f,mid),4f);drawLine(accent,Offset(size.width*.72f,mid),Offset(size.width*.6f,mid-8f),4f);drawLine(accent,Offset(size.width*.72f,mid),Offset(size.width*.6f,mid+8f),4f)}
+                else->{drawRoundRect(Color(0xFF6A3045),Offset(10f,10f),androidx.compose.ui.geometry.Size(size.width-20f,size.height-20f),cornerRadius=androidx.compose.ui.geometry.CornerRadius(6f,6f));drawLine(Color.White,Offset(size.width*.38f,10f),Offset(size.width*.62f,size.height-10f),3f);drawLine(Color.White,Offset(size.width*.62f,10f),Offset(size.width*.38f,size.height-10f),3f)}
+            }
+        }
         "filters" -> {
             Box(Modifier.fillMaxSize().background(Brush.linearGradient(listOf(Color(0xFFB86B48), Color(0xFF345B86)))), contentAlignment = Alignment.Center) {
                 Canvas(Modifier.fillMaxSize()) {
@@ -1568,6 +1582,16 @@ private fun EditorFeaturePreview(
             color=if(feature=="color") Color(0xFFFFD54F) else Color.White,
             fontSize=18.sp, fontWeight=FontWeight.Bold
         )
+        "subtitles" -> Box(Modifier.fillMaxSize(),contentAlignment=Alignment.Center){Column(horizontalAlignment=Alignment.CenterHorizontally){Text("Aa",color=Color.White,fontWeight=FontWeight.Bold,fontSize=17.sp);Box(Modifier.padding(top=3.dp).width(42.dp).height(5.dp).clip(RoundedCornerShape(3.dp)).background(accent))}}
+        "layers" -> Canvas(Modifier.fillMaxSize()){
+            drawRoundRect(Color(0xFF2A3B56),Offset(9f,8f),androidx.compose.ui.geometry.Size(size.width-18f,size.height-16f),cornerRadius=androidx.compose.ui.geometry.CornerRadius(5f,5f))
+            drawRoundRect(accent.copy(alpha=.65f),Offset(15f,13f),androidx.compose.ui.geometry.Size(size.width-30f,size.height-22f),cornerRadius=androidx.compose.ui.geometry.CornerRadius(4f,4f))
+            drawRoundRect(Color.White.copy(alpha=.75f),Offset(21f,18f),androidx.compose.ui.geometry.Size(size.width-42f,size.height-28f),cornerRadius=androidx.compose.ui.geometry.CornerRadius(3f,3f))
+        }
+        "videoKeyframes" -> Canvas(Modifier.fillMaxSize()){
+            val y=size.height*.55f;drawLine(Color(0xFF40526B),Offset(6f,y),Offset(size.width-6f,y),2f)
+            listOf(.16f,.38f,.62f,.84f).forEachIndexed{i,x->{val yy=y+if(i%2==0)-12f else 9f;drawCircle(accent,4.5f,Offset(size.width*x,yy));drawLine(accent,Offset(size.width*x,yy),Offset(size.width*x,y),1.5f)}}
+        }
         "audio" -> Canvas(Modifier.fillMaxSize()) {
             val mute = feature=="mute"
             for(i in 0 until 14) {
