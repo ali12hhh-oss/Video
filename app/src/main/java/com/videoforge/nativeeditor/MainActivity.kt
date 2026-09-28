@@ -463,7 +463,7 @@ private fun VideoForgeApp() {
                         clips = emptyList()
                         editorInitialTool = "audio"
                         selected = 0
-                        showEditor = true
+                        launchMediaPicker()
                     },
                     onOpenEffects = {
                         projectId = ProjectRepository.newId()
@@ -471,7 +471,7 @@ private fun VideoForgeApp() {
                         clips = emptyList()
                         editorInitialTool = "effects"
                         selected = 0
-                        showEditor = true
+                        launchMediaPicker()
                     },
                     selected = selected,
                     onSelected = { selected = it },
