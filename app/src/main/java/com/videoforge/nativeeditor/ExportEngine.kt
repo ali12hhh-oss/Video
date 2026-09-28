@@ -257,8 +257,9 @@ class ExportEngine(private val context: Context, private val resolver: ContentRe
                         }
                     }
                 }
-                if (editor.videoKeyframes.isNotEmpty()) {
-                    val keyframes = editor.videoKeyframes.sortedBy { it.timeMs }
+                val activeVideoKeyframes = clip.videoKeyframes.ifEmpty { editor.videoKeyframes }
+                if (activeVideoKeyframes.isNotEmpty()) {
+                    val keyframes = activeVideoKeyframes.sortedBy { it.timeMs }
                     videoEffects += MatrixTransformation { presentationTimeUs ->
                         val tMs = presentationTimeUs / 1000L
                         val a = keyframes.lastOrNull { it.timeMs <= tMs } ?: keyframes.first()
@@ -311,7 +312,7 @@ class ExportEngine(private val context: Context, private val resolver: ContentRe
                 }
                 val builder = EditedMediaItem.Builder(mediaItem)
                     .setEffects(Effects(audioProcessors, videoEffects))
-                val speedKeys = editor.speedKeyframes.sortedBy { it.timeMs }
+                val speedKeys = clip.speedKeyframes.ifEmpty { editor.speedKeyframes }.sortedBy { it.timeMs }
                 if (speedKeys.isNotEmpty()) {
                     val fallback = editor.speed.coerceIn(0.25f, 4f)
                     val provider = object : SpeedProvider {
