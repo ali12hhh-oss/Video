@@ -2753,14 +2753,16 @@ private fun EditorScreen(
                     val localDuration = clipTimelineDuration(selectedClip)
                     val newLocal = (newGlobalMs - offset).coerceIn(0L, localDuration)
                     val oldLocal = (oldGlobalMs - offset).coerceIn(0L, localDuration)
-                    val nearest = settings.videoKeyframes.minByOrNull { kotlin.math.abs(it.timeMs - oldLocal) } ?: return@Timeline
+                    val keys = selectedClip.videoKeyframes.ifEmpty { settings.videoKeyframes }
+                    val nearest = keys.minByOrNull { kotlin.math.abs(it.timeMs - oldLocal) } ?: return@Timeline
                     val moved = nearest.copy(timeMs = newLocal)
-                    val next = settings.videoKeyframes
+                    val next = keys
                         .filterNot { it === nearest || kotlin.math.abs(it.timeMs - nearest.timeMs) <= 1L }
                         .filterNot { kotlin.math.abs(it.timeMs - newLocal) <= 35L } + moved
                     val updated = next.sortedBy { it.timeMs }
-                    settings = settings.copy(videoKeyframes = updated)
-                    EditorSettingsRepository.save(context, projectId, settings)
+                    val changedClip = selectedClip.copy(videoKeyframes = updated)
+                    commitClips(clips.map { if (it == selectedClip) changedClip else it })
+                    current = changedClip
                     playheadMs = (offset + newLocal).coerceIn(0L, timelineTotalDuration(clips))
                 },
                 onAddMedia = { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)) },
