@@ -357,18 +357,21 @@ private fun VideoForgeApp() {
             }.distinct()
             if (uris.isNotEmpty()) {
                 projectId = ProjectRepository.newId()
+                var startMs = 0L
                 clips = uris.take(20).mapIndexed { i, uri ->
                     persistUriAccess(context, uri)
-                    run {
                     val duration = defaultClipDurationMs(context, uri)
-                    Clip(
+                    val clip = Clip(
                         uri = uri,
                         name = context.getString(R.string.clip_number, i + 1),
                         durationMs = duration,
                         trimStartMs = 0L,
-                        trimEndMs = if (isImageUri(context, uri)) DEFAULT_IMAGE_CLIP_DURATION_MS else duration
+                        trimEndMs = if (isImageUri(context, uri)) DEFAULT_IMAGE_CLIP_DURATION_MS else duration,
+                        timelineStartMs = startMs,
+                        trackIndex = 0
                     )
-                }
+                    startMs += clipTimelineDuration(clip)
+                    clip
                 }
                 projectName = clips.firstOrNull()?.name ?: context.getString(R.string.new_project)
                 ProjectRepository.save(context, projectId, clips, projectName)
@@ -1465,11 +1468,12 @@ private fun clipTimelineDuration(clip: Clip): Long {
     return (end - clip.trimStartMs).coerceAtLeast(1L)
 }
 
-private fun timelineTotalDuration(clips: List<Clip>): Long =
-    clips.sumOf(::clipTimelineDuration).coerceAtLeast(1L)
+private fun timelineIsLegacySequential(clips: List<Clip>): Boolean =
+    clips.isNotEmpty() && clips.all { it.timelineStartMs == 0L && it.trackIndex == 0 }
 
-private fun timelinePositionOf(clips: List<Clip>, target: Clip?): Long {
+private fun timelineStartOf(clips: List<Clip>, target: Clip?): Long {
     if (target == null) return 0L
+    if (!timelineIsLegacySequential(clips)) return target.timelineStartMs.coerceAtLeast(0L)
     var position = 0L
     for (clip in clips) {
         if (clip == target) return position
@@ -1478,17 +1482,22 @@ private fun timelinePositionOf(clips: List<Clip>, target: Clip?): Long {
     return 0L
 }
 
+private fun timelineTotalDuration(clips: List<Clip>): Long {
+    if (clips.isEmpty()) return 1L
+    if (timelineIsLegacySequential(clips)) return clips.sumOf(::clipTimelineDuration).coerceAtLeast(1L)
+    return clips.maxOf { timelineStartOf(clips, it) + clipTimelineDuration(it) }.coerceAtLeast(1L)
+}
+
+private fun timelinePositionOf(clips: List<Clip>, target: Clip?): Long = timelineStartOf(clips, target)
+
 private fun timelineClipAt(clips: List<Clip>, positionMs: Long): Pair<Clip, Long>? {
-    var offset = 0L
     val p = positionMs.coerceAtLeast(0L)
-    for (clip in clips) {
-        val d = clipTimelineDuration(clip)
-        if (p < offset + d || clip == clips.last()) {
-            return clip to (p - offset).coerceIn(0L, d)
-        }
-        offset += d
+    val active = clips.mapNotNull { clip ->
+        val start = timelineStartOf(clips, clip)
+        val end = start + clipTimelineDuration(clip)
+        if (p >= start && p < end) clip to (p - start) else null
     }
-    return null
+    return active.maxByOrNull { it.first.trackIndex }
 }
 
 
@@ -2414,17 +2423,22 @@ private fun EditorScreen(
 
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(20)) { uris ->
         if (uris.isNotEmpty()) {
+            var appendAt = timelineTotalDuration(clips)
             val added = uris.mapIndexed { i, uri ->
                 persistUriAccess(context, uri)
                 val capacity = defaultClipDurationMs(context, uri)
                 val initialDuration = if (isImageUri(context, uri)) DEFAULT_IMAGE_CLIP_DURATION_MS else capacity
-                Clip(
+                val clip = Clip(
                     uri = uri,
                     name = context.getString(R.string.clip_number, clips.size + i + 1),
                     durationMs = capacity,
                     trimStartMs = 0L,
-                    trimEndMs = initialDuration
+                    trimEndMs = initialDuration,
+                    timelineStartMs = appendAt,
+                    trackIndex = 0
                 )
+                appendAt += clipTimelineDuration(clip)
+                clip
             }
             commitClips(clips + added)
             current = added.first()
