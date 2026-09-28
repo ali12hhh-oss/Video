@@ -471,7 +471,7 @@ fun Timeline(
                                 modifier = Modifier.align(Alignment.CenterStart).padding(start = 6.dp).size(16.dp)
                             )
                             if (musicUri.isNotBlank()) {
-                                val start = musicStartMs.coerceIn(0L, total)
+                                val start = 0L
                                 val end = (start + musicDurationMs.coerceAtLeast(1L)).coerceIn(start + 1L, total)
                                 val leftFraction = start.toFloat() / total.toFloat()
                                 val widthFraction = ((end - start).toFloat() / total.toFloat()).coerceIn(0.01f, 1f)
@@ -507,8 +507,8 @@ fun Timeline(
                                                 detectDragGestures { change, drag ->
                                                     change.consume()
                                                     val delta = (drag.x / widthPx * total).toLong()
-                                                    val nextStart = (start + delta).coerceIn(0L, (end - 300L).coerceAtLeast(0L))
-                                                    onMusicTrim(nextStart, (end - nextStart).coerceAtLeast(300L))
+                                                    val nextDuration = (end - start - (delta)).coerceIn(300L, total)
+                                                    onMusicTrim(start, nextDuration)
                                                 }
                                             }
                                     )
