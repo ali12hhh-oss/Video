@@ -95,7 +95,7 @@ private class AnimatedTextOverlay(
         var rotation = rotation0
         var alpha = alpha0
         if (keyframes.isNotEmpty()) {
-            val tMs = presentationTimeUs / 1000L
+            val tMs = (presentationTimeUs / 1000L - startMs).coerceAtLeast(0L)
             val ks = keyframes.sortedBy { it.timeMs }
             val a = ks.lastOrNull { it.timeMs <= tMs } ?: ks.first()
             val b = ks.firstOrNull { it.timeMs >= tMs } ?: ks.last()
