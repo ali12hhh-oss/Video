@@ -3470,6 +3470,18 @@ private fun EditorScreen(
                     }
                 },
                 onPlaybackStateChanged = { previewPlaying = it },
+                onPlaybackEnded = {
+                    val index = current?.let { clips.indexOf(it) } ?: -1
+                    if (index in 0 until clips.lastIndex) {
+                        val nextClip = clips[index + 1]
+                        current = nextClip
+                        playheadMs = timelinePositionOf(clips, nextClip)
+                        previewToggleToken += 1
+                    } else {
+                        playheadMs = timelineTotalDuration(clips)
+                        previewPlaying = false
+                    }
+                },
                 onPlaybackError = { previewError = it },
                 playbackToggleToken = previewToggleToken
                 )
@@ -3905,6 +3917,7 @@ private fun EditorPreview(
     onSettingsChange: (EditorSettings) -> Unit,
     onPlaybackPosition: (Long) -> Unit = {},
     onPlaybackStateChanged: (Boolean) -> Unit = {},
+    onPlaybackEnded: () -> Unit = {},
     onPlaybackError: (String) -> Unit = {},
     playbackToggleToken: Int = 0
 ) {
@@ -3939,18 +3952,38 @@ private fun EditorPreview(
         if (clip == null) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) { Icon(Icons.Default.VideoLibrary, null, Modifier.size(54.dp), tint = Color.Gray); Text(if (LocalLayoutDirection.current == LayoutDirection.Rtl) "أضف وسائط" else "Add media", color = Color.Gray, fontSize = 11.sp) }
         } else {
-            val player = remember(clip.uri, clip.isFreezeFrame, clip.freezeDurationMs, clip.durationMs) {
+            val player = remember(
+                clip.uri,
+                clip.isFreezeFrame,
+                clip.freezeDurationMs,
+                clip.durationMs,
+                clip.trimStartMs,
+                clip.trimEndMs
+            ) {
                 ExoPlayer.Builder(context).build().apply {
                     val isStillImage = clip.isFreezeFrame || isImageUri(context, clip.uri)
+                    val clipEnd = if (clip.trimEndMs == Long.MAX_VALUE) clip.durationMs else clip.trimEndMs
+                    val safeStart = clip.trimStartMs.coerceAtLeast(0L)
+                    val safeEnd = clipEnd.coerceAtLeast(safeStart + 1L)
                     val item = if (isStillImage) {
                         val stillDurationMs = if (clip.isFreezeFrame) {
                             clip.freezeDurationMs.coerceAtLeast(1L)
                         } else {
-                            clipTimelineDuration(clip).takeIf { it > 0L } ?: DEFAULT_IMAGE_CLIP_DURATION_MS
+                            (safeEnd - safeStart).coerceAtLeast(1L)
                         }
-                        MediaItem.Builder().setUri(clip.uri).setImageDurationMs(stillDurationMs).build()
+                        MediaItem.Builder()
+                            .setUri(clip.uri)
+                            .setImageDurationMs(stillDurationMs)
+                            .build()
                     } else {
-                        MediaItem.fromUri(clip.uri)
+                        val clipping = MediaItem.ClippingConfiguration.Builder()
+                            .setStartPositionMs(safeStart)
+                            .setEndPositionMs(safeEnd)
+                            .build()
+                        MediaItem.Builder()
+                            .setUri(clip.uri)
+                            .setClippingConfiguration(clipping)
+                            .build()
                     }
                     setMediaItem(item)
                     // Initialize the Media3 effects pipeline before prepare so the preview
@@ -4004,13 +4037,23 @@ private fun EditorPreview(
                         runCatching { player.pause() }
                     }
                     override fun onPlaybackStateChanged(state: Int) {
-                        if (state == androidx.media3.common.Player.STATE_ENDED) onPlaybackStateChanged(false)
+                        if (state == androidx.media3.common.Player.STATE_ENDED) {
+                            onPlaybackStateChanged(false)
+                            onPlaybackEnded()
+                        }
                     }
                 }
                 player.addListener(listener)
                 onDispose {
                     player.removeListener(listener)
                     onPlaybackStateChanged(false)
+                    runCatching { player.release() }
+                }
+            }
+
+            DisposableEffect(musicPlayer) {
+                onDispose {
+                    runCatching { musicPlayer.release() }
                 }
             }
 
