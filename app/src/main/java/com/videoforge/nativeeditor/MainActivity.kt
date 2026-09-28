@@ -2735,8 +2735,12 @@ private fun EditorScreen(
                         val cutLocal = cut - start
                         val leftKeys = clip.audioKeyframes.filter { it.timeMs <= cutLocal }
                         val rightKeys = clip.audioKeyframes.filter { it.timeMs >= cutLocal }.map { it.copy(timeMs = (it.timeMs - cutLocal).coerceAtLeast(0L)) }
-                        val left = clip.copy(name = clip.name.substringBeforeLast('.').ifBlank { clip.name } + " • 1", trimStartMs = start, trimEndMs = cut, audioKeyframes = leftKeys)
-                        val right = clip.copy(name = clip.name.substringBeforeLast('.').ifBlank { clip.name } + " • 2", trimStartMs = cut, trimEndMs = end, audioKeyframes = rightKeys)
+                        val leftVideoKeys = clip.videoKeyframes.filter { it.timeMs <= cutLocal }
+                        val rightVideoKeys = clip.videoKeyframes.filter { it.timeMs >= cutLocal }.map { it.copy(timeMs = (it.timeMs - cutLocal).coerceAtLeast(0L)) }
+                        val leftSpeedKeys = clip.speedKeyframes.filter { it.timeMs <= cutLocal }
+                        val rightSpeedKeys = clip.speedKeyframes.filter { it.timeMs >= cutLocal }.map { it.copy(timeMs = (it.timeMs - cutLocal).coerceAtLeast(0L)) }
+                        val left = clip.copy(name = clip.name.substringBeforeLast('.').ifBlank { clip.name } + " • 1", trimStartMs = start, trimEndMs = cut, audioKeyframes = leftKeys, videoKeyframes = leftVideoKeys, speedKeyframes = leftSpeedKeys)
+                        val right = clip.copy(name = clip.name.substringBeforeLast('.').ifBlank { clip.name } + " • 2", trimStartMs = cut, trimEndMs = end, audioKeyframes = rightKeys, videoKeyframes = rightVideoKeys, speedKeyframes = rightSpeedKeys)
                         val idx = clips.indexOf(clip)
                         commitClips(clips.toMutableList().also { it.removeAt(idx); it.add(idx, left); it.add(idx + 1, right) })
                         current = left; playheadMs = timelinePositionOf(clips, left)
