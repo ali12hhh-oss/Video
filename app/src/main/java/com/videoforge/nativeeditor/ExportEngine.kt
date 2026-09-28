@@ -515,7 +515,11 @@ class ExportEngine(private val context: Context, private val resolver: ContentRe
             }
 
             onProgress(ExportProgress(0.97f, "Saving video…"))
-            resolver.openOutputStream(output)?.use { out -> File(temp.absolutePath).inputStream().use { it.copyTo(out) } } ?: error("Cannot open output destination")
+            withContext(Dispatchers.IO) {
+                resolver.openOutputStream(output)?.use { out ->
+                    File(temp.absolutePath).inputStream().use { input -> input.copyTo(out) }
+                } ?: error("Cannot open output destination")
+            }
             temp.delete()
             onProgress(ExportProgress(1f, "Export complete"))
             Result.success(Unit)
