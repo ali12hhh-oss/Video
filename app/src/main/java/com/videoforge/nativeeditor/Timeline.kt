@@ -431,7 +431,6 @@ fun Timeline(
                                 }
                             }
                         }
-                        }
 
                         // Audio lanes are real timeline tracks. They stay hidden until audio exists.
                         if (musicUri.isNotBlank()) {
