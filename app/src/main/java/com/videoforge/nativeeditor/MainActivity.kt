@@ -4211,23 +4211,23 @@ private fun MusicTrimDialog(
         confirmButton = { Button(onClick = { onConfirm(startMs, endMs) }, enabled = durationMs > 0L && endMs > startMs) { Icon(Icons.Default.Add, null, Modifier.size(17.dp)); Spacer(Modifier.width(5.dp)); Text(if (language == AppLanguage.ARABIC) "إضافة إلى المحرر" else "Add to editor") } }
     )
 }
-@Composable
 private fun filterPreviewColorFilter(value: String): androidx.compose.ui.graphics.ColorFilter? {
-    val m = androidx.compose.ui.graphics.ColorMatrix()
-    when (value) {
-        "mono", "noir" -> m.setToSaturation(0f)
-        "invert" -> m.set(floatArrayOf(-1f,0f,0f,0f,1f,0f,-1f,0f,0f,1f,0f,0f,-1f,0f,1f,0f,0f,0f,1f,0f))
-        "sepia", "vintage" -> m.set(floatArrayOf(.393f,.769f,.189f,0f,0f,.349f,.686f,.168f,0f,0f,.272f,.534f,.131f,0f,0f,0f,0f,0f,1f,0f))
-        "warm", "sunset" -> m.set(floatArrayOf(1.08f,0f,0f,0f,.02f,0f,1.01f,0f,0f,0f,0f,0f,.88f,0f,0f,0f,0f,0f,1f,0f))
-        "cool", "ice" -> m.set(floatArrayOf(.90f,0f,0f,0f,0f,0f,1.01f,0f,0f,0f,0f,0f,1.12f,0f,.02f,0f,0f,0f,1f,0f))
-        "vivid", "tealOrange" -> m.set(floatArrayOf(1.12f,0f,0f,0f,0f,0f,1.08f,0f,0f,0f,0f,0f,1.10f,0f,0f,0f,0f,0f,1f,0f))
-        "dream", "soft" -> m.set(floatArrayOf(1.04f,0f,0f,0f,.02f,0f,1.04f,0f,0f,.02f,0f,0f,1.04f,0f,.02f,0f,0f,0f,1f,0f))
-        "faded" -> m.set(floatArrayOf(.90f,0f,0f,0f,.08f,0f,.90f,0f,0f,.08f,0f,0f,.90f,0f,.08f,0f,0f,0f,1f,0f))
-        "dramatic" -> m.set(floatArrayOf(1.18f,0f,0f,0f,-.06f,0f,1.18f,0f,0f,-.06f,0f,0f,1.18f,0f,-.06f,0f,0f,0f,1f,0f))
+    val matrix = when (value) {
+        "mono", "noir" -> androidx.compose.ui.graphics.ColorMatrix().also { it.setToSaturation(0f) }
+        "invert" -> androidx.compose.ui.graphics.ColorMatrix(floatArrayOf(-1f,0f,0f,0f,1f,0f,-1f,0f,0f,1f,0f,0f,-1f,0f,1f,0f,0f,0f,1f,0f))
+        "sepia", "vintage" -> androidx.compose.ui.graphics.ColorMatrix(floatArrayOf(.393f,.769f,.189f,0f,0f,.349f,.686f,.168f,0f,0f,.272f,.534f,.131f,0f,0f,0f,0f,0f,1f,0f))
+        "warm", "sunset" -> androidx.compose.ui.graphics.ColorMatrix(floatArrayOf(1.08f,0f,0f,0f,.02f,0f,1.01f,0f,0f,0f,0f,0f,.88f,0f,0f,0f,0f,0f,1f,0f))
+        "cool", "ice" -> androidx.compose.ui.graphics.ColorMatrix(floatArrayOf(.90f,0f,0f,0f,0f,0f,1.01f,0f,0f,0f,0f,0f,1.12f,0f,.02f,0f,0f,0f,1f,0f))
+        "vivid", "tealOrange" -> androidx.compose.ui.graphics.ColorMatrix(floatArrayOf(1.12f,0f,0f,0f,0f,0f,1.08f,0f,0f,0f,0f,0f,1.10f,0f,0f,0f,0f,0f,1f,0f))
+        "dream", "soft" -> androidx.compose.ui.graphics.ColorMatrix(floatArrayOf(1.04f,0f,0f,0f,.02f,0f,1.04f,0f,0f,.02f,0f,0f,1.04f,0f,.02f,0f,0f,0f,1f,0f))
+        "faded" -> androidx.compose.ui.graphics.ColorMatrix(floatArrayOf(.90f,0f,0f,0f,.08f,0f,.90f,0f,0f,.08f,0f,0f,.90f,0f,.08f,0f,0f,0f,1f,0f))
+        "dramatic" -> androidx.compose.ui.graphics.ColorMatrix(floatArrayOf(1.18f,0f,0f,0f,-.06f,0f,1.18f,0f,0f,-.06f,0f,0f,1.18f,0f,-.06f,0f,0f,0f,1f,0f))
+        else -> androidx.compose.ui.graphics.ColorMatrix()
     }
-    return if (value == "none") null else androidx.compose.ui.graphics.ColorFilter.colorMatrix(m)
+    return if (value == "none") null else androidx.compose.ui.graphics.ColorFilter.colorMatrix(matrix)
 }
 
+@Composable
 private fun FilterDialog(
     s: EditorSettings,
     clip: Clip?,
