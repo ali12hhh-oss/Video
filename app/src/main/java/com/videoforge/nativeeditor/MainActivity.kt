@@ -210,12 +210,13 @@ private fun isImageUri(context: android.content.Context, uri: Uri): Boolean {
         path.endsWith(".webp") || path.endsWith(".heic") || path.endsWith(".heif") || path.endsWith(".gif")
 }
 
-private const val DEFAULT_IMAGE_CLIP_DURATION_MS = 3000L
+private const val DEFAULT_IMAGE_CLIP_DURATION_MS = 5000L
+private const val MAX_IMAGE_CLIP_DURATION_MS = 10 * 60 * 1000L
 private const val FALLBACK_VIDEO_CLIP_DURATION_MS = 4000L
 
 /** Duration to assign a freshly imported clip so timeline math never divides by a zero-length clip. */
 private fun defaultClipDurationMs(context: android.content.Context, uri: Uri): Long {
-    if (isImageUri(context, uri)) return DEFAULT_IMAGE_CLIP_DURATION_MS
+    if (isImageUri(context, uri)) return MAX_IMAGE_CLIP_DURATION_MS
     val measured = mediaDurationMs(context, uri)
     return if (measured > 0L) measured else FALLBACK_VIDEO_CLIP_DURATION_MS
 }
