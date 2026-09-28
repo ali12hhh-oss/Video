@@ -2516,16 +2516,18 @@ private fun EditorScreen(
             if (end - start <= 2L || local <= 0L || local >= end - start) {
                 val next = clips.toMutableList().also { it.add(index + 1, freeze) }
                 commitClips(next)
-                current = freeze
+                current = placedFreeze
                 playheadMs = timelinePositionOf(next, freeze)
             } else {
                 val cut = (start + local).coerceIn(start + 1L, end - 1L)
-                val left = clip.copy(trimEndMs = cut, name = clip.name.substringBeforeLast('.').ifBlank { clip.name } + " • 1")
-                val right = clip.copy(trimStartMs = cut, name = clip.name.substringBeforeLast('.').ifBlank { clip.name } + " • 2")
+                val left = clip.copy(trimEndMs = cut, timelineStartMs = clipTimelineStart, name = clip.name.substringBeforeLast('.').ifBlank { clip.name } + " • 1")
+                val freezeStart = clipTimelineStart + (cut - start)
+                val placedFreeze = freeze.copy(timelineStartMs = freezeStart, trackIndex = clip.trackIndex)
+                val right = clip.copy(trimStartMs = cut, timelineStartMs = freezeStart + clipTimelineDuration(freeze), name = clip.name.substringBeforeLast('.').ifBlank { clip.name } + " • 2")
                 val next = clips.toMutableList().also {
                     it.removeAt(index)
                     it.add(index, left)
-                    it.add(index + 1, freeze)
+                    it.add(index + 1, placedFreeze)
                     it.add(index + 2, right)
                 }
                 commitClips(next)
