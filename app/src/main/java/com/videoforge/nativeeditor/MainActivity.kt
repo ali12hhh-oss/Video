@@ -2399,7 +2399,7 @@ private fun EditorScreen(
         val selected = current
         if (uri != null && selected != null) {
             persistUriAccess(context, uri)
-            val duration = mediaDurationMs(context, uri).coerceAtLeast(0L)
+            val duration = defaultClipDurationMs(context, uri)
             val updated = selected.copy(uri = uri, name = uri.lastPathSegment?.substringAfterLast('/')?.ifBlank { selected.name } ?: selected.name, durationMs = duration, trimStartMs = 0L, trimEndMs = duration)
             commitClips(clips.map { if (it == selected) updated else it })
             current = updated
@@ -2753,7 +2753,13 @@ private fun EditorScreen(
                     playheadMs = (offset + newLocal).coerceIn(0L, timelineTotalDuration(clips))
                 },
                 onAddMedia = { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)) },
-                textLayerNames = settings.textLayers.mapIndexed { i, layer -> layer.name.ifBlank { (if (language == AppLanguage.ARABIC) "نص " else "Text ") + (i + 1) } },
+                onAddAudio = { musicImportLauncher.launch(arrayOf("audio/*")) },
+                onAddText = { activeEditorTool = "text" },
+                onTextTrim = { layer, start, end ->
+                    val updatedLayers = settings.textLayers.map { if (it.id == layer.id) it.copy(startMs = start, endMs = end) else it }
+                    updateSettings(settings.copy(textLayers = updatedLayers))
+                },
+                textLayers = settings.textLayers,
                 filterName = settings.filter
             )
 
