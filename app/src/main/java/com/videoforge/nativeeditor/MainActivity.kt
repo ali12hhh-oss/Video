@@ -707,7 +707,7 @@ private fun ProjectsScreen(
                                     factory = { ctx ->
                                         PlayerView(ctx).apply {
                                             useController = false
-                                            resizeMode = androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                                            resizeMode = androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT
                                             player = ExoPlayer.Builder(ctx).build().also { player ->
                                                 player.setMediaItem(MediaItem.fromUri(project.uri))
                                                 player.prepare()
