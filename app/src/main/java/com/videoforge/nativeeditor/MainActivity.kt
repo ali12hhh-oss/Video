@@ -3223,8 +3223,9 @@ private fun EditorPreview(
                 if (settings.rotation % 360 != 0 || kotlin.math.abs(settings.cropZoom - 1f) > 0.001f) effects += ScaleAndRotateTransformation.Builder().setScale(settings.cropZoom.coerceIn(1f, 6f), settings.cropZoom.coerceIn(1f, 6f)).setRotationDegrees(((settings.rotation % 360) + 360) % 360f).build()
                 if (settings.flipHorizontal || settings.flipVertical) effects += MatrixTransformation { android.graphics.Matrix().apply { postScale(if (settings.flipHorizontal) -1f else 1f, if (settings.flipVertical) -1f else 1f) } }
                 if (kotlin.math.abs(settings.cropX) > 0.001f || kotlin.math.abs(settings.cropY) > 0.001f) effects += MatrixTransformation { android.graphics.Matrix().apply { postTranslate(settings.cropX.coerceIn(-1f, 1f) * 500f, settings.cropY.coerceIn(-1f, 1f) * 500f) } }
-                if (settings.videoKeyframes.isNotEmpty()) {
-                    val ks = clip.videoKeyframes.ifEmpty { settings.videoKeyframes }.sortedBy { it.timeMs }
+                val activeVideoKeyframes = clip.videoKeyframes.ifEmpty { settings.videoKeyframes }
+                if (activeVideoKeyframes.isNotEmpty()) {
+                    val ks = activeVideoKeyframes.sortedBy { it.timeMs }
                     effects += MatrixTransformation { timeUs ->
                         val t = timeUs / 1000L
                         val a = ks.lastOrNull { it.timeMs <= t } ?: ks.first()
@@ -3297,6 +3298,17 @@ private fun EditorPreview(
                     player.release()
                     musicPlayer.release()
                 }
+            }
+            val lifecycleOwner = LocalLifecycleOwner.current
+            DisposableEffect(lifecycleOwner, player, musicPlayer) {
+                val observer = LifecycleEventObserver { _, event ->
+                    if (event == Lifecycle.Event.ON_STOP) {
+                        player.pause()
+                        musicPlayer.pause()
+                    }
+                }
+                lifecycleOwner.lifecycle.addObserver(observer)
+                onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
             }
             AndroidView(
                 factory = { ctx ->
