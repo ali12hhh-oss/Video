@@ -177,6 +177,9 @@ fun Timeline(
     musicUri: String,
     musicStartMs: Long,
     musicDurationMs: Long,
+    musicTimelineStartMs: Long = 0L,
+    musicTrackIndex: Int = 0,
+    audioTracks: List<AudioTrack> = emptyList(),
     musicSourceDurationMs: Long = 0L,
     musicVolume: Float,
     musicFadeIn: Float,
@@ -199,6 +202,8 @@ fun Timeline(
     onVideoKeyframeMove: (Long, Long) -> Unit,
     onAddMedia: () -> Unit = {},
     onAddAudio: () -> Unit = {},
+    onMoveAudioTrack: (AudioTrack, Long, Int) -> Unit = { _, _, _ -> },
+    onMoveMusicTrack: (Long, Int) -> Unit = { _, _ -> },
     onAddText: () -> Unit = {},
     onMoveClip: (Clip, Long, Int) -> Unit = { _, _, _ -> },
     onTextTrim: (TextLayer, Long, Long) -> Unit = { _, _, _ -> },
@@ -424,94 +429,75 @@ fun Timeline(
                         }
                         }
 
-                        // Music lane with a visible range and draggable start/end handles.
-                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            Modifier.weight(1f).height(48.dp)
-                                .clip(RoundedCornerShape(7.dp))
-                                .background(Color(0xFF101C2C))
-                                .clickable { onAudioTrackClick() }
-                        ) {
-                            Icon(
-                                Icons.Default.MusicNote,
-                                contentDescription = "Audio",
-                                tint = Color(0xFF39BFFF),
-                                modifier = Modifier.align(Alignment.CenterStart).padding(start = 6.dp).size(16.dp)
-                            )
-                            if (musicUri.isNotBlank()) {
-                                val start = 0L
-                                val end = (start + musicDurationMs.coerceAtLeast(1L)).coerceIn(start + 1L, total)
-                                val leftFraction = start.toFloat() / total.toFloat()
-                                val widthFraction = ((end - start).toFloat() / total.toFloat()).coerceIn(0.01f, 1f)
+                        // Audio lanes are real timeline tracks. They stay hidden until audio exists.
+                        if (musicUri.isNotBlank()) {
+                            Row(Modifier.fillMaxWidth(), verticalAlignment=Alignment.CenterVertically) {
                                 Box(
-                                    Modifier.fillMaxHeight().fillMaxWidth(widthFraction)
-                                        .offset(x = with(density) { (leftFraction * contentWidthPx).toDp() })
-                                        .padding(vertical = 4.dp)
-                                        .clip(RoundedCornerShape(6.dp))
-                                        .background(Color(0xFF087CC1))
+                                    Modifier.weight(1f).height(48.dp).clip(RoundedCornerShape(7.dp))
+                                        .background(Color(0xFF101C2C)).clickable { onAudioTrackClick() }
                                 ) {
-                                    // Visual waveform-style bars. The source remains the real
-                                    // selected audio URI; this is a compact visual representation.
-                                    Canvas(Modifier.fillMaxSize().padding(horizontal = 8.dp, vertical = 5.dp)) {
-                                        val bars = 54
-                                        val barWidth = size.width / bars
-                                        for (i in 0 until bars) {
-                                            val phase = (musicUri.hashCode() * 0.0001f + i * 0.73f)
-                                            val h = (0.18f + 0.72f * ((kotlin.math.sin(phase * 1.9f) + 1f) / 2f)).coerceIn(0.08f, 0.95f)
-                                            drawRoundRect(
-                                                color = Color(0xFF64D9FF),
-                                                topLeft = Offset(i * barWidth + barWidth * 0.18f, (size.height * (1f - h)) / 2f),
-                                                size = androidx.compose.ui.geometry.Size(barWidth * 0.56f, size.height * h),
-                                                cornerRadius = androidx.compose.ui.geometry.CornerRadius(2f, 2f)
-                                            )
+                                    Icon(Icons.Default.MusicNote, contentDescription="Audio", tint=Color(0xFF39BFFF), modifier=Modifier.align(Alignment.CenterStart).padding(start=6.dp).size(16.dp))
+                                    val start = musicTimelineStartMs.coerceAtLeast(0L)
+                                    val duration = musicDurationMs.coerceAtLeast(1L)
+                                    val widthFraction=(duration.toFloat()/total.toFloat()).coerceIn(0.01f,1f)
+                                    Box(
+                                        Modifier.fillMaxHeight().fillMaxWidth(widthFraction)
+                                            .offset(x=with(density){(start.toFloat()/total.toFloat()*contentWidthPx).toDp()})
+                                            .padding(vertical=4.dp).clip(RoundedCornerShape(6.dp)).background(Color(0xFF087CC1))
+                                            .pointerInput(total,start,duration,musicTrackIndex){
+                                                detectDragGestures(onDragStart={onPlayheadChange(start)}){change,drag->
+                                                    change.consume()
+                                                    val delta=(drag.x/contentWidthPx*total.toFloat()).toLong()
+                                                    val dTrack=(drag.y/with(density){(laneHeight+5.dp).toPx()}).toInt()
+                                                    onMoveMusicTrack((start+delta).coerceAtLeast(0L),(musicTrackIndex+dTrack).coerceAtLeast(0))
+                                                }
+                                            }
+                                    ) {
+                                        Canvas(Modifier.fillMaxSize().padding(horizontal=8.dp,vertical=5.dp)){
+                                            val bars=54; val barWidth=size.width/bars
+                                            for(i in 0 until bars){val phase=(musicUri.hashCode()*.0001f+i*.73f);val h=(.18f+.72f*((kotlin.math.sin(phase*1.9f)+1f)/2f)).coerceIn(.08f,.95f);drawRoundRect(Color(0xFF64D9FF),Offset(i*barWidth+barWidth*.18f,(size.height*(1f-h))/2f),androidx.compose.ui.geometry.Size(barWidth*.56f,size.height*h),cornerRadius=androidx.compose.ui.geometry.CornerRadius(2f,2f))}
                                         }
+                                        val handle=7.dp
+                                        Box(Modifier.fillMaxHeight().width(handle).background(Color.White).align(Alignment.CenterStart).pointerInput(total,start,duration){detectDragGestures{change,drag->change.consume();val delta=(drag.x/contentWidthPx*total).toLong();val sourceEnd=if(musicSourceDurationMs>0L)musicSourceDurationMs else Long.MAX_VALUE;val nextStart=musicStartMs.coerceIn(0L,(sourceEnd-300L).coerceAtLeast(0L));val maxDuration=if(sourceEnd==Long.MAX_VALUE)total else(sourceEnd-nextStart).coerceAtLeast(300L);onMusicTrim(nextStart,(duration-delta).coerceIn(300L,maxDuration))}})
+                                        Box(Modifier.fillMaxHeight().width(handle).background(Color.White).align(Alignment.CenterEnd).pointerInput(total,start,duration){detectDragGestures{change,drag->change.consume();val nextEnd=(duration+(drag.x/contentWidthPx*total).toLong()).coerceIn(300L,total-start);onMusicTrim(musicStartMs,nextEnd)}} 
                                     }
-                                    val handle = 7.dp
-                                    Box(
-                                        Modifier.fillMaxHeight().width(handle)
-                                            .background(Color.White)
-                                            .align(Alignment.CenterStart)
-                                            .pointerInput(total, start, end) {
-                                                detectDragGestures { change, drag ->
-                                                    change.consume()
-                                                    val delta = (drag.x / contentWidthPx * total).toLong()
-                                                    val sourceStart = musicStartMs.coerceAtLeast(0L)
-                                                    val sourceEnd = if (musicSourceDurationMs > 0L) musicSourceDurationMs else Long.MAX_VALUE
-                                                    val nextStart = (sourceStart + delta).coerceIn(0L, (sourceEnd - 300L).coerceAtLeast(0L))
-                                                    val maxDuration = if (sourceEnd == Long.MAX_VALUE) total else (sourceEnd - nextStart).coerceAtLeast(300L)
-                                                    val nextDuration = (musicDurationMs - delta).coerceIn(300L, maxDuration)
-                                                    onMusicTrim(nextStart, nextDuration)
-                                                }
-                                            }
-                                    )
-                                    Box(
-                                        Modifier.fillMaxHeight().width(handle)
-                                            .background(Color.White)
-                                            .align(Alignment.CenterEnd)
-                                            .pointerInput(total, start, end) {
-                                                detectDragGestures { change, drag ->
-                                                    change.consume()
-                                                    val nextEnd = (end + (drag.x / contentWidthPx * total).toLong())
-                                                        .coerceIn(start + 300L, total)
-                                                    onMusicTrim(start, nextEnd - start)
-                                                }
-                                            }
-                                    )
                                 }
-                            } else {
-                                Text(
-                                    "إضافة صوت" ,
-                                    color = Color(0xFF7C8DA6),
-                                    fontSize = 9.sp,
-                                    modifier = Modifier.align(Alignment.Center).padding(start = 16.dp)
-                                )
                             }
                         }
-                        IconButton(onClick = onAddAudio, modifier = Modifier.size(36.dp)) {
-                            Icon(Icons.Default.Add, contentDescription = "Add audio", tint = Color.White)
+                        audioTracks.sortedWith(compareBy<AudioTrack>{it.trackIndex}.thenBy{it.timelineStartMs}).forEach { track ->
+                            Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
+                                Box(Modifier.weight(1f).height(48.dp).clip(RoundedCornerShape(7.dp)).background(Color(0xFF14142A))) {
+                                    Icon(Icons.Default.MusicNote,contentDescription="Audio track",tint=Color(0xFFB38CFF),modifier=Modifier.align(Alignment.CenterStart).padding(start=6.dp).size(16.dp))
+                                    val start=track.timelineStartMs.coerceAtLeast(0L)
+                                    val width=(track.durationMs.coerceAtLeast(300L).toFloat()/total.toFloat()).coerceIn(.01f,1f)
+                                    Box(Modifier.fillMaxHeight().fillMaxWidth(width).offset(x=with(density){(start.toFloat()/total.toFloat()*contentWidthPx).toDp()}).padding(vertical=4.dp).clip(RoundedCornerShape(6.dp)).background(Color(0xFF6740B8))
+                                        .clickable{onPlayheadChange(start)}
+                                        .pointerInput(track,total){
+                                            detectDragGestures(onDragStart={onPlayheadChange(start)}){change,drag->
+                                                change.consume()
+                                                val delta=(drag.x/contentWidthPx*total.toFloat()).toLong()
+                                                val dTrack=(drag.y/with(density){(laneHeight+5.dp).toPx()}).toInt()
+                                                onMoveAudioTrack(track,(start+delta).coerceAtLeast(0L),(track.trackIndex+dTrack).coerceAtLeast(0))
+                                            }
+                                        }){
+                                        Canvas(Modifier.fillMaxSize().padding(horizontal=8.dp,vertical=5.dp)){val bars=42;val bw=size.width/bars;for(i in 0 until bars){val h=(.2f+.7f*((kotlin.math.sin((track.id.hashCode()*.0002f+i*.91f))+1f)/2f));drawRoundRect(Color(0xFFD3B8FF),Offset(i*bw+bw*.2f,(size.height*(1f-h))/2f),androidx.compose.ui.geometry.Size(bw*.55f,size.height*h),cornerRadius=androidx.compose.ui.geometry.CornerRadius(2f,2f))}}
+                                    }
+                                }
+                            }
                         }
+                        if (musicUri.isNotBlank() || audioTracks.isNotEmpty()) {
+                            Row(Modifier.fillMaxWidth().padding(top=1.dp),horizontalArrangement=Arrangement.End){
+                                IconButton(onClick=onAddAudio,modifier=Modifier.size(34.dp)){Icon(Icons.Default.Add,contentDescription="Add audio",tint=Color.White)}
+                            }
+                        } else {
+                            Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){
+                                Box(Modifier.weight(1f).height(44.dp).clip(RoundedCornerShape(7.dp)).background(Color(0xFF101C2C)).clickable{onAudioTrackClick()}){
+                                    Icon(Icons.Default.MusicNote,null,tint=Color(0xFF39BFFF),modifier=Modifier.align(Alignment.CenterStart).padding(start=6.dp).size(16.dp))
+                                    Text("إضافة صوت",color=Color(0xFF7C8DA6),fontSize=9.sp,modifier=Modifier.align(Alignment.Center))
+                                }
+                                IconButton(onClick=onAddAudio,modifier=Modifier.size(36.dp)){Icon(Icons.Default.Add,contentDescription="Add audio",tint=Color.White)}
+                            }
                         }
-                    }
 
                     // The playhead is a real vertical editing cursor spanning every lane.
                     Box(
