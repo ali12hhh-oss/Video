@@ -3601,17 +3601,40 @@ private fun EditorPreview(
                         .rotate(baseRotation)
                         .scale(baseScale*animScale)
                         .pointerInput(layer.id, selected) {
+                            detectTapGestures {
+                                selectedLayerId = layer.id
+                            }
+                        }
+                        .pointerInput(layer.id, selected) {
                             detectTransformGestures { _, pan, zoom, rotation ->
                                 selectedLayerId = layer.id
-                                val next = settings.textLayers.map { item ->
-                                    if (item.id != layer.id) item else item.copy(
-                                        x = (item.x + pan.x / 120f).coerceIn(-1.2f, 1.2f),
-                                        y = (item.y + pan.y / 90f).coerceIn(-1.2f, 1.2f),
-                                        scale = (item.scale * zoom).coerceIn(0.15f, 6f),
-                                        rotation = item.rotation + rotation
+                                val existing = settings.textLayers
+                                if (existing.isNotEmpty()) {
+                                    val next = existing.map { item ->
+                                        if (item.id != layer.id) item else item.copy(
+                                            x = (item.x + pan.x / 120f).coerceIn(-1.2f, 1.2f),
+                                            y = (item.y + pan.y / 90f).coerceIn(-1.2f, 1.2f),
+                                            scale = (item.scale * zoom).coerceIn(0.15f, 6f),
+                                            rotation = item.rotation + rotation
+                                        )
+                                    }
+                                    onSettingsChange(settings.copy(textLayers = next))
+                                } else if (settings.text.isNotBlank()) {
+                                    val legacy = layer.copy(
+                                        x = (layer.x + pan.x / 120f).coerceIn(-1.2f, 1.2f),
+                                        y = (layer.y + pan.y / 90f).coerceIn(-1.2f, 1.2f),
+                                        scale = (layer.scale * zoom).coerceIn(0.15f, 6f),
+                                        rotation = layer.rotation + rotation
                                     )
+                                    onSettingsChange(settings.copy(
+                                        textLayers = listOf(legacy),
+                                        text = legacy.text,
+                                        textSize = legacy.size,
+                                        textColor = legacy.color,
+                                        textFont = legacy.font,
+                                        textVisible = legacy.visible
+                                    ))
                                 }
-                                if (settings.textLayers.isNotEmpty()) onSettingsChange(settings.copy(textLayers = next))
                             }
                         }
                         .clip(RoundedCornerShape(6.dp))
