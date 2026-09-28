@@ -416,7 +416,7 @@ class ExportEngine(private val context: Context, private val resolver: ContentRe
                     .build()
                 val musicItems = mutableListOf<EditedMediaItem>()
                 val musicGap = editor.musicTimelineStartMs.coerceAtLeast(0L)
-                if (musicGap > 0L) musicItems += EditedMediaItem.Builder(MediaItem.fromUri(createSilenceWav(musicGap).toUri())).setRemoveVideo(true).build()
+                if (musicGap > 0L) musicItems += EditedMediaItem.Builder(MediaItem.fromUri(Uri.fromFile(createSilenceWav(musicGap)))).setRemoveVideo(true).build()
                 musicItems += musicItem
                 sequences += EditedMediaItemSequence.Builder(musicItems).setIsLooping(true).build()
             }
@@ -426,7 +426,7 @@ class ExportEngine(private val context: Context, private val resolver: ContentRe
                 tracks.sortedBy { it.timelineStartMs }.forEach { track ->
                     val start = track.timelineStartMs.coerceAtLeast(0L)
                     val gap = (start - cursor).coerceAtLeast(0L)
-                    if (gap > 0L) items += EditedMediaItem.Builder(MediaItem.fromUri(createSilenceWav(gap).toUri())).setRemoveVideo(true).build()
+                    if (gap > 0L) items += EditedMediaItem.Builder(MediaItem.fromUri(Uri.fromFile(createSilenceWav(gap)))).setRemoveVideo(true).build()
                     val clipping = MediaItem.ClippingConfiguration.Builder()
                         .setStartPositionMs(track.sourceStartMs.coerceAtLeast(0L))
                         .setEndPositionMs((track.sourceStartMs + track.durationMs).coerceAtLeast(track.sourceStartMs + 1L)).build()
