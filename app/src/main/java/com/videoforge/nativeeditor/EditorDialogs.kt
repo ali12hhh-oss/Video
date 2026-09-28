@@ -20,6 +20,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+private val AUDIO_BITRATES = listOf(96000 to "96 kbps", 128000 to "128 kbps", 192000 to "192 kbps", 256000 to "256 kbps", 320000 to "320 kbps")
+
 @Composable
 private fun ReferenceDialogTitle(text: String) {
     Column(
