@@ -3308,8 +3308,8 @@ private fun EditorPreview(
             }
             fun musicPreviewVolume(globalMs: Long): Float {
                 if (settings.musicUri.isBlank()) return 0f
-                val local = globalMs.coerceAtLeast(0L)
-                if (local < 0L) return 0f
+                if (globalMs < settings.musicTimelineStartMs) return 0f
+                val local = (globalMs - settings.musicTimelineStartMs).coerceAtLeast(0L)
                 if (settings.musicDurationMs > 0L && local >= settings.musicDurationMs) return 0f
                 val keys = settings.musicKeyframes.sortedBy { it.timeMs }
                 var v = if (keys.isEmpty()) settings.musicVolume else {
@@ -3340,7 +3340,7 @@ private fun EditorPreview(
                 }
                 return v.coerceIn(0f, 1f)
             }
-            LaunchedEffect(settings.speed, settings.speedKeyframes, clip.speedKeyframes, settings.volume, settings.muted, clip.audioVolume, clip.audioMuted, clip.audioFadeIn, clip.audioFadeOut, clip.audioKeyframes, settings.fadeIn, settings.fadeOut, settings.musicUri, settings.musicVolume, settings.musicStartMs, settings.musicDurationMs, settings.musicFadeIn, settings.musicFadeOut, settings.musicDucking, settings.musicDuckVolume, settings.musicDuckAttack, settings.musicDuckRelease, settings.musicKeyframes, playheadMs) {
+            LaunchedEffect(settings.speed, settings.speedKeyframes, clip.speedKeyframes, settings.volume, settings.muted, clip.audioVolume, clip.audioMuted, clip.audioFadeIn, clip.audioFadeOut, clip.audioKeyframes, settings.fadeIn, settings.fadeOut, settings.musicUri, settings.musicVolume, settings.musicStartMs, settings.musicDurationMs, settings.musicTimelineStartMs, settings.musicFadeIn, settings.musicFadeOut, settings.musicDucking, settings.musicDuckVolume, settings.musicDuckAttack, settings.musicDuckRelease, settings.musicKeyframes, playheadMs) {
                 val local = (playheadMs - clipOffsetMs).coerceAtLeast(0L)
                 val speedNow = run {
                     val ks = clip.speedKeyframes.ifEmpty { settings.speedKeyframes }.sortedBy { it.timeMs }
@@ -3357,7 +3357,7 @@ private fun EditorPreview(
                 player.volume = clipPreviewVolume(local)
                 musicPlayer.volume = musicPreviewVolume(playheadMs)
                 if (settings.musicUri.isBlank()) musicPlayer.pause()
-                else if (settings.musicStartMs > 0L && musicPlayer.currentPosition < settings.musicStartMs) musicPlayer.seekTo(settings.musicStartMs)
+                else if (playheadMs < settings.musicTimelineStartMs) musicPlayer.pause()\n                else if (settings.musicStartMs > 0L && musicPlayer.currentPosition < settings.musicStartMs) musicPlayer.seekTo(settings.musicStartMs)
                 val effects = mutableListOf<Effect>()
                 if (settings.brightness != 0f) effects += Brightness(settings.brightness.coerceIn(-1f, 1f))
                 if (settings.blurRadius > 0.01f) effects += GaussianBlur(settings.blurRadius.coerceIn(0.1f, 20f))
@@ -3409,12 +3409,12 @@ private fun EditorPreview(
                 }
                 player.setVideoEffects(effects)
             }
-            LaunchedEffect(playheadMs, clip.trimStartMs, clip.trimEndMs, settings.musicUri, settings.musicStartMs, settings.musicDurationMs) {
+            LaunchedEffect(playheadMs, clip.trimStartMs, clip.trimEndMs, settings.musicUri, settings.musicStartMs, settings.musicDurationMs, settings.musicTimelineStartMs) {
                 val local = (playheadMs - clipOffsetMs).coerceAtLeast(0L)
                 val sourcePosition = (clip.trimStartMs + local).coerceIn(clip.trimStartMs, (if (clip.trimEndMs == Long.MAX_VALUE) clip.durationMs else clip.trimEndMs).coerceAtLeast(clip.trimStartMs))
                 if (kotlin.math.abs(player.currentPosition - sourcePosition) > 250L) player.seekTo(sourcePosition)
                 if (settings.musicUri.isNotBlank()) {
-                    val musicLocal = playheadMs.coerceAtLeast(0L)
+                    val musicLocal = (playheadMs - settings.musicTimelineStartMs).coerceAtLeast(0L)
                     val targetOffset = if (settings.musicDurationMs > 0L) musicLocal % settings.musicDurationMs else musicLocal
                     val target = (settings.musicStartMs + targetOffset).coerceAtLeast(0L)
                     if (musicLocal >= 0L && kotlin.math.abs(musicPlayer.currentPosition - target) > 350L) musicPlayer.seekTo(target)
@@ -3440,7 +3440,7 @@ private fun EditorPreview(
                         musicPlayer.pause()
                     } else {
                         val musicLocal = globalNow
-                        val active = player.isPlaying && musicLocal >= 0L && (settings.musicDurationMs <= 0L || musicLocal < settings.musicDurationMs)
+                        val active = player.isPlaying && playheadMs >= settings.musicTimelineStartMs && (settings.musicDurationMs <= 0L || musicLocal < settings.musicDurationMs)
                         musicPlayer.playWhenReady = active
                         musicPlayer.volume = musicPreviewVolume(globalNow)
                         if (active) {
