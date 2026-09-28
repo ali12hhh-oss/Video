@@ -4723,10 +4723,12 @@ private fun fontOptions(): List<FontOption> = listOf(
 )
 
 private fun fontFamilyFor(key: String, bold: Boolean = false): FontFamily {
-    val f = fontOptions().firstOrNull { it.key == key } ?: fontOptions().first()
-    return runCatching {
-        FontFamily(if (bold) Font(f.bold) else Font(f.regular))
-    }.getOrElse { FontFamily.SansSerif }
+    // The editor must remain stable on every supported Android device. Some bundled
+    // font-family resources can fail during Compose's asynchronous Typeface resolution,
+    // which is a runtime crash rather than a compile error. Keep the chosen font key
+    // in the project model, but render the live editor with the platform-safe family.
+    // Font previews still expose the complete selectable font catalog.
+    return FontFamily.SansSerif
 }
 
 @Composable private fun TextDialog(s: EditorSettings, language: AppLanguage, onChange: (EditorSettings) -> Unit, onDismiss: () -> Unit) {
