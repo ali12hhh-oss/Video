@@ -143,22 +143,33 @@ private fun BoxScope.TrimHandle(alignment: Alignment, onDragMs: (Long) -> Unit) 
         Modifier
             .align(alignment)
             .fillMaxHeight()
-            .width(16.dp)
-            .background(Color.White.copy(alpha = 0.28f))
+            .width(24.dp)
+            .zIndex(10f)
+            .background(Color.White.copy(alpha = 0.34f))
             .pointerInput(Unit) {
-                detectDragGestures { change, dragAmount ->
+                // Do not update the Clip model on every pointer event. Recomposition during a
+                // drag used to cancel this gesture, which made the handles appear untouchable.
+                // Accumulate the complete gesture and commit it once when the finger is released.
+                var accumulatedDp = 0f
+                detectDragGestures(
+                    onDragStart = { accumulatedDp = 0f },
+                    onDragCancel = { accumulatedDp = 0f },
+                    onDragEnd = {
+                        val deltaMs = (accumulatedDp * MS_PER_DP).toLong()
+                        if (deltaMs != 0L) onDragMsState.value(deltaMs)
+                        accumulatedDp = 0f
+                    }
+                ) { change, dragAmount ->
                     change.consume()
-                    val dp = with(density) { dragAmount.x.toDp().value }
-                    val deltaMs = (dp * MS_PER_DP).toLong()
-                    if (deltaMs != 0L) onDragMsState.value(deltaMs)
+                    accumulatedDp += with(density) { dragAmount.x.toDp().value }
                 }
             },
         contentAlignment = Alignment.Center
     ) {
         Box(
             Modifier
-                .width(3.dp)
-                .height(22.dp)
+                .width(4.dp)
+                .height(28.dp)
                 .clip(RoundedCornerShape(2.dp))
                 .background(Color.White)
         )
