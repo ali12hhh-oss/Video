@@ -80,7 +80,8 @@ private class AnimatedTextOverlay(
         val tMs = presentationTimeUs / 1000L
         if (tMs !in startMs until endMs) return SpannableString("")
         if (animation != "typewriter" || baseText.isEmpty()) return baseText
-        val progress = (presentationTimeUs.toFloat() / durationUs.coerceAtLeast(1L)).coerceIn(0f, 1f)
+        val localUs = (presentationTimeUs - startMs * 1000L).coerceAtLeast(0L)
+        val progress = (localUs.toFloat() / durationUs.coerceAtLeast(1L)).coerceIn(0f, 1f)
         val count = (baseText.length * progress).toInt().coerceIn(1, baseText.length)
         return SpannableString(baseText.subSequence(0, count))
     }
