@@ -164,6 +164,8 @@ data class EditorSettings(
     val musicVolume: Float = 0.65f,
     val musicStartMs: Long = 0L,
     val musicDurationMs: Long = 0L,
+    val musicTimelineStartMs: Long = 0L,
+    val musicTrackIndex: Int = 0,
     val musicFadeIn: Float = 0f,
     val musicFadeOut: Float = 0f,
     val musicDucking: Boolean = false,
@@ -469,6 +471,7 @@ object EditorSettingsRepository {
             .put("subtitles", JSONArray().apply { s.subtitles.sortedBy { it.startMs }.forEach { q -> put(JSONObject().put("id", q.id).put("text", q.text).put("startMs", q.startMs).put("endMs", q.endMs).put("size", q.size).put("color", q.color.toString()).put("bold", q.bold).put("x", q.x).put("y", q.y).put("backgroundAlpha", q.backgroundAlpha)) } })
             .put("musicUri", s.musicUri).put("musicVolume", s.musicVolume)
             .put("musicStartMs", s.musicStartMs).put("musicDurationMs", s.musicDurationMs)
+            .put("musicTimelineStartMs", s.musicTimelineStartMs).put("musicTrackIndex", s.musicTrackIndex)
             .put("musicFadeIn", s.musicFadeIn)
             .put("musicFadeOut", s.musicFadeOut)
             .put("musicDucking", s.musicDucking)
