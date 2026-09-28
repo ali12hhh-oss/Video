@@ -200,6 +200,7 @@ fun Timeline(
     onAddMedia: () -> Unit = {},
     onAddAudio: () -> Unit = {},
     onAddText: () -> Unit = {},
+    onMoveClip: (Clip, Long, Int) -> Unit = { _, _, _ -> },
     onTextTrim: (TextLayer, Long, Long) -> Unit = { _, _, _ -> },
     textLayers: List<TextLayer> = emptyList(),
     filterName: String = "none"
@@ -217,12 +218,23 @@ fun Timeline(
         return name.endsWith(".jpg") || name.endsWith(".jpeg") || name.endsWith(".png") ||
             name.endsWith(".webp") || name.endsWith(".heic") || name.endsWith(".heif")
     }
-    val videoClips = clips.filter { !imageUri(it.uri) && !it.isFreezeFrame }
-    val imageClips = clips.filter { imageUri(it.uri) || it.isFreezeFrame }
-
-    fun clipStartMs(clip: Clip): Long = clips.takeWhile { it != clip }.sumOf { timelineClipDurationForUi(it) }
-    fun xFor(time: Long, density: Float): Float =
-        (time.toFloat() / total.toFloat()).coerceIn(0f, 1f) * (760f * density)
+    val legacySequential = clips.isNotEmpty() && clips.all { it.timelineStartMs == 0L && it.trackIndex == 0 }
+    fun clipStartMs(clip: Clip): Long {
+        if (!legacySequential) return clip.timelineStartMs.coerceAtLeast(0L)
+        var position = 0L
+        for (item in clips) {
+            if (item == clip) return position
+            position += timelineClipDurationForUi(item)
+        }
+        return 0L
+    }
+    val visualTracks = clips.groupBy { if (legacySequential) 0 else it.trackIndex.coerceAtLeast(0) }.toSortedMap()
+    fun trackTint(index: Int): Color = when (index % 4) {
+        0 -> Color(0xFF55A8FF)
+        1 -> Color(0xFF9B6BFF)
+        2 -> Color(0xFF33D6B2)
+        else -> Color(0xFFFF9B5C)
+    }
 
     Column(
         Modifier
@@ -308,112 +320,62 @@ fun Timeline(
                         verticalArrangement = Arrangement.spacedBy(5.dp)
                     ) {
                         @Composable
-                        fun TrackLane(
-                            label: String,
-                            labelIcon: ImageVector,
-                            tint: Color,
-                            laneClips: List<Clip>,
-                            height: androidx.compose.ui.unit.Dp = laneHeight,
-                            showTrimHandles: Boolean = true
-                        ) {
-                            Box(
-                                Modifier
-                                    .fillMaxWidth()
-                                    .height(height)
-                                    .clip(RoundedCornerShape(7.dp))
-                                    .background(Color(0xFF0A1728))
-                            ) {
-                                Icon(
-                                    labelIcon,
-                                    contentDescription = label,
-                                    tint = tint,
-                                    modifier = Modifier
-                                        .align(Alignment.CenterStart)
-                                        .padding(start = 6.dp)
-                                        .size(15.dp)
-                                )
-                                laneClips.forEach { clip ->
+                        fun TrackLane(trackIndex: Int, laneClips: List<Clip>, height: androidx.compose.ui.unit.Dp = laneHeight) {
+                            val tint = trackTint(trackIndex)
+                            Box(Modifier.fillMaxWidth().height(height).clip(RoundedCornerShape(7.dp)).background(Color(0xFF0A1728))) {
+                                Row(Modifier.align(Alignment.CenterStart).padding(start=6.dp), verticalAlignment=Alignment.CenterVertically) {
+                                    Icon(Icons.Default.Videocam, contentDescription=null, tint=tint, modifier=Modifier.size(15.dp))
+                                    Text(if(trackIndex==0) "V1" else "V${trackIndex+1}", color=Color(0xFF9EB0CA), fontSize=7.sp, fontWeight=FontWeight.Bold, modifier=Modifier.padding(start=3.dp))
+                                }
+                                laneClips.sortedBy { clipStartMs(it) }.forEach { clip ->
                                     val start = clipStartMs(clip)
                                     val duration = timelineClipDurationForUi(clip).coerceAtLeast(MIN_CLIP_DURATION_MS)
-                                    val leftFraction = start.toFloat() / total.toFloat()
-                                    val widthFraction = duration.toFloat() / total.toFloat()
-                                    val selected = clip == current
+                                    val leftFraction=(start.toFloat()/total.toFloat()).coerceIn(0f,1f)
+                                    val widthFraction=(duration.toFloat()/total.toFloat()).coerceIn(0.008f,1f)
+                                    val selected=clip==current
+                                    val mediaIsImage=imageUri(clip.uri)||clip.isFreezeFrame
+                                    val blockTint=if(mediaIsImage) Color(0xFF33D6B2) else tint
                                     Box(
-                                        Modifier
-                                            .fillMaxHeight()
-                                            .fillMaxWidth(widthFraction.coerceIn(0.01f, 1f))
-                                            .offset(x = with(density) { (leftFraction * contentWidthPx).toDp() })
-                                            .padding(vertical = 3.dp)
+                                        Modifier.fillMaxHeight().fillMaxWidth(widthFraction)
+                                            .offset(x=with(density){(leftFraction*contentWidthPx).toDp()})
+                                            .padding(vertical=3.dp)
                                             .clip(RoundedCornerShape(6.dp))
-                                            .border(
-                                                if (selected) 2.dp else 1.dp,
-                                                if (selected) Color.White else tint.copy(alpha = 0.35f),
-                                                RoundedCornerShape(6.dp)
-                                            )
+                                            .border(if(selected)2.dp else 1.dp,if(selected)Color.White else blockTint.copy(alpha=.42f),RoundedCornerShape(6.dp))
                                             .background(Color(0xFF14243A))
-                                            .clickable {
-                                                onSelect(clip)
-                                                onPlayheadChange(start)
+                                            .clickable{onSelect(clip);onPlayheadChange(start)}
+                                            .pointerInput(clip,total,trackIndex){
+                                                detectDragGestures(onDragStart={onSelect(clip);onPlayheadChange(start)}){change,dragAmount->
+                                                    change.consume()
+                                                    val deltaMs=(dragAmount.x/contentWidthPx*total.toFloat()).toLong()
+                                                    val deltaTrack=(dragAmount.y/with(density){(laneHeight+5.dp).toPx()}).toInt()
+                                                    onMoveClip(clip,(start+deltaMs).coerceAtLeast(0L),(trackIndex+deltaTrack).coerceAtLeast(0))
+                                                }
                                             }
-                                    ) {
-                                        ClipFilmstrip(clip.uri, Modifier.fillMaxSize())
-                                        Box(
-                                            Modifier.fillMaxSize().background(
-                                                Brush.horizontalGradient(
-                                                    listOf(
-                                                        Color.Black.copy(alpha = 0.08f),
-                                                        Color.Black.copy(alpha = 0.30f)
-                                                    )
-                                                )
-                                            )
-                                        )
-                                        if (selected) {
-                                            Box(Modifier.fillMaxSize().background(tint.copy(alpha = 0.16f)))
-                                            if (showTrimHandles) {
-                                                TrimHandle(Alignment.CenterStart) { deltaMs ->
-                                                    val oldStart = clip.trimStartMs
-                                                    val oldEnd = if (clip.trimEndMs == Long.MAX_VALUE) clip.durationMs else clip.trimEndMs
-                                                    val next = (oldStart + deltaMs).coerceIn(0L, oldEnd - MIN_CLIP_DURATION_MS)
-                                                    onTrimEdges(clip, next, oldEnd)
-                                                }
-                                                TrimHandle(Alignment.CenterEnd) { deltaMs ->
-                                                    val oldStart = clip.trimStartMs
-                                                    val oldEnd = if (clip.trimEndMs == Long.MAX_VALUE) clip.durationMs else clip.trimEndMs
-                                                    val next = (oldEnd + deltaMs).coerceIn(oldStart + MIN_CLIP_DURATION_MS, clip.durationMs)
-                                                    onTrimEdges(clip, oldStart, next)
-                                                }
+                                    ){
+                                        ClipFilmstrip(clip.uri,Modifier.fillMaxSize())
+                                        Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(listOf(Color.Black.copy(alpha=.08f),Color.Black.copy(alpha=.30f)))))
+                                        Box(Modifier.fillMaxSize().background(blockTint.copy(alpha=if(selected).18f else .04f)))
+                                        if(selected){
+                                            Text(if(mediaIsImage)"صورة" else "فيديو",color=Color.White.copy(alpha=.9f),fontSize=7.sp,fontWeight=FontWeight.Bold,modifier=Modifier.align(Alignment.Center).background(Color.Black.copy(alpha=.35f),RoundedCornerShape(4.dp)).padding(horizontal=4.dp,vertical=2.dp))
+                                            TrimHandle(Alignment.CenterStart){deltaMs->
+                                                val oldStart=clip.trimStartMs
+                                                val oldEnd=if(clip.trimEndMs==Long.MAX_VALUE)clip.durationMs else clip.trimEndMs
+                                                onTrimEdges(clip,(oldStart+deltaMs).coerceIn(0L,oldEnd-MIN_CLIP_DURATION_MS),oldEnd)
+                                            }
+                                            TrimHandle(Alignment.CenterEnd){deltaMs->
+                                                val oldStart=clip.trimStartMs
+                                                val oldEnd=if(clip.trimEndMs==Long.MAX_VALUE)clip.durationMs else clip.trimEndMs
+                                                onTrimEdges(clip,oldStart,(oldEnd+deltaMs).coerceIn(oldStart+MIN_CLIP_DURATION_MS,clip.durationMs))
                                             }
                                         }
                                     }
                                 }
                             }
                         }
-
-                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                            Box(Modifier.weight(1f)) {
-                            TrackLane(
-                                label = "Video",
-                                labelIcon = Icons.Default.Videocam,
-                                tint = Color(0xFF55A8FF),
-                                laneClips = videoClips
-                            )
-                            }
-                            IconButton(onClick = onAddMedia, modifier = Modifier.size(36.dp)) {
-                                Icon(Icons.Default.Add, contentDescription = "Add video or image", tint = Color.White)
-                            }
-                        }
-
-                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                            Box(Modifier.weight(1f)) {
-                            TrackLane(
-                                label = "Images",
-                                labelIcon = Icons.Default.Photo,
-                                tint = Color(0xFF33D6B2),
-                                laneClips = imageClips
-                            )
-                            }
-                            IconButton(onClick = onAddMedia, modifier = Modifier.size(36.dp)) {
-                                Icon(Icons.Default.Add, contentDescription = "Add image or video", tint = Color.White)
+                        visualTracks.forEach { (trackIndex,laneClips) ->
+                            Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){
+                                Box(Modifier.weight(1f)){TrackLane(trackIndex,laneClips)}
+                                IconButton(onClick=onAddMedia,modifier=Modifier.size(36.dp)){Icon(Icons.Default.Add,contentDescription="Add media",tint=Color.White)}
                             }
                         }
 
@@ -459,9 +421,6 @@ fun Timeline(
                                     }
                                 }
                             }
-                        }
-                        IconButton(onClick = onAddText, modifier = Modifier.size(36.dp)) {
-                            Icon(Icons.Default.Add, contentDescription = "Add text", tint = Color.White)
                         }
                         }
 
