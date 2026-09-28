@@ -640,6 +640,37 @@ private fun BrandSplashScreen() {
 }
 
 @Composable
+private fun ProjectThumbnail(uri: Uri, modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    var bitmap by remember(uri) { mutableStateOf<android.graphics.Bitmap?>(null) }
+    LaunchedEffect(uri) {
+        bitmap = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            runCatching {
+                if (isImageUri(context, uri)) {
+                    context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it) }
+                } else {
+                    loadVideoThumbnail(context, uri)
+                }
+            }.getOrNull()
+        }
+    }
+    Box(modifier.background(Color(0xFF111E31)), contentAlignment = Alignment.Center) {
+        bitmap?.let {
+            Image(
+                bitmap = it.asImageBitmap(),
+                contentDescription = null,
+                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+        } ?: Icon(Icons.Default.VideoLibrary, null, tint = Color(0xFF6E7F99), modifier = Modifier.size(25.dp))
+        Box(
+            Modifier.size(28.dp).clip(androidx.compose.foundation.shape.CircleShape).background(Color(0xAA071426)),
+            contentAlignment = Alignment.Center
+        ) { Icon(Icons.Default.PlayArrow, null, tint = Color.White, modifier = Modifier.size(17.dp)) }
+    }
+}
+
+@Composable
 private fun ProjectsScreen(
     language: AppLanguage,
     onBackHome: () -> Unit,
@@ -756,20 +787,7 @@ private fun ProjectsScreen(
                                 Modifier.size(86.dp, 58.dp).clip(RoundedCornerShape(10.dp)).background(Color(0xFF111E31)),
                                 contentAlignment = Alignment.Center
                             ) {
-                                AndroidView(
-                                    factory = { ctx ->
-                                        PlayerView(ctx).apply {
-                                            useController = false
-                                            resizeMode = androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT
-                                            player = ExoPlayer.Builder(ctx).build().also { player ->
-                                                player.setMediaItem(MediaItem.fromUri(project.uri))
-                                                player.prepare()
-                                                player.volume = 0f
-                                            }
-                                        }
-                                    },
-                                    modifier = Modifier.fillMaxSize()
-                                )
+                                ProjectThumbnail(project.uri, Modifier.fillMaxSize().clip(RoundedCornerShape(10.dp)))
                                 Box(
                                     Modifier.size(28.dp).clip(androidx.compose.foundation.shape.CircleShape).background(Color(0xAA071426)),
                                     contentAlignment = Alignment.Center
