@@ -3012,6 +3012,8 @@ onDuplicate = {
     }
 }
 
+}
+
 @Composable
 private fun EditorPreview(
     clip: Clip?,
