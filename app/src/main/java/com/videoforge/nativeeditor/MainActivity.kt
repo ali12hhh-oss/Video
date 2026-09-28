@@ -2709,7 +2709,12 @@ private fun EditorScreen(
                 onSelect = { clip -> current = clip; playheadMs = timelinePositionOf(clips, clip) },
                 onPlayheadChange = { position ->
                     playheadMs = position.coerceIn(0L, timelineTotalDuration(clips))
-                    timelineClipAt(clips, playheadMs)?.let { (clip, _) -> current = clip }
+                    timelineClipAt(clips, playheadMs)?.let { (clip, _) ->
+                        if (clip != current) {
+                            current = clip
+                            if (previewPlaying) previewToggleToken += 1
+                        }
+                    }
                 },
                 onDelete = { clip -> val u = clips.filterNot { it == clip }; commitClips(u); current = u.firstOrNull(); playheadMs = 0L },
                 onMoveLeft = { clip -> val i = clips.indexOf(clip); if (i > 0) commitClips(clips.toMutableList().also { it.add(i - 1, it.removeAt(i)) }) },
