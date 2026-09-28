@@ -198,7 +198,10 @@ fun Timeline(
     onKeyframeSeek: (Long) -> Unit,
     onVideoKeyframeMove: (Long, Long) -> Unit,
     onAddMedia: () -> Unit = {},
-    textLayerNames: List<String> = emptyList(),
+    onAddAudio: () -> Unit = {},
+    onAddText: () -> Unit = {},
+    onTextTrim: (TextLayer, Long, Long) -> Unit = { _, _, _ -> },
+    textLayers: List<TextLayer> = emptyList(),
     filterName: String = "none"
 ) {
     val total = clips.sumOf { timelineClipDurationForUi(it) }.coerceAtLeast(1L)
@@ -410,9 +413,9 @@ fun Timeline(
                                 tint = Color(0xFFC69BFF),
                                 modifier = Modifier.align(Alignment.CenterStart).padding(start = 6.dp).size(15.dp)
                             )
-                            textLayerNames.forEachIndexed { i, name ->
-                                val left = if (textLayerNames.size == 1) 0.12f else i.toFloat() / textLayerNames.size
-                                val width = (0.32f).coerceAtMost(0.85f)
+                            textLayers.forEachIndexed { i, layer ->
+                                val left = (layer.startMs.coerceAtLeast(0L).toFloat() / total.toFloat()).coerceIn(0f, 1f)
+                                val width = ((layer.endMs - layer.startMs).coerceAtLeast(300L).toFloat() / total.toFloat()).coerceIn(0.02f, 1f)
                                 Box(
                                     Modifier.fillMaxHeight().fillMaxWidth(width)
                                         .offset(x = with(density) { (left * widthPx).toDp() })
@@ -423,7 +426,7 @@ fun Timeline(
                                     contentAlignment = Alignment.CenterStart
                                 ) {
                                     Text(
-                                        "T  $name",
+                                        "T  ${layer.name.ifBlank { layer.text }}",
                                         color = Color.White,
                                         fontSize = 8.sp,
                                         maxLines = 1,
@@ -433,6 +436,9 @@ fun Timeline(
                             }
                         }
 
+                            IconButton(onClick = onAddText, modifier = Modifier.align(Alignment.CenterEnd).size(36.dp)) {
+                                Icon(Icons.Default.Add, contentDescription = "Add text", tint = Color.White)
+                            }
                         // Music lane with a visible range and draggable start/end handles.
                         Box(
                             Modifier.fillMaxWidth().height(48.dp)
@@ -509,6 +515,9 @@ fun Timeline(
                                     fontSize = 9.sp,
                                     modifier = Modifier.align(Alignment.Center).padding(start = 16.dp)
                                 )
+                            }
+                            IconButton(onClick = onAddAudio, modifier = Modifier.align(Alignment.CenterEnd).size(36.dp)) {
+                                Icon(Icons.Default.Add, contentDescription = "Add audio", tint = Color.White)
                             }
                         }
                     }
