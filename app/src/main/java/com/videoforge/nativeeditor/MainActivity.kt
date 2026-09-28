@@ -2802,7 +2802,18 @@ private fun EditorScreen(
         KeyframeDialog(settings, clips, current, playheadMs, language, { updateSettings(it) }, { showKeyframes = false })
     }
     if (showVideoKeyframes) {
-        VideoKeyframeDialog(settings, clips, current, playheadMs, language, { updateSettings(it) }, { showVideoKeyframes = false })
+        VideoKeyframeDialog(
+            settings.copy(videoKeyframes = current?.videoKeyframes ?: settings.videoKeyframes),
+            clips, current, playheadMs, language,
+            { next ->
+                val clip = current
+                if (clip != null) {
+                    commitClips(clips.map { if (it == clip) it.copy(videoKeyframes = next.videoKeyframes) else it })
+                    current = clip.copy(videoKeyframes = next.videoKeyframes)
+                } else updateSettings(next)
+            },
+            { showVideoKeyframes = false }
+        )
     }
     if (showMusicKeyframes) {
         MusicKeyframeDialog(settings, playheadMs, language, { updateSettings(it) }, { showMusicKeyframes = false })
@@ -2884,7 +2895,20 @@ private fun EditorScreen(
     }
     tool?.let { active ->
         when (active) {
-            "speed" -> SpeedDialog(settings, current, clips, playheadMs, language, { updateSettings(it); tool = null }, { tool = null })
+            "speed" -> SpeedDialog(
+                settings.copy(speedKeyframes = current?.speedKeyframes ?: settings.speedKeyframes),
+                current, clips, playheadMs, language,
+                { next ->
+                    val clip = current
+                    if (clip != null) {
+                        commitClips(clips.map { if (it == clip) it.copy(speedKeyframes = next.speedKeyframes) else it })
+                        current = clip.copy(speedKeyframes = next.speedKeyframes)
+                        updateSettingsLive(settings.copy(speed = next.speed))
+                    } else updateSettings(next)
+                    tool = null
+                },
+                { tool = null }
+            )
             "audio" -> AudioDialog(settings, current, language, { updateSettings(it) }, { updated -> commitClips(clips.map { if (it == current) updated else it }); current = updated }, { tool = null }, { showMusicKeyframes = true }, { musicImportLauncher.launch(arrayOf("audio/*")) })
             "text" -> Unit
             "textAnimation" -> TextAnimationDialog(settings, language, { updateSettings(it) }, { tool = null })
