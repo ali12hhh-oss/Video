@@ -2701,10 +2701,10 @@ private fun EditorScreen(
                 onAudioTrackClick = { activeEditorTool = "audio" },
                 onMusicTrim = { start, duration ->
                     val safeSource = musicSourceDurationMs
-                    val sourceStart = settings.musicStartMs.coerceAtLeast(0L)
-                    val maxDuration = if (safeSource > 0L) (safeSource - sourceStart).coerceAtLeast(300L) else Long.MAX_VALUE
+                    val safeStart = if (safeSource > 0L) start.coerceIn(0L, (safeSource - 300L).coerceAtLeast(0L)) else start.coerceAtLeast(0L)
+                    val maxDuration = if (safeSource > 0L) (safeSource - safeStart).coerceAtLeast(300L) else Long.MAX_VALUE
                     val safeDuration = duration.coerceIn(300L, maxDuration)
-                    updateSettings(settings.copy(musicDurationMs = safeDuration))
+                    updateSettings(settings.copy(musicStartMs = safeStart, musicDurationMs = safeDuration))
                 },
                 onSelect = { clip -> current = clip; playheadMs = timelinePositionOf(clips, clip) },
                 onPlayheadChange = { position ->
