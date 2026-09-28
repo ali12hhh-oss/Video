@@ -214,6 +214,7 @@ fun Timeline(
     onVideoKeyframeMove: (Long, Long) -> Unit,
     onAddMedia: () -> Unit = {},
     textLayerNames: List<String> = emptyList(),
+    textLayerIds: List<String> = emptyList(),
     textTimings: Map<String, TextTimelineTiming> = emptyMap(),
     onTextTimingChange: (String, Long, Long) -> Unit = { _, _, _ -> },
     pipLayerCount: Int = 0,
@@ -486,7 +487,7 @@ fun Timeline(
                                     modifier = Modifier.align(Alignment.CenterStart).padding(start = 6.dp).size(15.dp)
                                 )
                                 textLayerNames.forEachIndexed { i, name ->
-                                    val id = "text-$i"
+                                    val id = textLayerIds.getOrNull(i) ?: "text-$i"
                                     val timing = textTimings[id] ?: TextTimelineTiming(0L, total)
                                     val start = timing.startMs.coerceIn(0L, (total - MIN_TEXT_DURATION_MS).coerceAtLeast(0L))
                                     val end = timing.endMs.coerceIn(start + MIN_TEXT_DURATION_MS, total)
