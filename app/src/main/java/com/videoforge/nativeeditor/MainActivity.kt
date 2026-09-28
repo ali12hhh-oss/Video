@@ -2511,12 +2511,13 @@ private fun EditorScreen(
             )
             val index = clips.indexOf(clip)
             if (index < 0) return@launch
+            val clipTimelineStart = timelinePositionOf(clips, clip)
             val start = clip.trimStartMs
             val end = if (clip.trimEndMs == Long.MAX_VALUE) clip.durationMs else clip.trimEndMs
             if (end - start <= 2L || local <= 0L || local >= end - start) {
                 val next = clips.toMutableList().also { it.add(index + 1, freeze) }
                 commitClips(next)
-                current = placedFreeze
+                current = freeze
                 playheadMs = timelinePositionOf(next, freeze)
             } else {
                 val cut = (start + local).coerceIn(start + 1L, end - 1L)
@@ -2531,8 +2532,8 @@ private fun EditorScreen(
                     it.add(index + 2, right)
                 }
                 commitClips(next)
-                current = freeze
-                playheadMs = timelinePositionOf(next, freeze)
+                current = placedFreeze
+                playheadMs = timelinePositionOf(next, placedFreeze)
             }
             status = if (language == AppLanguage.ARABIC) "تمت إضافة إطار ثابت لمدة ثانية" else "1-second freeze frame added"
         }
