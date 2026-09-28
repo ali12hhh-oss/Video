@@ -878,6 +878,7 @@ class ExportEngine(private val context: Context, private val resolver: ContentRe
         override fun getOutput(): ByteBuffer { val out = outputBuffer; outputBuffer = ByteBuffer.allocateDirect(0).order(ByteOrder.LITTLE_ENDIAN); return out }
         override fun isEnded(): Boolean = ended && !outputBuffer.hasRemaining()
         override fun flush() { outputBuffer = ByteBuffer.allocateDirect(0).order(ByteOrder.LITTLE_ENDIAN); ended = false; positionBytes = 0L }
+        @Deprecated("Media3 AudioProcessor reset() is deprecated; retained for interface compatibility.")
         override fun reset() { flush(AudioProcessor.StreamMetadata.DEFAULT) }
     }
 
