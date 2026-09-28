@@ -1505,7 +1505,7 @@ private fun EditorFeaturePreview(
     when (tool) {
         "filters" -> {
             val filter = filterPreviewColorFilter(feature)
-            Box(Modifier.fillMaxSize().background(Brush.linearGradient(listOf(Color(0xFFB86B48), Color(0xFF345B86))), contentAlignment = Alignment.Center) {
+            Box(Modifier.fillMaxSize().background(Brush.linearGradient(listOf(Color(0xFFB86B48), Color(0xFF345B86)))), contentAlignment = Alignment.Center) {
                 Canvas(Modifier.fillMaxSize()) {
                     drawCircle(Color(0xFFFFC56E).copy(alpha=.75f), size.minDimension*.23f, Offset(size.width*.70f,size.height*.35f))
                     drawRect(Color(0xFF173A5A).copy(alpha=.8f), Offset(0f,size.height*.56f), androidx.compose.ui.geometry.Size(size.width,size.height*.44f))
