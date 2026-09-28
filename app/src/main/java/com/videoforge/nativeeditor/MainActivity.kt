@@ -2862,7 +2862,7 @@ private fun EditorScreen(
             status = if (language == AppLanguage.ARABIC) "لا توجد وسائط للتصدير" else "There is no media to export"
             return
         }
-        exportLauncher.launch("${editingName.ifBlank { "VideoForge" }}.mp4")
+        exportLauncher.launch("${projectName.ifBlank { "VideoForge" }}.mp4")
     }
 
     fun showExportAdThenContinue() {
