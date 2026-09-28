@@ -2117,7 +2117,13 @@ private fun EditorFeaturePanel(
                 LazyRow(Modifier.fillMaxWidth(),contentPadding=PaddingValues(horizontal=8.dp,vertical=6.dp),horizontalArrangement=Arrangement.spacedBy(8.dp)){
                     items(effectIds){id->
                         val selected=effectFeature==id
-                        Column(Modifier.width(96.dp).clip(RoundedCornerShape(12.dp)).background(if(selected)Color(0xFF241B3D)else Color(0xFF111925)).clickable{effectFeature=id}.padding(5.dp),horizontalAlignment=Alignment.CenterHorizontally){
+                        Column(Modifier.width(96.dp).clip(RoundedCornerShape(12.dp)).background(if(selected)Color(0xFF241B3D)else Color(0xFF111925)).clickable{
+                                                effectFeature=id
+                                                when (id) {
+                                                    "blur" -> onSettingsLiveChange(settings.copy(blurRadius = 8f, mosaicEnabled = false))
+                                                    "mosaic" -> onSettingsLiveChange(settings.copy(blurRadius = 0f, mosaicEnabled = true))
+                                                }
+                                            }.padding(5.dp),horizontalAlignment=Alignment.CenterHorizontally){
                             Box(Modifier.fillMaxWidth().height(58.dp).clip(RoundedCornerShape(9.dp))){
                                 if(effectPreview!=null)Image(effectPreview!!.asImageBitmap(),null,contentScale=androidx.compose.ui.layout.ContentScale.Crop,modifier=Modifier.fillMaxSize())
                                 else Box(Modifier.fillMaxSize().background(Color(0xFF182235)))
@@ -2127,6 +2133,90 @@ private fun EditorFeaturePanel(
                             Text(if(id=="blur")if(language==AppLanguage.ARABIC)"ضبابية" else "Blur" else if(language==AppLanguage.ARABIC)"بكسلة" else "Mosaic",fontSize=8.sp,color=Color.White,modifier=Modifier.padding(top=5.dp))
                         }
                     }
+                }
+            } else if (activeTool == "adjust") {
+                val config = when (adjustFeature) {
+                    "brightness" -> Triple(settings.brightness, -1f..1f, "brightness")
+                    "contrast" -> Triple(settings.contrast, 0f..2f, "contrast")
+                    "saturation" -> Triple(settings.saturation, 0f..2f, "saturation")
+                    "hue" -> Triple(settings.hue, -180f..180f, "hue")
+                    "temperature" -> Triple(settings.temperature, -100f..100f, "temperature")
+                    else -> Triple(settings.tint, -100f..100f, "tint")
+                }
+                Column(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 5.dp)) {
+                    Text(
+                        when (adjustFeature) {
+                            "brightness" -> if (language == AppLanguage.ARABIC) "السطوع" else "Brightness"
+                            "contrast" -> if (language == AppLanguage.ARABIC) "التباين" else "Contrast"
+                            "saturation" -> if (language == AppLanguage.ARABIC) "التشبع" else "Saturation"
+                            "hue" -> if (language == AppLanguage.ARABIC) "درجة اللون" else "Hue"
+                            "temperature" -> if (language == AppLanguage.ARABIC) "الحرارة" else "Temperature"
+                            else -> if (language == AppLanguage.ARABIC) "الصبغة" else "Tint"
+                        },
+                        color = Color.White, fontWeight = FontWeight.Bold, fontSize = 10.sp
+                    )
+                    Slider(
+                        value = config.first,
+                        onValueChange = { v ->
+                            val next = when (config.third) {
+                                "brightness" -> settings.copy(brightness = v)
+                                "contrast" -> settings.copy(contrast = v)
+                                "saturation" -> settings.copy(saturation = v)
+                                "hue" -> settings.copy(hue = v)
+                                "temperature" -> settings.copy(temperature = v)
+                                else -> settings.copy(tint = v)
+                            }
+                            onSettingsLiveChange(next)
+                        },
+                        valueRange = config.second,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Text(
+                        "%.2f".format(config.first),
+                        color = Color(0xFF8FA1BB),
+                        fontSize = 9.sp,
+                        modifier = Modifier.align(Alignment.End)
+                    )
+                }
+            } else if (activeTool == "audio") {
+                Column(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 5.dp)) {
+                    val clip = current
+                    val value = when (audioFeature) {
+                        "volume" -> clip?.audioVolume ?: settings.volume
+                        "fadeIn" -> clip?.audioFadeIn ?: settings.fadeIn
+                        else -> clip?.audioFadeOut ?: settings.fadeOut
+                    }
+                    val range = if (audioFeature == "volume") 0f..2f else 0f..30f
+                    Text(
+                        when (audioFeature) {
+                            "volume" -> if (language == AppLanguage.ARABIC) "مستوى الصوت" else "Volume"
+                            "fadeIn" -> if (language == AppLanguage.ARABIC) "تلاشي الدخول (ثانية)" else "Fade in (seconds)"
+                            else -> if (language == AppLanguage.ARABIC) "تلاشي الخروج (ثانية)" else "Fade out (seconds)"
+                        },
+                        color = Color.White, fontWeight = FontWeight.Bold, fontSize = 10.sp
+                    )
+                    Slider(
+                        value = value.coerceIn(range.start, range.endInclusive),
+                        onValueChange = { v ->
+                            if (clip != null) {
+                                val next = when (audioFeature) {
+                                    "volume" -> clip.copy(audioVolume = v)
+                                    "fadeIn" -> clip.copy(audioFadeIn = v)
+                                    else -> clip.copy(audioFadeOut = v)
+                                }
+                                onCurrentClipChange(next)
+                            } else {
+                                val next = when (audioFeature) {
+                                    "volume" -> settings.copy(volume = v)
+                                    "fadeIn" -> settings.copy(fadeIn = v)
+                                    else -> settings.copy(fadeOut = v)
+                                }
+                                onSettingsLiveChange(next)
+                            }
+                        },
+                        valueRange = range,
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
             } else if (activeTool == "transition") {
                 val transitionIds=listOf("none","fade","slide","zoom","wipe","flash","spin","glitch")
@@ -2221,9 +2311,17 @@ private fun EditorFeaturePanel(
                                     "animation" -> onTextAnimation()
                                     "textLayers" -> onLayersDialog()
                                 }
-                                "effects" -> effectFeature=id
+                                "effects" -> {
+                                    effectFeature = id
+                                    when (id) {
+                                        "blur" -> onSettingsLiveChange(settings.copy(blurRadius = 8f, mosaicEnabled = false))
+                                        "mosaic" -> onSettingsLiveChange(settings.copy(blurRadius = 0f, mosaicEnabled = true))
+                                    }
+                                }
                                 "filters" -> onSettingsLiveChange(settings.copy(filter=id))
-                                "adjust" -> adjustFeature=id
+                                "adjust" -> {
+                                    adjustFeature = id
+                                }
                                 "canvas" -> when(id) {
                                     "crop" -> onOpenAdvancedTool("crop")
                                     "rotate" -> onOpenAdvancedTool("rotate")
@@ -3091,7 +3189,10 @@ private fun EditorScreen(
                                     onLayersDialog = { showLayers=true },
                                     onVideoKeyframes = { showVideoKeyframes=true },
                                     onMarkers = { showMarkers=true },
-                                    onOpenAdvancedTool = { activeEditorTool = it },
+                                    onOpenAdvancedTool = { advancedTool ->
+                                        activeEditorTool = null
+                                        tool = advancedTool
+                                    },
                                     onClosePanel = { activeEditorTool = null }
                                 )
                             }
