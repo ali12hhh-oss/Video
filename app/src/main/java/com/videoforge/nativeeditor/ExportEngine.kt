@@ -347,8 +347,30 @@ class ExportEngine(private val context: Context, private val resolver: ContentRe
                 builder.build()
             }
 
-            val videoSequence = EditedMediaItemSequence.withAudioAndVideoFrom(edited)
-            val sequences = mutableListOf(videoSequence)
+            val gapBlackUri = createGapImage("black")
+            val gapTransparentUri = createGapImage("transparent")
+            val sequences = mutableListOf<EditedMediaItemSequence>()
+            val visualTrackGroups = clips.withIndex().groupBy { it.value.trackIndex.coerceAtLeast(0) }
+            visualTrackGroups.toSortedMap().forEach { (trackIndex, entries) ->
+                val items = mutableListOf<EditedMediaItem>()
+                var cursorMs = 0L
+                entries.sortedBy { it.value.timelineStartMs }.forEach { entry ->
+                    val clip = entry.value
+                    val startMs = if (timelineUsesLegacyOrder(clips)) clips.take(entry.index).sumOf(::clipDurationMs)
+                    else clip.timelineStartMs.coerceAtLeast(0L)
+                    val gapMs = (startMs - cursorMs).coerceAtLeast(0L)
+                    if (gapMs > 0L) {
+                        val gapItem = MediaItem.Builder()
+                            .setUri(if (trackIndex == 0) gapBlackUri else gapTransparentUri)
+                            .setImageDurationMs(gapMs).build()
+                        items += EditedMediaItem.Builder(gapItem).setRemoveAudio(true).build()
+                    }
+                    items += edited[entry.index]
+                    cursorMs = maxOf(cursorMs, startMs + clipDurationMs(clip))
+                }
+                if (items.isNotEmpty()) sequences += EditedMediaItemSequence.withAudioAndVideoFrom(items)
+            }
+            if (sequences.isEmpty()) sequences += EditedMediaItemSequence.withAudioAndVideoFrom(edited)
             if (editor.musicUri.isNotBlank()) {
                 val actualMusicDurationMs = runCatching {
                     val retriever = MediaMetadataRetriever()
@@ -392,7 +414,31 @@ class ExportEngine(private val context: Context, private val resolver: ContentRe
                 val musicItem = EditedMediaItem.Builder(musicMediaItem)
                     .setEffects(Effects(musicAudioProcessors, emptyList()))
                     .build()
-                sequences += EditedMediaItemSequence.Builder(listOf(musicItem)).setIsLooping(true).build()
+                val musicItems = mutableListOf<EditedMediaItem>()
+                val musicGap = editor.musicTimelineStartMs.coerceAtLeast(0L)
+                if (musicGap > 0L) musicItems += EditedMediaItem.Builder(MediaItem.fromUri(createSilenceWav(musicGap).toUri())).setRemoveVideo(true).build()
+                musicItems += musicItem
+                sequences += EditedMediaItemSequence.Builder(musicItems).setIsLooping(true).build()
+            }
+            editor.audioTracks.groupBy { it.trackIndex.coerceAtLeast(0) }.toSortedMap().forEach { (_, tracks) ->
+                val items = mutableListOf<EditedMediaItem>()
+                var cursor = 0L
+                tracks.sortedBy { it.timelineStartMs }.forEach { track ->
+                    val start = track.timelineStartMs.coerceAtLeast(0L)
+                    val gap = (start - cursor).coerceAtLeast(0L)
+                    if (gap > 0L) items += EditedMediaItem.Builder(MediaItem.fromUri(createSilenceWav(gap).toUri())).setRemoveVideo(true).build()
+                    val clipping = MediaItem.ClippingConfiguration.Builder()
+                        .setStartPositionMs(track.sourceStartMs.coerceAtLeast(0L))
+                        .setEndPositionMs((track.sourceStartMs + track.durationMs).coerceAtLeast(track.sourceStartMs + 1L)).build()
+                    val processors = mutableListOf<androidx.media3.common.audio.AudioProcessor>()
+                    if (track.muted) processors += volumeProcessor(0f)
+                    else if (track.volume != 1f) processors += volumeProcessor(track.volume.coerceIn(0f,2f))
+                    if (track.fadeIn > 0f || track.fadeOut > 0f) processors += VolumeEnvelopeProcessor(track.durationMs*1000L,(track.fadeIn.coerceIn(0f,30f)*1_000_000f).toLong(),(track.fadeOut.coerceIn(0f,30f)*1_000_000f).toLong())
+                    items += EditedMediaItem.Builder(MediaItem.Builder().setUri(Uri.parse(track.uri)).setClippingConfiguration(clipping).build())
+                        .setEffects(Effects(processors, emptyList())).setRemoveVideo(true).build()
+                    cursor = maxOf(cursor, start + track.durationMs)
+                }
+                if (items.isNotEmpty()) sequences += EditedMediaItemSequence.withAudioFrom(items)
             }
             val composition = Composition.Builder(sequences).build()
             val temp = File(context.cacheDir, "export_${System.currentTimeMillis()}.mp4")
@@ -447,6 +493,41 @@ class ExportEngine(private val context: Context, private val resolver: ContentRe
             runCatching { tempFileToDelete?.delete() }
             Result.failure(e)
         }
+    }
+
+    private fun timelineUsesLegacyOrder(clips: List<Clip>): Boolean =
+        clips.isNotEmpty() && clips.all { it.timelineStartMs == 0L && it.trackIndex == 0 }
+
+    private fun createGapImage(kind: String): Uri {
+        val file = File(context.cacheDir, "gap_${kind}.png")
+        if (!file.exists()) {
+            val bitmap = android.graphics.Bitmap.createBitmap(8, 8, android.graphics.Bitmap.Config.ARGB_8888)
+            bitmap.eraseColor(if (kind == "black") android.graphics.Color.BLACK else android.graphics.Color.TRANSPARENT)
+            file.outputStream().use { bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
+            bitmap.recycle()
+        }
+        return file.toUri()
+    }
+
+    private fun createSilenceWav(durationMs: Long): File {
+        val safeMs = durationMs.coerceAtLeast(1L)
+        val sampleRate = 44100
+        val channels = 2
+        val bytesPerSample = 2
+        val frames = (safeMs * sampleRate / 1000L).coerceAtLeast(1L)
+        val dataSize = frames * channels * bytesPerSample
+        val file = File(context.cacheDir, "silence_${safeMs}.wav")
+        if (file.exists() && file.length() >= 44L + dataSize) return file
+        file.outputStream().use { out ->
+            fun leInt(v: Int) { out.write(byteArrayOf((v and 255).toByte(), ((v shr 8) and 255).toByte(), ((v shr 16) and 255).toByte(), ((v shr 24) and 255).toByte())) }
+            fun leShort(v: Int) { out.write(byteArrayOf((v and 255).toByte(), ((v shr 8) and 255).toByte())) }
+            out.write("RIFF".toByteArray()); leInt((36L + dataSize).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()); out.write("WAVE".toByteArray())
+            out.write("fmt ".toByteArray()); leInt(16); leShort(1); leShort(channels); leInt(sampleRate); leInt(sampleRate*channels*bytesPerSample); leShort(channels*bytesPerSample); leShort(16)
+            out.write("data".toByteArray()); leInt(dataSize.coerceAtMost(Int.MAX_VALUE.toLong()).toInt())
+            val zeros=ByteArray(8192); var remaining=dataSize
+            while(remaining>0){val n=minOf(remaining,zeros.size.toLong()).toInt();out.write(zeros,0,n);remaining-=n}
+        }
+        return file
     }
 
     private fun clipDurationMs(clip: Clip): Long {
