@@ -11,6 +11,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.ui.Alignment
@@ -364,9 +366,14 @@ fun ExportDialog(
                             Text("HEVC", fontSize = 9.sp, fontWeight = FontWeight.Bold)
                         }
                         Text(if (ar) "معدل صوت AAC" else "AAC audio bitrate", fontWeight = FontWeight.Bold, fontSize = 10.sp)
+                        val audioRates = listOf(96000 to "96 kbps", 128000 to "128 kbps", 192000 to "192 kbps", 256000 to "256 kbps", 320000 to "320 kbps")
                         LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            listOf(96000 to "96 kbps", 128000 to "128 kbps", 192000 to "192 kbps", 256000 to "256 kbps", 320000 to "320 kbps").forEach { (rate, label) ->
-                                FilterChip(selected = settings.audioBitrate == rate, onClick = { onSettings(settings.copy(audioBitrate = rate)) }, label = { Text(label, fontSize = 8.sp) })
+                            items(audioRates) { (rate, label) ->
+                                FilterChip(
+                                    selected = settings.audioBitrate == rate,
+                                    onClick = { onSettings(settings.copy(audioBitrate = rate)) },
+                                    label = { Text(label, fontSize = 8.sp) }
+                                )
                             }
                         }
                     }
