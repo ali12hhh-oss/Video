@@ -3596,18 +3596,50 @@ private fun EditorPreview(
             previewLayers.filter { it.visible }.forEach { layer ->
                 val selected = selectedLayerId == layer.id
                 val localTextTime = (playheadMs - clipOffsetMs).coerceAtLeast(0L)
-                val textAnimProgress = (localTextTime / 650f).coerceIn(0f,1f)
+                val textStart = layer.startMs.coerceAtLeast(0L)
+                val textEnd = layer.endMs.coerceAtLeast(textStart + 1L)
+                val insideTextRange = localTextTime in textStart until textEnd
+                // Animation progress is relative to the layer start, not the project start.
+                // This keeps a text layer that starts later from animating before it appears.
+                val animationLocalMs = (localTextTime - textStart).coerceAtLeast(0L)
+                val textAnimProgress = (animationLocalMs / 650f).coerceIn(0f,1f)
                 val textEase = 1f - (1f-textAnimProgress)*(1f-textAnimProgress)
-                val animAlpha = when(layer.animation){"fade"->textEase;"typewriter"->textEase;else->1f}
+
+                // Interpolate text keyframes in the same coordinate space used by export.
+                // This makes dragging/animating a text layer in the editor match the exported result.
+                val textKeys = layer.keyframes.sortedBy { it.timeMs }
+                val keyframe = if (textKeys.isEmpty()) null else {
+                    val a = textKeys.lastOrNull { it.timeMs <= animationLocalMs } ?: textKeys.first()
+                    val b = textKeys.firstOrNull { it.timeMs >= animationLocalMs } ?: textKeys.last()
+                    val span = (b.timeMs - a.timeMs).coerceAtLeast(1L)
+                    val f0 = ((animationLocalMs - a.timeMs).toFloat() / span).coerceIn(0f,1f)
+                    val f = easedProgress(f0, b.easing)
+                    fun lerp(a0: Float, b0: Float) = a0 + (b0 - a0) * f
+                    TextKeyframe(
+                        timeMs = animationLocalMs,
+                        x = lerp(a.x,b.x),
+                        y = lerp(a.y,b.y),
+                        scale = lerp(a.scale,b.scale),
+                        rotation = interpolateAngleDegrees(a.rotation,b.rotation,f),
+                        alpha = lerp(a.alpha,b.alpha),
+                        easing = b.easing
+                    )
+                }
+                val baseX = keyframe?.x ?: layer.x
+                val baseY = keyframe?.y ?: layer.y
+                val baseScale = keyframe?.scale ?: layer.scale
+                val baseRotation = keyframe?.rotation ?: layer.rotation
+                val keyAlpha = keyframe?.alpha ?: 1f
+                val animAlpha = (when(layer.animation){"fade"->textEase;"typewriter"->textEase;else->1f} * keyAlpha).coerceIn(0f,1f)
                 val animScale = when(layer.animation){"pop"->0.55f+0.45f*textEase;"zoom"->0.25f+0.75f*textEase;else->1f}
                 val animX = if(layer.animation=="slide") -0.35f*(1f-textEase) else 0f
-                if (localTextTime in layer.startMs.coerceAtLeast(0L) until layer.endMs.coerceAtLeast(layer.startMs + 1L)) {
+                if (insideTextRange) {
                 Box(
                     Modifier
                         .align(Alignment.Center)
-                        .offset(x=((layer.x+animX)*120).dp, y=(layer.y*90).dp)
-                        .rotate(layer.rotation)
-                        .scale(layer.scale*animScale)
+                        .offset(x=((baseX+animX)*120).dp, y=(baseY*90).dp)
+                        .rotate(baseRotation)
+                        .scale(baseScale*animScale)
                         .pointerInput(layer.id, selected) {
                             detectTransformGestures { _, pan, zoom, rotation ->
                                 selectedLayerId = layer.id
@@ -3628,7 +3660,9 @@ private fun EditorPreview(
                         .padding(horizontal=layer.backgroundPadding.dp, vertical=(layer.backgroundPadding * 0.55f).dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    val displayText = if(layer.animation=="typewriter") layer.text.take((layer.text.length*textAnimProgress).toInt().coerceIn(0,layer.text.length)) else layer.text
+                    val displayText = if(layer.animation=="typewriter") {
+                        layer.text.take((layer.text.length*textAnimProgress).toInt().coerceIn(1,layer.text.length))
+                    } else layer.text
                     val commonSize = layer.size.sp
                     val commonWeight = if(layer.bold) FontWeight.Bold else FontWeight.Normal
                     val commonFont = fontFamilyFor(layer.font, layer.bold)
