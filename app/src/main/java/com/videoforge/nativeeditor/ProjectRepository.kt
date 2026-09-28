@@ -49,6 +49,14 @@ object ProjectRepository {
                                     audioFadeOut = c.optDouble("audioFadeOut", 0.0).toFloat(),
                                     isFreezeFrame = c.optBoolean("isFreezeFrame", false),
                                     freezeDurationMs = c.optLong("freezeDurationMs", 1000L),
+                                    videoKeyframes = buildList {
+                                        val k = c.optJSONArray("videoKeyframes") ?: JSONArray()
+                                        for (n in 0 until k.length()) { val q = k.optJSONObject(n) ?: continue; add(VideoKeyframe(q.optLong("timeMs",0L), q.optDouble("x",0.0).toFloat(), q.optDouble("y",0.0).toFloat(), q.optDouble("scale",1.0).toFloat(), q.optDouble("rotation",0.0).toFloat(), q.optString("easing","easeInOut"))) }
+                                    }.sortedBy { it.timeMs },
+                                    speedKeyframes = buildList {
+                                        val k = c.optJSONArray("speedKeyframes") ?: JSONArray()
+                                        for (n in 0 until k.length()) { val q = k.optJSONObject(n) ?: continue; add(SpeedKeyframe(q.optLong("timeMs",0L), q.optDouble("speed",1.0).toFloat(), q.optString("easing","easeInOut"))) }
+                                    }.sortedBy { it.timeMs },
                                     audioKeyframes = buildList {
                                         val k = c.optJSONArray("audioKeyframes") ?: JSONArray()
                                         for (n in 0 until k.length()) {
@@ -136,6 +144,8 @@ object ProjectRepository {
                         .put("audioFadeOut", clip.audioFadeOut)
                         .put("isFreezeFrame", clip.isFreezeFrame)
                         .put("freezeDurationMs", clip.freezeDurationMs)
+                        .put("videoKeyframes", JSONArray().apply { clip.videoKeyframes.sortedBy { it.timeMs }.forEach { k -> put(JSONObject().put("timeMs",k.timeMs).put("x",k.x).put("y",k.y).put("scale",k.scale).put("rotation",k.rotation).put("easing",k.easing)) } })
+                        .put("speedKeyframes", JSONArray().apply { clip.speedKeyframes.sortedBy { it.timeMs }.forEach { k -> put(JSONObject().put("timeMs",k.timeMs).put("speed",k.speed).put("easing",k.easing)) } })
                         .put("audioKeyframes", JSONArray().apply {
                             clip.audioKeyframes.sortedBy { it.timeMs }.forEach { k ->
                                 put(JSONObject().put("timeMs", k.timeMs).put("volume", k.volume))
