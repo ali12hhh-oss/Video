@@ -3172,6 +3172,15 @@ private fun EditorPreview(
                     "warm" -> effects += HslAdjustment.Builder().adjustHue(18f).adjustSaturation(10f).build()
                     "cool" -> effects += HslAdjustment.Builder().adjustHue(-18f).adjustSaturation(6f).build()
                     "vivid" -> effects += HslAdjustment.Builder().adjustSaturation(28f).build()
+                    "dream" -> { effects += Brightness(0.08f); effects += HslAdjustment.Builder().adjustSaturation(-6f).adjustHue(6f).build(); effects += GaussianBlur(0.45f) }
+                    "noir" -> { effects += RgbFilter.createGrayscaleFilter(); effects += Contrast(0.22f) }
+                    "faded" -> { effects += Brightness(0.03f); effects += Contrast(-0.12f); effects += HslAdjustment.Builder().adjustSaturation(-18f).build() }
+                    "tealOrange" -> { effects += HslAdjustment.Builder().adjustHue(8f).adjustSaturation(18f).build(); effects += Contrast(0.08f) }
+                    "vintage" -> { effects += HslAdjustment.Builder().adjustHue(28f).adjustSaturation(-12f).build() }
+                    "sunset" -> { effects += HslAdjustment.Builder().adjustHue(22f).adjustSaturation(20f).build(); effects += Brightness(0.04f) }
+                    "ice" -> { effects += HslAdjustment.Builder().adjustHue(-24f).adjustSaturation(10f).build(); effects += Brightness(0.04f) }
+                    "dramatic" -> { effects += Contrast(0.28f); effects += HslAdjustment.Builder().adjustSaturation(12f).build() }
+                    "soft" -> { effects += Contrast(-0.08f); effects += GaussianBlur(0.3f) }
                 }
                 if (settings.rotation % 360 != 0 || kotlin.math.abs(settings.cropZoom - 1f) > 0.001f) effects += ScaleAndRotateTransformation.Builder().setScale(settings.cropZoom.coerceIn(1f, 6f), settings.cropZoom.coerceIn(1f, 6f)).setRotationDegrees(((settings.rotation % 360) + 360) % 360f).build()
                 if (settings.flipHorizontal || settings.flipVertical) effects += MatrixTransformation { android.graphics.Matrix().apply { postScale(if (settings.flipHorizontal) -1f else 1f, if (settings.flipVertical) -1f else 1f) } }
