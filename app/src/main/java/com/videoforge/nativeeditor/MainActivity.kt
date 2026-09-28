@@ -3165,7 +3165,7 @@ private fun EditorScreen(
                 val duration = defaultClipDurationMs(context, uri)
                 Clip(
                     uri = uri,
-                    name = context.getString(R.string.clip_number, clips.size + i + 1),
+                    name = context.getString(R.string.clip_number).replace("%1$d", (clips.size + i + 1).toString()),
                     durationMs = duration,
                     trimStartMs = 0L,
                     trimEndMs = duration
