@@ -2675,7 +2675,7 @@ private fun EditorScreen(
             }
             Timeline(
                 clips = clips, current = current, playheadMs = playheadMs,
-                videoKeyframes = settings.videoKeyframes,
+                videoKeyframes = current?.videoKeyframes ?: settings.videoKeyframes,
                 textKeyframes = settings.textLayers.flatMap { it.keyframes },
                 audioKeyframes = current?.let { selected ->
                     selected.audioKeyframes.map { k ->
@@ -2685,7 +2685,7 @@ private fun EditorScreen(
                         )
                     }.map { AudioKeyframe(it.timeMs, it.volume) }
                 } ?: settings.audioKeyframes,
-                speedKeyframes = settings.speedKeyframes,
+                speedKeyframes = current?.speedKeyframes ?: settings.speedKeyframes,
                 musicUri = settings.musicUri,
                 musicStartMs = settings.musicStartMs,
                 musicDurationMs = settings.musicDurationMs,
