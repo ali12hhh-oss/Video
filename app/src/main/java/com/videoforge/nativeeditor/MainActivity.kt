@@ -30,6 +30,15 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -86,6 +95,11 @@ import androidx.media3.effect.RgbFilter
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.segmentation.subject.SubjectSegmentation
 import com.google.mlkit.vision.segmentation.subject.SubjectSegmenterOptions
+import com.google.android.gms.ads.AdRequest
+import com.google.android.gms.ads.FullScreenContentCallback
+import com.google.android.gms.ads.LoadAdError
+import com.google.android.gms.ads.interstitial.InterstitialAd
+import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback
 import androidx.media3.effect.ScaleAndRotateTransformation
 import androidx.media3.effect.MatrixTransformation
 import androidx.media3.exoplayer.ExoPlayer
@@ -211,6 +225,31 @@ private fun isImageUri(context: android.content.Context, uri: Uri): Boolean {
 }
 
 private const val DEFAULT_IMAGE_CLIP_DURATION_MS = 3000L
+
+private fun loadTextTimings(context: android.content.Context, projectId: String): Map<String, TextTimelineTiming> {
+    return runCatching {
+        val raw = context.getSharedPreferences("editor_text_timing", android.content.Context.MODE_PRIVATE)
+            .getString(projectId, null) ?: return emptyMap()
+        val json = org.json.JSONObject(raw)
+        buildMap {
+            json.keys().forEach { id ->
+                val item = json.optJSONObject(id) ?: return@forEach
+                put(id, TextTimelineTiming(item.optLong("start", 0L), item.optLong("end", Long.MAX_VALUE)))
+            }
+        }
+    }.getOrDefault(emptyMap())
+}
+
+private fun saveTextTimings(context: android.content.Context, projectId: String, timings: Map<String, TextTimelineTiming>) {
+    runCatching {
+        val json = org.json.JSONObject()
+        timings.forEach { (id, timing) ->
+            json.put(id, org.json.JSONObject().put("start", timing.startMs).put("end", timing.endMs))
+        }
+        context.getSharedPreferences("editor_text_timing", android.content.Context.MODE_PRIVATE)
+            .edit().putString(projectId, json.toString()).apply()
+    }
+}
 private const val FALLBACK_VIDEO_CLIP_DURATION_MS = 4000L
 
 /** Duration to assign a freshly imported clip so timeline math never divides by a zero-length clip. */
@@ -334,6 +373,9 @@ private fun VideoForgeApp() {
     var showSettings by remember { mutableStateOf(false) }
     var showHelp by remember { mutableStateOf(false) }
     var editorInitialTool by remember { mutableStateOf<String?>(null) }
+    var pendingMediaUris by remember { mutableStateOf<List<Uri>>(emptyList()) }
+    var pendingTemplateId by remember { mutableStateOf("default") }
+    var showTemplatePicker by remember { mutableStateOf(false) }
     var showBrandSplash by rememberSaveable { mutableStateOf(true) }
 
     LaunchedEffect(Unit) {
@@ -355,28 +397,19 @@ private fun VideoForgeApp() {
                 }
             }.distinct()
             if (uris.isNotEmpty()) {
-                projectId = ProjectRepository.newId()
-                clips = uris.take(20).mapIndexed { i, uri ->
-                    persistUriAccess(context, uri)
-                    run {
-                    val duration = defaultClipDurationMs(context, uri)
-                    Clip(
-                        uri = uri,
-                        name = context.getString(R.string.clip_number, i + 1),
-                        durationMs = duration,
-                        trimStartMs = 0L,
-                        trimEndMs = duration
-                    )
-                }
-                }
-                projectName = clips.firstOrNull()?.name ?: context.getString(R.string.new_project)
-                ProjectRepository.save(context, projectId, clips, projectName)
-                showEditor = true
+                pendingMediaUris = uris.take(20)
+                showTemplatePicker = true
+            } else {
+                editorInitialTool = null
+                pendingMediaUris = emptyList()
+                pendingTemplateId = "default"
             }
         }
     }
 
-    fun launchMediaPicker() {
+    fun launchMediaPicker(initialTool: String? = null, templateId: String? = null) {
+        editorInitialTool = initialTool
+        pendingTemplateId = templateId ?: "default"
         picker.launch(
             Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
                 addCategory(Intent.CATEGORY_OPENABLE)
@@ -386,6 +419,8 @@ private fun VideoForgeApp() {
             }
         )
     }
+
+    fun openPendingMedia(templateId:String){val uris=pendingMediaUris;if(uris.isEmpty())return;projectId=ProjectRepository.newId();clips=uris.mapIndexed{i,uri->persistUriAccess(context,uri);val d=defaultClipDurationMs(context,uri);Clip(uri=uri,name=context.getString(R.string.clip_number, (i + 1).toString()),durationMs=d,trimStartMs=0L,trimEndMs=d)};projectName=clips.firstOrNull()?.name ?: context.getString(R.string.new_project);ProjectRepository.save(context,projectId,clips,projectName);pendingMediaUris=emptyList();pendingTemplateId=templateId;showTemplatePicker=false;showEditor=true}
 
     val direction = if (language == AppLanguage.ARABIC) LayoutDirection.Rtl else LayoutDirection.Ltr
     val configuration = LocalConfiguration.current
@@ -403,15 +438,35 @@ private fun VideoForgeApp() {
     CompositionLocalProvider(LocalLayoutDirection provides direction) {
         MaterialTheme(
             colorScheme = darkColorScheme(
-                background = Color(0xFF05070C),
-                surface = Color(0xFF10131B),
-                surfaceVariant = Color(0xFF171B25),
-                primary = Color(0xFF7C4DFF),
-                secondary = Color(0xFF00D9C6)
+                primary = Color(0xFF8A5CFF),
+                onPrimary = Color.White,
+                primaryContainer = Color(0xFF24164A),
+                onPrimaryContainer = Color(0xFFE8DEFF),
+                secondary = Color(0xFF2D8CFF),
+                onSecondary = Color.White,
+                secondaryContainer = Color(0xFF102B4A),
+                onSecondaryContainer = Color(0xFFD8EBFF),
+                tertiary = Color(0xFF00D8C4),
+                background = Color(0xFF020711),
+                onBackground = Color(0xFFF4F7FC),
+                surface = Color(0xFF08111F),
+                onSurface = Color(0xFFF4F7FC),
+                surfaceVariant = Color(0xFF0E1A2B),
+                onSurfaceVariant = Color(0xFF91A2BA),
+                outline = Color(0xFF294568),
+                outlineVariant = Color(0xFF182B45),
+                error = Color(0xFFFF667A)
+            ),
+            shapes = Shapes(
+                extraSmall = RoundedCornerShape(7.dp),
+                small = RoundedCornerShape(10.dp),
+                medium = RoundedCornerShape(14.dp),
+                large = RoundedCornerShape(18.dp),
+                extraLarge = RoundedCornerShape(22.dp)
             )
         ) {
             if (showBrandSplash) {
-                BrandSplashScreen()
+                BrandSplashScreen(language = language)
             } else if (showEditor) {
                 EditorScreen(
                     projectId = projectId,
@@ -427,6 +482,7 @@ private fun VideoForgeApp() {
                     },
                     onBack = { showEditor = false; editorInitialTool = null },
                     initialTool = editorInitialTool,
+                    initialTemplate = pendingTemplateId,
                     language = language,
                     onLanguageSelected = {
                         language = it
@@ -443,6 +499,8 @@ private fun VideoForgeApp() {
                             projectName = project.name
                             clips = project.clips
                             selected = 0
+                            editorInitialTool = null
+                            pendingTemplateId = "default"
                             showEditor = true
                         },
                         onNewProject = { launchMediaPicker() }
@@ -456,25 +514,11 @@ private fun VideoForgeApp() {
                     },
                     onOpenSettings = { showSettings = true },
                     onOpenHelp = { showHelp = true },
-                    onOpenMusic = {
-                        projectId = ProjectRepository.newId()
-                        projectName = context.getString(R.string.new_project)
-                        clips = emptyList()
-                        editorInitialTool = "audio"
-                        selected = 0
-                        showEditor = true
-                    },
-                    onOpenEffects = {
-                        projectId = ProjectRepository.newId()
-                        projectName = context.getString(R.string.new_project)
-                        clips = emptyList()
-                        editorInitialTool = "effects"
-                        selected = 0
-                        showEditor = true
-                    },
+                    onOpenMusic = { launchMediaPicker("audio") },
+                    onOpenEffects = { launchMediaPicker("effects") },
                     selected = selected,
                     onSelected = { selected = it },
-                    onNewProject = { projectId = ProjectRepository.newId(); projectName = context.getString(R.string.new_project); clips = emptyList(); showEditor = true },
+                    onNewProject = { launchMediaPicker() },
                     onImport = {
                         launchMediaPicker()
                     },
@@ -511,16 +555,19 @@ private fun VideoForgeApp() {
         )
     }
 
+    if(showTemplatePicker){TemplatePickerSheet(language,pendingTemplateId,{id->openPendingMedia(id)},{openPendingMedia("default")})}
+
     if (showTemplates) {
-        TemplatesSheet(onDismiss = { showTemplates = false }, onUseTemplate = {
+        TemplatesSheet(language = language, onDismiss = { showTemplates = false }, onUseTemplate = { templateId ->
             showTemplates = false
-            showEditor = true
+            launchMediaPicker(templateId = templateId)
         })
     }
 }
 
 @Composable
-private fun BrandSplashScreen() {
+private fun BrandSplashScreen(language: AppLanguage) {
+    val arabic = language == AppLanguage.ARABIC
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -547,7 +594,7 @@ private fun BrandSplashScreen() {
         ) {
             Image(
                 painter = painterResource(R.drawable.videoforge_logo),
-                contentDescription = "VideoForge",
+                contentDescription = if (arabic) "محرر الفيديو" else "VideoForge",
                 contentScale = androidx.compose.ui.layout.ContentScale.Fit,
                 modifier = Modifier
                     .width(260.dp)
@@ -575,7 +622,7 @@ private fun BrandSplashScreen() {
             }
             Spacer(Modifier.height(16.dp))
             Text(
-                "Create Amazing Videos",
+                if (arabic) "اصنع فيديوهات مذهلة" else "Create Amazing Videos",
                 color = Color.White.copy(alpha = 0.78f),
                 fontSize = 12.sp,
                 letterSpacing = 1.2.sp,
@@ -605,27 +652,61 @@ private fun ProjectsScreen(
         query.isBlank() || project.name.contains(query, ignoreCase = true)
     }
 
-    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+    CompositionLocalProvider(
+        LocalLayoutDirection provides if (arabic) LayoutDirection.Rtl else LayoutDirection.Ltr
+    ) {
         Scaffold(
             containerColor = Color(0xFF020914),
             topBar = {
                 Row(
-                    Modifier.fillMaxWidth().height(62.dp).padding(horizontal = 10.dp),
+                    Modifier.fillMaxWidth().height(70.dp).padding(horizontal = 10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    IconButton(onClick = onBackHome) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, if (arabic) "رجوع" else "Back", tint = Color.White)
+                    IconButton(
+                        onClick = onBackHome,
+                        modifier = Modifier.size(42.dp).clip(RoundedCornerShape(12.dp))
+                    ) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            if (arabic) "رجوع" else "Back",
+                            tint = Color(0xFFDDE7F5),
+                            modifier = Modifier.size(22.dp)
+                        )
                     }
+                    Spacer(Modifier.width(3.dp))
+                    Box(
+                        Modifier.size(38.dp).clip(RoundedCornerShape(11.dp))
+                            .background(Brush.linearGradient(listOf(Color(0xFF7047FF), Color(0xFF2585FF)))),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Default.VideoLibrary, null, tint = Color.White, modifier = Modifier.size(20.dp))
+                    }
+                    Spacer(Modifier.width(10.dp))
                     Column(Modifier.weight(1f)) {
-                        Text(if (arabic) "مشاريعي" else "My projects", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
-                        Text(if (arabic) "مشاريع الفيديو المحفوظة" else "Saved video projects", color = Color(0xFF8294AD), fontSize = 9.sp)
+                        Text(
+                            if (arabic) "مشاريعي" else "My projects",
+                            color = Color.White,
+                            fontSize = 19.sp,
+                            fontWeight = FontWeight.ExtraBold
+                        )
+                        Text(
+                            if (arabic) "مكتبة مشاريع الفيديو" else "Your video project library",
+                            color = Color(0xFF8294AD),
+                            fontSize = 9.sp
+                        )
                     }
-                    IconButton(onClick = onNewProject) {
-                        Box(
-                            Modifier.size(38.dp).clip(RoundedCornerShape(11.dp))
-                                .background(Brush.linearGradient(listOf(Color(0xFF7547FF), Color(0xFF2D73FF)))),
-                            contentAlignment = Alignment.Center
-                        ) { Icon(Icons.Default.Add, null, tint = Color.White) }
+                    Box(
+                        Modifier.size(40.dp).clip(RoundedCornerShape(12.dp))
+                            .background(Brush.linearGradient(listOf(Color(0xFF7547FF), Color(0xFF2D73FF))))
+                            .clickable(onClick = onNewProject),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Default.Add,
+                            if (arabic) "مشروع جديد" else "New project",
+                            tint = Color.White,
+                            modifier = Modifier.size(22.dp)
+                        )
                     }
                 }
             },
@@ -642,9 +723,9 @@ private fun ProjectsScreen(
                 OutlinedTextField(
                     value = query,
                     onValueChange = { query = it },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
                     singleLine = true,
-                    shape = RoundedCornerShape(14.dp),
+                    shape = RoundedCornerShape(15.dp),
                     leadingIcon = { Icon(Icons.Default.Search, null, tint = Color(0xFF8FA2BC)) },
                     placeholder = { Text(if (arabic) "ابحث عن مشروع..." else "Search projects...", color = Color(0xFF71849D)) },
                     colors = OutlinedTextFieldDefaults.colors(
@@ -659,6 +740,40 @@ private fun ProjectsScreen(
                 )
 
                 Spacer(Modifier.height(14.dp))
+
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text(
+                            if (arabic) "المشاريع الأخيرة" else "Recent projects",
+                            color = Color.White,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.ExtraBold
+                        )
+                        Text(
+                            if (arabic) "استمر من حيث توقفت" else "Continue where you left off",
+                            color = Color(0xFF71849D),
+                            fontSize = 9.sp
+                        )
+                    }
+                    Surface(
+                        shape = RoundedCornerShape(9.dp),
+                        color = Color(0xFF101D31),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x223B72B7))
+                    ) {
+                        Text(
+                            filtered.size.toString(),
+                            color = Color(0xFFBBA5FF),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp)
+                        )
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
 
                 if (filtered.isEmpty()) {
                     Box(Modifier.fillMaxWidth().height(300.dp), contentAlignment = Alignment.Center) {
@@ -690,61 +805,106 @@ private fun ProjectsScreen(
                         }
                     }
                 } else {
-                    filtered.forEach { project ->
+                    // Reference-style project gallery: visual cards first, metadata below.
+                    filtered.chunked(2).forEach { rowProjects ->
                         Row(
-                            Modifier.fillMaxWidth().clip(RoundedCornerShape(15.dp))
-                                .background(Color(0xFF071426))
-                                .border(1.dp, Color(0x1E2D7CFF), RoundedCornerShape(15.dp))
-                                .clickable { onOpenProject(project) }.padding(9.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(9.dp)
                         ) {
-                            Box(
-                                Modifier.size(86.dp, 58.dp).clip(RoundedCornerShape(10.dp)).background(Color(0xFF111E31)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                AndroidView(
-                                    factory = { ctx ->
-                                        PlayerView(ctx).apply {
-                                            useController = false
-                                            resizeMode = androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM
-                                            player = ExoPlayer.Builder(ctx).build().also { player ->
-                                                player.setMediaItem(MediaItem.fromUri(project.uri))
-                                                player.prepare()
-                                                player.volume = 0f
-                                            }
-                                        }
-                                    },
-                                    modifier = Modifier.fillMaxSize()
-                                )
-                                Box(
-                                    Modifier.size(28.dp).clip(androidx.compose.foundation.shape.CircleShape).background(Color(0xAA071426)),
-                                    contentAlignment = Alignment.Center
+                            rowProjects.forEach { project ->
+                                Column(
+                                    Modifier
+                                        .weight(1f)
+                                        .clip(RoundedCornerShape(15.dp))
+                                        .background(Color(0xFF071426))
+                                        .border(1.dp, Color(0x222D7CFF), RoundedCornerShape(15.dp))
+                                        .clickable { onOpenProject(project) }
+                                        .padding(7.dp)
                                 ) {
-                                    Icon(Icons.Default.PlayArrow, null, tint = Color.White, modifier = Modifier.size(17.dp))
+                                    Box(
+                                        Modifier
+                                            .fillMaxWidth()
+                                            .height(112.dp)
+                                            .clip(RoundedCornerShape(11.dp))
+                                            .background(Color(0xFF111E31)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        AndroidView(
+                                            factory = { ctx ->
+                                                PlayerView(ctx).apply {
+                                                    useController = false
+                                                    resizeMode = androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                                                    player = ExoPlayer.Builder(ctx).build().also { player ->
+                                                        player.setMediaItem(MediaItem.fromUri(project.uri))
+                                                        player.prepare()
+                                                        player.volume = 0f
+                                                    }
+                                                }
+                                            },
+                                            modifier = Modifier.fillMaxSize()
+                                        )
+                                        Box(
+                                            Modifier
+                                                .size(34.dp)
+                                                .clip(androidx.compose.foundation.shape.CircleShape)
+                                                .background(Color(0xB5071426)),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(Icons.Default.PlayArrow, null, tint = Color.White, modifier = Modifier.size(20.dp))
+                                        }
+                                        Box(
+                                            Modifier
+                                                .align(Alignment.BottomEnd)
+                                                .padding(6.dp)
+                                                .clip(RoundedCornerShape(6.dp))
+                                                .background(Color(0xCC071426))
+                                        ) {
+                                            Text(
+                                                formatDuration(project.durationMs),
+                                                color = Color.White,
+                                                fontSize = 8.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
+                                            )
+                                        }
+                                    }
+                                    Spacer(Modifier.height(8.dp))
+                                    Text(
+                                        project.name,
+                                        color = Color.White,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        maxLines = 1
+                                    )
+                                    Spacer(Modifier.height(3.dp))
+                                    Text(
+                                        project.clips.size.toString() + if (arabic) " مقاطع" else " clips",
+                                        color = Color(0xFF8294AD),
+                                        fontSize = 8.sp
+                                    )
+                                    Spacer(Modifier.height(6.dp))
+                                    Row(
+                                        Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Surface(
+                                            color = Color(0xFF142441),
+                                            shape = RoundedCornerShape(7.dp)
+                                        ) {
+                                            Text(
+                                                if (arabic) "تحرير" else "Edit",
+                                                color = Color(0xFFBBA5FF),
+                                                fontSize = 8.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 4.dp)
+                                            )
+                                        }
+                                        Icon(if (arabic) Icons.Default.ChevronLeft else Icons.Default.ChevronRight, null, tint = Color(0xFF7387A2), modifier = Modifier.size(17.dp))
+                                    }
                                 }
                             }
-                            Spacer(Modifier.width(10.dp))
-                            Column(Modifier.weight(1f)) {
-                                Text(project.name, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold, maxLines = 1)
-                                Spacer(Modifier.height(4.dp))
-                                Text(
-                                    formatDuration(project.durationMs) + " • " + project.clips.size +
-                                        if (arabic) " مقاطع" else " clips",
-                                    color = Color(0xFF8294AD), fontSize = 9.sp
-                                )
-                                Spacer(Modifier.height(7.dp))
-                                Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                                    Surface(color = Color(0xFF142441), shape = RoundedCornerShape(7.dp)) {
-                                        Text(if (arabic) "تحرير" else "Edit", color = Color(0xFFBBA5FF), fontSize = 8.sp, fontWeight = FontWeight.Bold,
-                                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 4.dp))
-                                    }
-                                    Surface(color = Color(0xFF102B2A), shape = RoundedCornerShape(7.dp)) {
-                                        Text(if (arabic) "محفوظ" else "Saved", color = Color(0xFF6FE0D0), fontSize = 8.sp, fontWeight = FontWeight.Bold,
-                                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 4.dp))
-                                    }
-                                }
-                            }
-                            Icon(Icons.Default.ChevronLeft, null, tint = Color(0xFF7387A2))
+                            if (rowProjects.size == 1) Spacer(Modifier.weight(1f))
                         }
                         Spacer(Modifier.height(9.dp))
                     }
@@ -775,23 +935,33 @@ private fun HomeScreen(
 
     MaterialTheme(
         colorScheme = darkColorScheme(
-            primary = Color(0xFF7147FF),
-            secondary = Color(0xFF2D7DFF),
-            background = Color(0xFF020914),
-            surface = Color(0xFF071426),
-            surfaceVariant = Color(0xFF0A192B),
+            primary = Color(0xFF8A5CFF),
+            secondary = Color(0xFF2D8CFF),
+            tertiary = Color(0xFF00D8C4),
+            background = Color(0xFF020711),
+            surface = Color(0xFF08111F),
+            surfaceVariant = Color(0xFF0E1A2B),
             onBackground = Color.White,
             onSurface = Color.White,
-            onSurfaceVariant = Color(0xFF93A5BD)
+            onSurfaceVariant = Color(0xFF91A2BA),
+            outline = Color(0xFF294568)
+        ),
+        shapes = Shapes(
+            extraSmall = RoundedCornerShape(7.dp),
+            small = RoundedCornerShape(10.dp),
+            medium = RoundedCornerShape(14.dp),
+            large = RoundedCornerShape(18.dp),
+            extraLarge = RoundedCornerShape(22.dp)
         )
     ) {
         CompositionLocalProvider(
-            LocalLayoutDirection provides LayoutDirection.Rtl
+            LocalLayoutDirection provides if (arabic) LayoutDirection.Rtl else LayoutDirection.Ltr
         ) {
             Scaffold(
                 containerColor = Color(0xFF020914),
                 bottomBar = {
                     HomeBottomBar(
+                        language = language,
                         selected = selected,
                         onSelected = onSelected,
                         onExplore = onOpenTemplates,
@@ -807,6 +977,7 @@ private fun HomeScreen(
                         .padding(start = 12.dp, end = 12.dp, top = 5.dp, bottom = 10.dp)
                 ) {
                     HomeTopBar(
+                        language = language,
                         onOpenSettings = onOpenSettings
                     )
 
@@ -905,8 +1076,8 @@ private fun HomeReferenceHero(
         Modifier
             .fillMaxWidth()
             .height(160.dp)
-            .clip(RoundedCornerShape(15.dp))
-            .border(1.dp, Color(0x332B7CFF), RoundedCornerShape(15.dp))
+            .clip(RoundedCornerShape(16.dp))
+            .border(1.dp, Color(0x443B8BFF), RoundedCornerShape(16.dp))
             .clickable(onClick = onOpen)
     ) {
         Image(
@@ -915,6 +1086,60 @@ private fun HomeReferenceHero(
             contentScale = androidx.compose.ui.layout.ContentScale.Crop,
             modifier = Modifier.fillMaxSize()
         )
+        Box(
+            Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        listOf(Color.Transparent, Color(0xD9020711))
+                    )
+                )
+        )
+        Row(
+            Modifier
+                .align(Alignment.BottomStart)
+                .fillMaxWidth()
+                .padding(horizontal = 13.dp, vertical = 11.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                Modifier
+                    .size(36.dp)
+                    .clip(RoundedCornerShape(11.dp))
+                    .background(Brush.linearGradient(listOf(Color(0xFF6B3DFF), Color(0xFF2D8CFF)))),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Default.PlayArrow, null, tint = Color.White, modifier = Modifier.size(22.dp))
+            }
+            Spacer(Modifier.width(9.dp))
+            Column(Modifier.weight(1f)) {
+                Text(
+                    if (arabic) "ابدأ مشروعك الآن" else "Start your project",
+                    color = Color.White,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.ExtraBold
+                )
+                Text(
+                    if (arabic) "اختر الفيديو أو الصور وابدأ التحرير" else "Choose media and start editing",
+                    color = Color(0xFFC2CCDA),
+                    fontSize = 9.sp
+                )
+            }
+            Box(
+                Modifier
+                    .clip(RoundedCornerShape(9.dp))
+                    .background(Color.White.copy(alpha = .12f))
+                    .border(1.dp, Color.White.copy(alpha = .18f), RoundedCornerShape(9.dp))
+                    .padding(horizontal = 9.dp, vertical = 6.dp)
+            ) {
+                Text(
+                    if (arabic) "فتح" else "Open",
+                    color = Color.White,
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
     }
 }
 
@@ -1044,10 +1269,10 @@ private fun HomeSecondaryCard(
 }
 
 @Composable
-private fun HomeAppIcon() {
+private fun HomeAppIcon(arabic: Boolean = false) {
     Image(
         painter = painterResource(R.mipmap.ic_launcher),
-        contentDescription = "Video editor",
+        contentDescription = if (arabic) "محرر الفيديو" else "Video editor",
         contentScale = androidx.compose.ui.layout.ContentScale.Fit,
         modifier = Modifier
             .fillMaxSize()
@@ -1057,8 +1282,10 @@ private fun HomeAppIcon() {
 
 @Composable
 private fun HomeTopBar(
+    language: AppLanguage,
     onOpenSettings: () -> Unit
 ) {
+    val arabic = language == AppLanguage.ARABIC
     Row(
         Modifier
             .fillMaxWidth()
@@ -1073,7 +1300,7 @@ private fun HomeTopBar(
                 .border(1.dp, Color(0x332E7EFF), RoundedCornerShape(12.dp)),
             contentAlignment = Alignment.Center
         ) {
-            HomeAppIcon()
+            HomeAppIcon(arabic = arabic)
         }
 
         Spacer(Modifier.width(9.dp))
@@ -1083,14 +1310,14 @@ private fun HomeTopBar(
             horizontalAlignment = Alignment.Start
         ) {
             Text(
-                "محرر الفيديو",
+                if (arabic) "محرر الفيديو" else "Video Editor",
                 color = Color.White,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.ExtraBold,
                 letterSpacing = (-0.2).sp
             )
             Text(
-                "ابدأ - اصنع قصتك",
+                if (arabic) "ابدأ - اصنع قصتك" else "Start — create your story",
                 color = Color(0xFF8E9EB5),
                 fontSize = 9.sp,
                 fontWeight = FontWeight.Medium
@@ -1105,7 +1332,7 @@ private fun HomeTopBar(
         ) {
             Icon(
                 Icons.Default.Settings,
-                contentDescription = "الإعدادات",
+                contentDescription = if (arabic) "الإعدادات" else "Settings",
                 tint = Color(0xFFD6E0EF),
                 modifier = Modifier.size(24.dp)
             )
@@ -1115,6 +1342,7 @@ private fun HomeTopBar(
 
 @Composable
 private fun HomeBottomBar(
+    language: AppLanguage,
     selected: Int,
     onSelected: (Int) -> Unit,
     onExplore: () -> Unit,
@@ -1135,33 +1363,34 @@ private fun HomeBottomBar(
                 .padding(horizontal = 7.dp, vertical = 5.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            val arabic = language == AppLanguage.ARABIC
             HomeNavItem(
                 Modifier.weight(1f),
-                selected = selected == 3,
-                icon = Icons.Default.Person,
-                label = "حسابي",
-                onClick = onAccount
-            )
-            HomeNavItem(
-                Modifier.weight(1f),
-                selected = false,
-                icon = Icons.Default.Explore,
-                label = "استكشاف",
-                onClick = onExplore
+                selected = selected == 0,
+                icon = Icons.Default.Home,
+                label = if (arabic) "الرئيسية" else "Home",
+                onClick = { onSelected(0) }
             )
             HomeNavItem(
                 Modifier.weight(1f),
                 selected = selected == 1,
                 icon = Icons.Default.Folder,
-                label = "مشاريع",
+                label = if (arabic) "مشاريع" else "Projects",
                 onClick = { onSelected(1) }
             )
             HomeNavItem(
                 Modifier.weight(1f),
-                selected = selected == 0,
-                icon = Icons.Default.Home,
-                label = "الرئيسية",
-                onClick = { onSelected(0) }
+                selected = false,
+                icon = Icons.Default.Explore,
+                label = if (arabic) "استكشاف" else "Explore",
+                onClick = onExplore
+            )
+            HomeNavItem(
+                Modifier.weight(1f),
+                selected = selected == 3,
+                icon = Icons.Default.Person,
+                label = if (arabic) "حسابي" else "Profile",
+                onClick = onAccount
             )
         }
     }
@@ -1208,36 +1437,72 @@ private fun SettingsSheet(
 ) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        containerColor = Color.White
+        containerColor = Color(0xFF07101D),
+        dragHandle = {
+            Box(
+                Modifier
+                    .padding(top = 5.dp)
+                    .size(width = 42.dp, height = 4.dp)
+                    .clip(RoundedCornerShape(4.dp))
+                    .background(Color(0xFF35506F))
+            )
+        }
     ) {
         Column(
-            Modifier.fillMaxWidth().verticalScroll(rememberScrollState())
-                .padding(horizontal = 18.dp, vertical = 8.dp)
+            Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 14.dp, vertical = 6.dp)
         ) {
-            Text(
-                stringResource(R.string.settings),
-                color = Color(0xFF172033),
-                fontSize = 22.sp,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(Modifier.height(4.dp))
-            Text(
-                if (language == AppLanguage.ARABIC) "إعدادات VideoForge والمحرر" else "VideoForge and editor settings",
-                color = Color(0xFF667085),
-                fontSize = 11.sp
-            )
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(
+                        Brush.horizontalGradient(
+                            listOf(Color(0xFF101B31), Color(0xFF0A1628))
+                        )
+                    )
+                    .border(1.dp, Color(0x332D8CFF), RoundedCornerShape(16.dp))
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    Modifier
+                        .size(42.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Brush.linearGradient(listOf(Color(0xFF6B3DFF), Color(0xFF2D8CFF)))),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Default.Settings, null, tint = Color.White, modifier = Modifier.size(22.dp))
+                }
+                Spacer(Modifier.width(11.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        stringResource(R.string.settings),
+                        color = Color.White,
+                        fontSize = 19.sp,
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                    Text(
+                        if (language == AppLanguage.ARABIC) "تحكم سريع في تجربة المحرر" else "Quick controls for your editing experience",
+                        color = Color(0xFF8EA0B8),
+                        fontSize = 9.sp
+                    )
+                }
+            }
 
             Spacer(Modifier.height(18.dp))
             Text(
                 if (language == AppLanguage.ARABIC) "عام" else "General",
-                color = Color(0xFF6D3DFF),
+                color = Color(0xFFB58CFF),
                 fontWeight = FontWeight.Bold,
                 fontSize = 12.sp
             )
             Spacer(Modifier.height(7.dp))
             Surface(
                 modifier = Modifier.fillMaxWidth(),
-                color = Color(0xFFF5F7FB),
+                color = Color(0xFF101B2B),
                 shape = RoundedCornerShape(14.dp)
             ) {
                 Row(
@@ -1247,7 +1512,7 @@ private fun SettingsSheet(
                     Icon(Icons.Default.Language, null, tint = Color(0xFF6D3DFF))
                     Spacer(Modifier.width(10.dp))
                     Column(Modifier.weight(1f)) {
-                        Text(stringResource(R.string.language), color = Color(0xFF172033), fontWeight = FontWeight.SemiBold)
+                        Text(stringResource(R.string.language), color = Color.White, fontWeight = FontWeight.SemiBold)
                         Text(
                             if (language == AppLanguage.ARABIC) "العربية" else "English",
                             color = Color(0xFF667085),
@@ -1333,7 +1598,7 @@ private fun SettingsInfoRow(
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth().padding(bottom = 7.dp),
-        color = Color(0xFFF5F7FB),
+        color = Color(0xFF101B2B),
         shape = RoundedCornerShape(14.dp)
     ) {
         Row(
@@ -1341,16 +1606,16 @@ private fun SettingsInfoRow(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
-                Modifier.size(40.dp).clip(RoundedCornerShape(11.dp)).background(Color(0xFFEDE8FF)),
+                Modifier.size(40.dp).clip(RoundedCornerShape(11.dp)).background(Color(0xFF18243A)),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(icon, null, tint = Color(0xFF6D3DFF))
+                Icon(icon, null, tint = Color(0xFF9E86FF), modifier = Modifier.size(21.dp))
             }
             Spacer(Modifier.width(11.dp))
             Column(Modifier.weight(1f)) {
-                Text(title, color = Color(0xFF172033), fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+                Text(title, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
                 Spacer(Modifier.height(2.dp))
-                Text(description, color = Color(0xFF667085), fontSize = 9.sp)
+                Text(description, color = Color(0xFF8EA0B8), fontSize = 9.sp)
             }
         }
     }
@@ -1365,21 +1630,57 @@ private fun HelpSheet(
     val arabic = language == AppLanguage.ARABIC
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        containerColor = Color(0xFF0A111D)
+        containerColor = Color(0xFF07101D),
+        dragHandle = {
+            Box(
+                Modifier
+                    .padding(top = 5.dp)
+                    .size(width = 42.dp, height = 4.dp)
+                    .clip(RoundedCornerShape(4.dp))
+                    .background(Color(0xFF35506F))
+            )
+        }
     ) {
         Column(
             Modifier
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 18.dp, vertical = 10.dp)
+                .padding(horizontal = 14.dp, vertical = 6.dp)
         ) {
-            Text(
-                if (arabic) "دليل الاستخدام" else "How to use",
-                color = Color.White,
-                fontSize = 22.sp,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(Modifier.height(14.dp))
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(Color(0xFF0D1929))
+                    .border(1.dp, Color(0x332D8CFF), RoundedCornerShape(16.dp))
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    Modifier
+                        .size(42.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Brush.linearGradient(listOf(Color(0xFF00BFAE), Color(0xFF2D8CFF)))),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Default.HelpOutline, null, tint = Color.White, modifier = Modifier.size(22.dp))
+                }
+                Spacer(Modifier.width(11.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        if (arabic) "دليل الاستخدام" else "How to use",
+                        color = Color.White,
+                        fontSize = 19.sp,
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                    Text(
+                        if (arabic) "خطوات سريعة للبدء والتحرير" else "Quick steps to start editing",
+                        color = Color(0xFF8EA0B8),
+                        fontSize = 9.sp
+                    )
+                }
+            }
+            Spacer(Modifier.height(12.dp))
             val items = if (arabic) listOf(
                 "١. اضغط «مشروع جديد» لبدء تحرير فيديو.",
                 "٢. اضغط «مشاريعي» لفتح المشاريع المحفوظة.",
@@ -1397,21 +1698,33 @@ private fun HelpSheet(
                 "6. The editor toolbar contains trim, text, audio, speed and more.",
                 "7. Use Export to save the finished video."
             )
-            items.forEach {
+            items.forEachIndexed { index, item ->
                 Row(
                     Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 7.dp),
-                    verticalAlignment = Alignment.Top
+                        .padding(bottom = 8.dp)
+                        .clip(RoundedCornerShape(13.dp))
+                        .background(Color(0xFF0C1828))
+                        .border(1.dp, Color(0x221F5D99), RoundedCornerShape(13.dp))
+                        .padding(horizontal = 11.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        Icons.Default.CheckCircle,
-                        contentDescription = null,
-                        tint = Color(0xFF7650FF),
-                        modifier = Modifier.size(19.dp)
-                    )
+                    Box(
+                        Modifier
+                            .size(28.dp)
+                            .clip(RoundedCornerShape(9.dp))
+                            .background(Color(0xFF18284A)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            (index + 1).toString(),
+                            color = Color(0xFFB79AFF),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.ExtraBold
+                        )
+                    }
                     Spacer(Modifier.width(10.dp))
-                    Text(it, color = Color(0xFFD8E0EC), fontSize = 12.sp, lineHeight = 19.sp)
+                    Text(item, color = Color(0xFFD8E0EC), fontSize = 11.sp, lineHeight = 17.sp)
                 }
             }
             Spacer(Modifier.height(20.dp))
@@ -1420,43 +1733,54 @@ private fun HelpSheet(
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
+private data class EditorTemplate(val id:String,val titleAr:String,val titleEn:String,val descriptionAr:String,val descriptionEn:String,val aspect:String,val filter:String="none",val speed:Float=1f,val accent:Color)
+private val EDITOR_TEMPLATES=listOf(
+EditorTemplate("default","افتراضي","Default","يحافظ على الفيديو أو الصورة كما هي","Keeps the media natural","16:9",accent=Color(0xFF607DFF)),
+EditorTemplate("cinematic","سينمائي","Cinematic","إطار عريض ولمسة لونية دافئة","Wide frame with a warm look","21:9","warm",accent=Color(0xFFFF9B54)),
+EditorTemplate("social","اجتماعي","Social","مقاس عمودي للمحتوى القصير","Vertical layout for short-form content","9:16","vivid",accent=Color(0xFFFF4FD8)),
+EditorTemplate("square","مربع","Square","مربع متوازن للفيديو والصور","Balanced square canvas","1:1",accent=Color(0xFF42D7FF)),
+EditorTemplate("portrait","صورة","Portrait","قالب عمودي للصور والمنشورات","Portrait photo layout","4:5","soft",accent=Color(0xFFB88CFF)),
+EditorTemplate("fast","سريع","Fast","إيقاع سريع مع مقاس عمودي","Fast rhythm with a vertical canvas","9:16","vivid",1.25f,Color(0xFF7CFF7A))
+)
+private fun applyEditorTemplate(settings:EditorSettings,id:String):EditorSettings{val t=EDITOR_TEMPLATES.firstOrNull{it.id==id}?:EDITOR_TEMPLATES.first();return settings.copy(aspect=t.aspect,filter=t.filter,speed=t.speed)}
+@Composable private fun TemplateVisualPreview(t:EditorTemplate,modifier:Modifier=Modifier){Box(modifier.clip(RoundedCornerShape(14.dp)).background(Brush.linearGradient(listOf(Color(0xFF0D1628),t.accent.copy(alpha=.42f),Color(0xFF090C15)))),contentAlignment=Alignment.Center){Box(Modifier.fillMaxHeight(.72f).aspectRatio(when(t.aspect){"9:16"->.5625f;"1:1"->1f;"4:5"->.8f;"21:9"->2.33f;else->1.777f}).clip(RoundedCornerShape(8.dp)).background(Color.Black.copy(alpha=.72f)).border(1.dp,t.accent.copy(alpha=.8f),RoundedCornerShape(8.dp))){Box(Modifier.fillMaxSize().background(Brush.linearGradient(listOf(t.accent.copy(alpha=.28f),Color.Transparent,Color.White.copy(alpha=.06f)))));Icon(if(t.aspect=="1:1")Icons.Default.CropSquare else Icons.Default.MovieFilter,null,tint=Color.White,modifier=Modifier.size(22.dp).align(Alignment.Center))};Surface(Modifier.align(Alignment.BottomStart).padding(6.dp),color=Color.Black.copy(alpha=.58f),shape=RoundedCornerShape(6.dp)){Text(t.aspect,fontSize=7.sp,color=Color.White,modifier=Modifier.padding(horizontal=5.dp,vertical=3.dp))}}}
+@Composable private fun TemplatePickerSheet(language:AppLanguage,selectedTemplateId:String,onSelect:(String)->Unit,onDismiss:()->Unit){val ar=language==AppLanguage.ARABIC;ModalBottomSheet(onDismissRequest=onDismiss,containerColor=Color(0xFF080E18)){Column(Modifier.fillMaxWidth().padding(12.dp)){Text(if(ar)"اختر قالب المشروع" else "Choose project template",fontSize=20.sp,fontWeight=FontWeight.Bold);Text(if(ar)"معاينة القالب قبل التحرير، أو استخدم الافتراضي." else "Preview the layout before editing, or use the default.",color=Color(0xFF8D9AB0),fontSize=10.sp);Spacer(Modifier.height(10.dp));LazyRow(horizontalArrangement=Arrangement.spacedBy(8.dp)){items(EDITOR_TEMPLATES,key={it.id}){t->val selected=selectedTemplateId==t.id;Column(Modifier.width(132.dp).clip(RoundedCornerShape(16.dp)).background(if(selected)Color(0xFF1B1730)else Color(0xFF101827)).border(if(selected)1.dp else 0.dp,t.accent,RoundedCornerShape(16.dp)).clickable{onSelect(t.id)}.padding(7.dp)){TemplateVisualPreview(t,Modifier.fillMaxWidth().height(112.dp));Spacer(Modifier.height(6.dp));Text(if(ar)t.titleAr else t.titleEn,fontWeight=FontWeight.Bold,fontSize=11.sp);Text(if(ar)t.descriptionAr else t.descriptionEn,color=Color(0xFF8D9AB0),fontSize=8.sp,maxLines=2)}}};Spacer(Modifier.height(8.dp));OutlinedButton(onClick=onDismiss,modifier=Modifier.fillMaxWidth()){Text(if(ar)"استخدام الافتراضي" else "Use default")};Spacer(Modifier.height(10.dp))}}}
 @Composable
-private fun TemplatesSheet(onDismiss: () -> Unit, onUseTemplate: () -> Unit) {
-    val templates = listOf(
-        Triple(Icons.Default.MovieFilter, stringResource(R.string.template_cinematic), stringResource(R.string.template_cinematic_desc)),
-        Triple(Icons.Default.Favorite, stringResource(R.string.template_social), stringResource(R.string.template_social_desc)),
-        Triple(Icons.Default.Bolt, stringResource(R.string.template_fast), stringResource(R.string.template_fast_desc))
-    )
+private fun TemplatesSheet(language: AppLanguage, onDismiss: () -> Unit, onUseTemplate: (String) -> Unit) {
+    val arabic = language == AppLanguage.ARABIC
+    val templates = EDITOR_TEMPLATES.filter { it.id != "default" }
     ModalBottomSheet(onDismissRequest = onDismiss, containerColor = Color(0xFF0A111D)) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
             Text(stringResource(R.string.ready_templates), fontSize = 22.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(12.dp))
-            templates.forEach { (icon, title, desc) ->
-                Row(
-                    Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Color(0xFF111B2A)).clickable { onUseTemplate() }.padding(14.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(Modifier.size(44.dp).clip(RoundedCornerShape(12.dp)).background(Color(0xFF28185C)), contentAlignment = Alignment.Center) {
-                        Icon(icon, null, tint = Color(0xFFC9A7FF))
+            LazyRow(horizontalArrangement=Arrangement.spacedBy(9.dp), contentPadding=PaddingValues(bottom=8.dp)) {
+                items(templates, key={it.id}) { t ->
+                    Column(
+                        Modifier.width(145.dp).clip(RoundedCornerShape(16.dp))
+                            .background(Color(0xFF111B2A))
+                            .clickable { onUseTemplate(t.id) }
+                            .padding(7.dp)
+                    ) {
+                        TemplateVisualPreview(t, Modifier.fillMaxWidth().height(118.dp))
+                        Spacer(Modifier.height(6.dp))
+                        Text(if (arabic) t.titleAr else t.titleEn, fontWeight=FontWeight.Bold, fontSize=11.sp)
+                        Text(if (arabic) t.descriptionAr else t.descriptionEn, color=Color.Gray, fontSize=8.sp, maxLines=2)
                     }
-                    Spacer(Modifier.width(12.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text(title, fontWeight = FontWeight.Bold)
-                        Text(desc, color = Color.Gray, fontSize = 11.sp)
-                    }
-                    Icon(Icons.Default.ChevronRight, null, tint = Color.LightGray)
                 }
-                Spacer(Modifier.height(8.dp))
+            }
+            Spacer(Modifier.height(8.dp))
+            OutlinedButton(onClick={onUseTemplate("default")}, modifier=Modifier.fillMaxWidth()) {
+                Text(if (arabic) "الافتراضي" else "Default")
             }
             Spacer(Modifier.height(18.dp))
         }
     }
 }
-
 private data class EditorSnapshot(
     val clips: List<Clip>,
     val settings: EditorSettings,
-    val projectName: String
+    val projectName: String,
+    val textTimings: Map<String, TextTimelineTiming> = emptyMap()
 )
 
 private fun clipTimelineDuration(clip: Clip): Long {
@@ -1500,7 +1824,9 @@ private fun EditorFeaturePanel(
     onExtractAudio: () -> Unit, onAudioKeyframes: () -> Unit, onMusicKeyframes: () -> Unit, onPickMusic: () -> Unit,
     onTextDialog: () -> Unit, onTextAnimation: () -> Unit, onSubtitles: () -> Unit,
     onLayersDialog: () -> Unit, onVideoKeyframes: () -> Unit, onMarkers: () -> Unit,
-    onOpenAdvancedTool: (String) -> Unit
+    playheadMs: Long, onSeek: (Long) -> Unit,
+    onOpenAdvancedTool: (String) -> Unit,
+    onClosePanel: () -> Unit
 ) {
     if (activeTool == null) return
     var adjustFeature by remember(activeTool) { mutableStateOf("brightness") }
@@ -1643,25 +1969,82 @@ private fun EditorFeaturePanel(
         )
     }
 
+    val panelSubtitle = when (activeTool) {
+        "edit" -> if (language == AppLanguage.ARABIC) "قص وترتيب المقاطع بدقة" else "Trim and arrange clips precisely"
+        "audio" -> if (language == AppLanguage.ARABIC) "الموسيقى والصوت والموجة الصوتية" else "Music, sound and waveform controls"
+        "text" -> if (language == AppLanguage.ARABIC) "النصوص والخطوط والحركة المباشرة" else "Text, fonts and direct motion"
+        "filters" -> if (language == AppLanguage.ARABIC) "معاينات فورية قبل تطبيق الفلتر" else "Live previews before applying a filter"
+        "effects" -> if (language == AppLanguage.ARABIC) "مؤثرات بصرية مع تحكم دقيق" else "Visual effects with precise controls"
+        "adjust" -> if (language == AppLanguage.ARABIC) "ألوان وإضاءة وتدرج احترافي" else "Professional color and light controls"
+        "canvas" -> if (language == AppLanguage.ARABIC) "المقاس والقص والدوران" else "Aspect ratio, crop and rotation"
+        "speed" -> if (language == AppLanguage.ARABIC) "تحكم سريع في إيقاع المقطع" else "Fast control of clip pacing"
+        "transition" -> if (language == AppLanguage.ARABIC) "انتقالات سلسة بين المقاطع" else "Smooth transitions between clips"
+        "subtitles" -> if (language == AppLanguage.ARABIC) "ترجمة وعلامات زمنية منظمة" else "Organized subtitles and markers"
+        "layers" -> if (language == AppLanguage.ARABIC) "إدارة النصوص والصور فوق الفيديو" else "Manage text and image layers"
+        "videoKeyframes" -> if (language == AppLanguage.ARABIC) "حركة دقيقة باستخدام الإطارات المفتاحية" else "Precise motion with keyframes"
+        "sticker" -> if (language == AppLanguage.ARABIC) "ملصقات وإيموجيات بمعاينات مرئية" else "Stickers and emojis with visual previews"
+        "overlay" -> if (language == AppLanguage.ARABIC) "إضافة الصور وطبقات PIP" else "Add images and PIP layers"
+        "markers" -> if (language == AppLanguage.ARABIC) "تنظيم اللحظات المهمة على الخط الزمني" else "Organize important timeline moments"
+        else -> if (language == AppLanguage.ARABIC) "أدوات تحرير احترافية" else "Professional editing tools"
+    }
+
     Surface(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 5.dp),
-        color = Color(0xFF0C1420), shape = RoundedCornerShape(14.dp)
+        color = Color(0xFF08111F),
+        shape = RoundedCornerShape(16.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF203A61))
     ) {
-        Column(Modifier.padding(vertical = 7.dp)) {
-            Row(Modifier.fillMaxWidth().padding(horizontal = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text(mainTitle, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                    Text(clipSummary, color = Color(0xFF7F8DA3), fontSize = 8.sp, maxLines = 1)
+        Column(Modifier.padding(horizontal = 10.dp, vertical = 8.dp)) {
+            Row(
+                Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                val headerIcon = when (activeTool) {
+                    "edit" -> Icons.Default.ContentCut
+                    "audio" -> Icons.Default.MusicNote
+                    "text" -> Icons.Default.TextFields
+                    "effects" -> Icons.Default.AutoAwesome
+                    "filters" -> Icons.Default.FilterVintage
+                    "adjust" -> Icons.Default.Tune
+                    "canvas" -> Icons.Default.CropFree
+                    "transition" -> Icons.Default.Transform
+                    "subtitles" -> Icons.Default.Subtitles
+                    "layers" -> Icons.Default.Layers
+                    "videoKeyframes" -> Icons.Default.Timeline
+                    "speed" -> Icons.Default.Speed
+                    "sticker" -> Icons.Default.EmojiEmotions
+                    "overlay" -> Icons.Default.PictureInPictureAlt
+                    "markers" -> Icons.Default.Bookmark
+                    else -> Icons.Default.Tune
                 }
-                Surface(color = Color(0xFF172235), shape = RoundedCornerShape(8.dp)) {
-                    Text(
-                        if (language == AppLanguage.ARABIC) "أدوات" else "Tools",
-                        color = Color(0xFFB9C3D6),
-                        fontSize = 8.sp,
-                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 4.dp)
+                Box(
+                    Modifier.size(34.dp).clip(RoundedCornerShape(10.dp))
+                        .background(Brush.linearGradient(listOf(Color(0xFF6B3CFF), Color(0xFF2585FF)))),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(headerIcon, null, tint = Color.White, modifier = Modifier.size(18.dp))
+                }
+                Spacer(Modifier.width(9.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(mainTitle, color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp, maxLines = 1)
+                    Text(panelSubtitle, color = Color(0xFF8FA1BB), fontSize = 8.sp, maxLines = 1)
+                    Text(clipSummary, color = Color(0xFF667A96), fontSize = 7.sp, maxLines = 1)
+                }
+                IconButton(onClick = onClosePanel, modifier = Modifier.size(34.dp)) {
+                    Icon(
+                        Icons.Default.Close,
+                        contentDescription = if (language == AppLanguage.ARABIC) "إغلاق الأدوات" else "Close tools",
+                        tint = Color(0xFFB9C9DF),
+                        modifier = Modifier.size(18.dp)
                     )
                 }
             }
+            Spacer(Modifier.height(7.dp))
+            Box(
+                Modifier.fillMaxWidth().height(1.dp)
+                    .background(Brush.horizontalGradient(listOf(Color.Transparent, Color(0xFF365F91), Color.Transparent)))
+            )
+            Spacer(Modifier.height(3.dp))
             if (activeTool == "edit" && current != null) {
                 Row(
                     Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 2.dp),
@@ -1766,6 +2149,152 @@ private fun EditorFeaturePanel(
                         }
                     }
                 }
+            } else if (activeTool == "effects") {
+                val effectIds=listOf("blur","mosaic")
+                val context=LocalContext.current
+                var effectPreview by remember(current?.uri){mutableStateOf<android.graphics.Bitmap?>(null)}
+                LaunchedEffect(current?.uri){effectPreview=current?.let{kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO){loadVideoThumbnail(context,it.uri)}}}
+                LazyRow(Modifier.fillMaxWidth(),contentPadding=PaddingValues(horizontal=8.dp,vertical=6.dp),horizontalArrangement=Arrangement.spacedBy(8.dp)){
+                    items(effectIds){id->
+                        val selected=effectFeature==id
+                        Column(Modifier.width(96.dp).clip(RoundedCornerShape(12.dp)).background(if(selected)Color(0xFF241B3D)else Color(0xFF111925)).clickable{
+                                                effectFeature=id
+                                                when (id) {
+                                                    "blur" -> onSettingsLiveChange(settings.copy(blurRadius = 8f, mosaicEnabled = false))
+                                                    "mosaic" -> onSettingsLiveChange(settings.copy(blurRadius = 0f, mosaicEnabled = true))
+                                                }
+                                            }.padding(5.dp),horizontalAlignment=Alignment.CenterHorizontally){
+                            Box(Modifier.fillMaxWidth().height(58.dp).clip(RoundedCornerShape(9.dp))){
+                                if(effectPreview!=null)Image(effectPreview!!.asImageBitmap(),null,contentScale=androidx.compose.ui.layout.ContentScale.Crop,modifier=Modifier.fillMaxSize())
+                                else Box(Modifier.fillMaxSize().background(Color(0xFF182235)))
+                                if(id=="blur")Box(Modifier.fillMaxSize().background(Color(0x66AAB7D0)).graphicsLayer{alpha=.72f})
+                                else Canvas(Modifier.fillMaxSize()){val w=size.width;val h=size.height;for(x in 0..8)drawLine(Color.White.copy(alpha=.22f),Offset(x*w/8f,0f),Offset(x*w/8f,h),2f);for(y in 0..5)drawLine(Color.White.copy(alpha=.22f),Offset(0f,y*h/5f),Offset(w,y*h/5f),2f)}
+                            }
+                            Text(if(id=="blur")if(language==AppLanguage.ARABIC)"ضبابية" else "Blur" else if(language==AppLanguage.ARABIC)"بكسلة" else "Mosaic",fontSize=8.sp,color=Color.White,modifier=Modifier.padding(top=5.dp))
+                        }
+                    }
+                }
+            } else if (activeTool == "adjust") {
+                val config = when (adjustFeature) {
+                    "brightness" -> Triple(settings.brightness, -1f..1f, "brightness")
+                    "contrast" -> Triple(settings.contrast, 0f..2f, "contrast")
+                    "saturation" -> Triple(settings.saturation, 0f..2f, "saturation")
+                    "hue" -> Triple(settings.hue, -180f..180f, "hue")
+                    "temperature" -> Triple(settings.temperature, -100f..100f, "temperature")
+                    else -> Triple(settings.tint, -100f..100f, "tint")
+                }
+                Column(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 5.dp)) {
+                    Text(
+                        when (adjustFeature) {
+                            "brightness" -> if (language == AppLanguage.ARABIC) "السطوع" else "Brightness"
+                            "contrast" -> if (language == AppLanguage.ARABIC) "التباين" else "Contrast"
+                            "saturation" -> if (language == AppLanguage.ARABIC) "التشبع" else "Saturation"
+                            "hue" -> if (language == AppLanguage.ARABIC) "درجة اللون" else "Hue"
+                            "temperature" -> if (language == AppLanguage.ARABIC) "الحرارة" else "Temperature"
+                            else -> if (language == AppLanguage.ARABIC) "الصبغة" else "Tint"
+                        },
+                        color = Color.White, fontWeight = FontWeight.Bold, fontSize = 10.sp
+                    )
+                    Slider(
+                        value = config.first,
+                        onValueChange = { v ->
+                            val next = when (config.third) {
+                                "brightness" -> settings.copy(brightness = v)
+                                "contrast" -> settings.copy(contrast = v)
+                                "saturation" -> settings.copy(saturation = v)
+                                "hue" -> settings.copy(hue = v)
+                                "temperature" -> settings.copy(temperature = v)
+                                else -> settings.copy(tint = v)
+                            }
+                            onSettingsLiveChange(next)
+                        },
+                        valueRange = config.second,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Text(
+                        "%.2f".format(config.first),
+                        color = Color(0xFF8FA1BB),
+                        fontSize = 9.sp,
+                        modifier = Modifier.align(Alignment.End)
+                    )
+                }
+            } else if (activeTool == "audio") {
+                Column(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 5.dp)) {
+                    val clip = current
+                    val value = when (audioFeature) {
+                        "volume" -> clip?.audioVolume ?: settings.volume
+                        "fadeIn" -> clip?.audioFadeIn ?: settings.fadeIn
+                        else -> clip?.audioFadeOut ?: settings.fadeOut
+                    }
+                    val range = if (audioFeature == "volume") 0f..2f else 0f..30f
+                    Text(
+                        when (audioFeature) {
+                            "volume" -> if (language == AppLanguage.ARABIC) "مستوى الصوت" else "Volume"
+                            "fadeIn" -> if (language == AppLanguage.ARABIC) "تلاشي الدخول (ثانية)" else "Fade in (seconds)"
+                            else -> if (language == AppLanguage.ARABIC) "تلاشي الخروج (ثانية)" else "Fade out (seconds)"
+                        },
+                        color = Color.White, fontWeight = FontWeight.Bold, fontSize = 10.sp
+                    )
+                    Slider(
+                        value = value.coerceIn(range.start, range.endInclusive),
+                        onValueChange = { v ->
+                            if (clip != null) {
+                                val next = when (audioFeature) {
+                                    "volume" -> clip.copy(audioVolume = v)
+                                    "fadeIn" -> clip.copy(audioFadeIn = v)
+                                    else -> clip.copy(audioFadeOut = v)
+                                }
+                                onCurrentClipChange(next)
+                            } else {
+                                val next = when (audioFeature) {
+                                    "volume" -> settings.copy(volume = v)
+                                    "fadeIn" -> settings.copy(fadeIn = v)
+                                    else -> settings.copy(fadeOut = v)
+                                }
+                                onSettingsLiveChange(next)
+                            }
+                        },
+                        valueRange = range,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            } else if (activeTool == "transition") {
+                val transitionIds=listOf("none","fade","slide","zoom","wipe","flash","spin","glitch")
+                LazyRow(Modifier.fillMaxWidth(),contentPadding=PaddingValues(horizontal=8.dp,vertical=6.dp),horizontalArrangement=Arrangement.spacedBy(8.dp)){
+                    items(transitionIds){id->
+                        val selected=settings.transition==id
+                        Column(Modifier.width(92.dp).clip(RoundedCornerShape(12.dp)).background(if(selected)Color(0xFF241B3D)else Color(0xFF111925)).clickable{onSettingsLiveChange(settings.copy(transition=id))}.padding(5.dp),horizontalAlignment=Alignment.CenterHorizontally){
+                            Box(Modifier.fillMaxWidth().height(54.dp).clip(RoundedCornerShape(9.dp)).background(Color(0xFF111A2B))){
+                                Canvas(Modifier.fillMaxSize()){
+                                    val mid=size.width/2f
+                                    drawRect(Color(0xFF4D6EA8),topLeft=Offset(5f,8f),size=androidx.compose.ui.geometry.Size(mid-8f,size.height-16f))
+                                    drawRect(Color(0xFF9A62C8),topLeft=Offset(mid+3f,8f),size=androidx.compose.ui.geometry.Size(mid-8f,size.height-16f))
+                                    when(id){
+                                        "fade"->drawRect(Color.Black.copy(alpha=.35f),topLeft=Offset(mid-12f,8f),size=androidx.compose.ui.geometry.Size(24f,size.height-16f))
+                                        "slide"->drawLine(Color.White,Offset(mid-20f,size.height/2f),Offset(mid+20f,size.height/2f),5f)
+                                        "zoom"->drawCircle(Color.White.copy(alpha=.75f),8f,Offset(mid,size.height/2f))
+                                        "wipe"->drawRect(Color.White.copy(alpha=.7f),topLeft=Offset(mid-4f,8f),size=androidx.compose.ui.geometry.Size(8f,size.height-16f))
+                                        "flash"->drawCircle(Color.White,12f,Offset(mid,size.height/2f))
+                                        "spin"->drawArc(Color.White.copy(alpha=.8f),0f,270f,false,Offset(mid-15f,size.height/2f-15f),androidx.compose.ui.geometry.Size(30f,30f),style=androidx.compose.ui.graphics.drawscope.Stroke(3f))
+                                        "glitch"->{drawLine(Color.Cyan,Offset(mid-18f,18f),Offset(mid+18f,35f),3f);drawLine(Color.Magenta,Offset(mid-18f,35f),Offset(mid+18f,18f),3f)}
+                                    }
+                                }
+                            }
+                            val transitionLabel = when (id) {
+                                "none" -> if (language == AppLanguage.ARABIC) "بدون" else "None"
+                                "fade" -> if (language == AppLanguage.ARABIC) "تلاشي" else "Fade"
+                                "slide" -> if (language == AppLanguage.ARABIC) "انزلاق" else "Slide"
+                                "zoom" -> if (language == AppLanguage.ARABIC) "تكبير" else "Zoom"
+                                "wipe" -> if (language == AppLanguage.ARABIC) "مسح" else "Wipe"
+                                "flash" -> if (language == AppLanguage.ARABIC) "وميض" else "Flash"
+                                "spin" -> if (language == AppLanguage.ARABIC) "دوران" else "Spin"
+                                "glitch" -> if (language == AppLanguage.ARABIC) "تشويش" else "Glitch"
+                                else -> id
+                            }
+                            Text(transitionLabel,fontSize=8.sp,color=Color.White,modifier=Modifier.padding(top=5.dp))
+                        }
+                    }
+                }
             } else {
             LazyRow(
                 Modifier.fillMaxWidth(),
@@ -1790,12 +2319,18 @@ private fun EditorFeaturePanel(
                                 }
                                 "audio" -> when(id) {
                                     "volume","fadeIn","fadeOut" -> audioFeature=id
-                                    "mute" -> onSettingsLiveChange(settings.copy(muted=!settings.muted))
+                                    "mute" -> {
+                                        if (current != null) {
+                                            onCurrentClipChange(current.copy(audioMuted = !current.audioMuted))
+                                        } else {
+                                            onSettingsLiveChange(settings.copy(muted = !settings.muted))
+                                        }
+                                    }
                                     "keys" -> onAudioKeyframes(); "music" -> onPickMusic()
                                     "extract" -> onExtractAudio()
                                 }
                                 "text" -> when(id) {
-                                    "text" -> onOpenAdvancedTool("text")
+                                    "text" -> onTextDialog()
                                     "position" -> {
                                         val first = settings.textLayers.firstOrNull()
                                         if (first != null) onSettingsLiveChange(settings.copy(textLayers = settings.textLayers.map { if (it.id == first.id) it.copy(x = 0f, y = 0f) else it }))
@@ -1822,30 +2357,61 @@ private fun EditorFeaturePanel(
                                     "animation" -> onTextAnimation()
                                     "textLayers" -> onLayersDialog()
                                 }
-                                "effects" -> effectFeature=id
+                                "effects" -> {
+                                    effectFeature = id
+                                    when (id) {
+                                        "blur" -> onSettingsLiveChange(settings.copy(blurRadius = 8f, mosaicEnabled = false))
+                                        "mosaic" -> onSettingsLiveChange(settings.copy(blurRadius = 0f, mosaicEnabled = true))
+                                    }
+                                }
                                 "filters" -> onSettingsLiveChange(settings.copy(filter=id))
-                                "adjust" -> adjustFeature=id
+                                "adjust" -> {
+                                    adjustFeature = id
+                                }
                                 "canvas" -> when(id) {
                                     "crop" -> onOpenAdvancedTool("crop")
                                     "rotate" -> onOpenAdvancedTool("rotate")
                                     "flip" -> onOpenAdvancedTool("flip")
                                     else -> onSettingsLiveChange(settings.copy(aspect=id))
                                 }
-                                "transition" -> if(id=="none") onSettingsLiveChange(settings.copy(transition="none")) else onOpenAdvancedTool("transition")
+                                "transition" -> onSettingsLiveChange(settings.copy(transition = id))
                                 "subtitles" -> when(id) { "open" -> onSubtitles(); "markers" -> onMarkers() }
                                 "layers" -> when(id) {
                                     "manage" -> onLayersDialog()
                                     "text" -> onLayersDialog()
                                     "pip" -> onOpenAdvancedTool("overlay")
                                 }
-                                "videoKeyframes" -> when(id) { "video" -> onVideoKeyframes(); "markers" -> onMarkers() }
+                                "videoKeyframes" -> when(id) {
+                                    "video" -> onVideoKeyframes()
+                                    "markers" -> {
+                                        val sorted = settings.markers.sortedBy { it.timeMs }
+                                        val next = sorted.firstOrNull { it.timeMs > playheadMs } ?: sorted.firstOrNull()
+                                        next?.let { onSeek(it.timeMs) }
+                                    }
+                                }
                                 "speed" -> onOpenAdvancedTool("speed")
-                                "sticker" -> onOpenAdvancedTool("sticker")
+                                "sticker" -> when (id) {
+                                    "emoji" -> onSettingsLiveChange(settings.copy(sticker = settings.sticker.ifBlank { "🔥" }))
+                                    "shape" -> onSettingsLiveChange(settings.copy(sticker = "◆"))
+                                    "decor" -> onSettingsLiveChange(settings.copy(sticker = "✦"))
+                                }
                                 "overlay" -> when(id) {
                                     "add","position" -> onOpenAdvancedTool("overlay")
                                     "manage" -> onLayersDialog()
                                 }
-                                "markers" -> onMarkers()
+                                "markers" -> when(id) {
+                                    "add" -> onMarkers()
+                                    "previous" -> {
+                                        val sorted = settings.markers.sortedBy { it.timeMs }
+                                        val previous = sorted.lastOrNull { it.timeMs < playheadMs } ?: sorted.lastOrNull()
+                                        previous?.let { onSeek(it.timeMs) }
+                                    }
+                                    "next" -> {
+                                        val sorted = settings.markers.sortedBy { it.timeMs }
+                                        val next = sorted.firstOrNull { it.timeMs > playheadMs } ?: sorted.firstOrNull()
+                                        next?.let { onSeek(it.timeMs) }
+                                    }
+                                }
                                 else -> when(id) {
                                     "subtitles" -> onOpenAdvancedTool("subtitles")
                                     "freeze" -> onFreeze()
@@ -1860,10 +2426,95 @@ private fun EditorFeaturePanel(
             }
 
             }
-            if(activeTool=="text") {
-                EditorTextPanel(settings=settings,language=language,onChange=onSettingsLiveChange,onAnimation=onTextAnimation,onLayers=onLayersDialog)
+            // Text editing is rendered directly on the media preview.
+            if(activeTool=="audio"){
+                Surface(Modifier.fillMaxWidth().padding(horizontal=8.dp,vertical=5.dp),color=Color(0xFF0D1828),shape=RoundedCornerShape(12.dp)){
+                    Column(Modifier.padding(8.dp)){
+                        Row(verticalAlignment=Alignment.CenterVertically){
+                            Icon(Icons.Default.GraphicEq,null,tint=Color(0xFF39BFFF),modifier=Modifier.size(18.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text(if(language==AppLanguage.ARABIC)"معاينة الموجة الصوتية" else "Audio waveform preview",fontWeight=FontWeight.Bold,fontSize=10.sp,modifier=Modifier.weight(1f))
+                            Text(if(current==null)"—" else "LIVE",color=Color(0xFF63E6BE),fontSize=8.sp,fontWeight=FontWeight.Bold)
+                        }
+                        Spacer(Modifier.height(5.dp))
+                        Canvas(Modifier.fillMaxWidth().height(42.dp).clip(RoundedCornerShape(8.dp)).background(Color(0xFF08121F))){
+                            val bars=72
+                            val bw=size.width/bars
+                            for(i in 0 until bars){
+                                val amp=(0.12f+0.78f*((kotlin.math.sin(i*0.47f)+1f)/2f)*(0.55f+0.45f*((kotlin.math.sin(i*0.19f+1.1f)+1f)/2f))).coerceIn(.08f,.95f)
+                                val h=size.height*amp
+                                drawRoundRect(Color(0xFF39BFFF).copy(alpha=.72f),Offset(i*bw+bw*.2f,(size.height-h)/2f),androidx.compose.ui.geometry.Size(bw*.58f,h),cornerRadius=androidx.compose.ui.geometry.CornerRadius(2f,2f))
+                            }
+                        }
+                    }
+                }
             }
-
+            if(activeTool=="speed"){
+                val speeds=listOf(0.5f,1f,1.5f,2f,3f)
+                LazyRow(Modifier.fillMaxWidth(),contentPadding=PaddingValues(horizontal=8.dp,vertical=6.dp),horizontalArrangement=Arrangement.spacedBy(8.dp)){
+                    items(speeds){v->
+                        val selected=settings.speed==v
+                        Column(Modifier.width(82.dp).clip(RoundedCornerShape(12.dp)).background(if(selected)Color(0xFF241B3D)else Color(0xFF111925)).border(if(selected)1.dp else 0.dp,Color(0xFF9B7BFF),RoundedCornerShape(12.dp)).clickable{onSettingsLiveChange(settings.copy(speed=v))}.padding(6.dp),horizontalAlignment=Alignment.CenterHorizontally){
+                            Box(Modifier.fillMaxWidth().height(46.dp).clip(RoundedCornerShape(8.dp)).background(Color(0xFF0B1422)),contentAlignment=Alignment.Center){Text("${v}×",fontSize=17.sp,fontWeight=FontWeight.ExtraBold,color=Color.White)}
+                            Text(if(v==1f)if(language==AppLanguage.ARABIC)"طبيعي" else "Normal" else if(v<1f)if(language==AppLanguage.ARABIC)"بطيء" else "Slow" else if(language==AppLanguage.ARABIC)"سريع" else "Fast",fontSize=8.sp,color=Color(0xFF9BA7BA),modifier=Modifier.padding(top=5.dp))
+                        }
+                    }
+                }
+            }
+            if(activeTool=="canvas"){
+                val ratios=listOf("16:9","9:16","1:1","4:5","21:9")
+                LazyRow(Modifier.fillMaxWidth(),contentPadding=PaddingValues(horizontal=8.dp,vertical=6.dp),horizontalArrangement=Arrangement.spacedBy(8.dp)){
+                    items(ratios){ratio->
+                        val selected=settings.aspect==ratio
+                        val ar=when(ratio){"9:16"->.5625f;"1:1"->1f;"4:5"->.8f;"21:9"->2.33f;else->1.777f}
+                        Column(Modifier.width(82.dp).clip(RoundedCornerShape(12.dp)).background(if(selected)Color(0xFF241B3D)else Color(0xFF111925)).border(if(selected)1.dp else 0.dp,Color(0xFF4C8DFF),RoundedCornerShape(12.dp)).clickable{onSettingsLiveChange(settings.copy(aspect=ratio))}.padding(6.dp),horizontalAlignment=Alignment.CenterHorizontally){
+                            Box(Modifier.fillMaxWidth().height(46.dp),contentAlignment=Alignment.Center){Box(Modifier.fillMaxHeight(.84f).aspectRatio(ar).clip(RoundedCornerShape(5.dp)).background(Brush.linearGradient(listOf(Color(0xFF2E78FF).copy(alpha=.6f),Color(0xFF7B4DFF).copy(alpha=.45f)))).border(1.dp,Color(0xFF8FB5FF),RoundedCornerShape(5.dp)))}
+                            Text(ratio,fontSize=9.sp,fontWeight=FontWeight.Bold,color=Color.White,modifier=Modifier.padding(top=4.dp))
+                        }
+                    }
+                }
+            }
+            if(activeTool=="sticker"){
+                var stickerCategory by remember(activeTool) { mutableStateOf("emoji") }
+                val categoryItems = when (stickerCategory) {
+                    "shape" -> listOf("◆","●","■","▲","✦","✧","◇","○")
+                    "decor" -> listOf("✦","❖","❀","✿","☀","☾","♛","⚡")
+                    else -> listOf("🔥","✨","❤️","😂","🎉","😎","⚡","🌟","🏆","🚀","🎬","🎵")
+                }
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal=8.dp, vertical=3.dp),
+                    horizontalArrangement=Arrangement.spacedBy(6.dp)
+                ) {
+                    listOf(
+                        "emoji" to (if(language==AppLanguage.ARABIC) "إيموجي" else "Emoji"),
+                        "shape" to (if(language==AppLanguage.ARABIC) "أشكال" else "Shapes"),
+                        "decor" to (if(language==AppLanguage.ARABIC) "زينة" else "Decor")
+                    ).forEach { (id, label) ->
+                        FilterChip(
+                            selected = stickerCategory == id,
+                            onClick = { stickerCategory = id },
+                            label = { Text(label, fontSize = 8.sp) }
+                        )
+                    }
+                }
+                LazyRow(Modifier.fillMaxWidth(),contentPadding=PaddingValues(horizontal=8.dp,vertical=6.dp),horizontalArrangement=Arrangement.spacedBy(8.dp)){
+                    items(categoryItems){s->
+                        val selected = settings.sticker == s
+                        Column(
+                            Modifier.width(62.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(if (selected) Color(0xFF241B3D) else Color(0xFF111925))
+                                .border(if (selected) 1.dp else 0.dp, Color(0xFF9B7BFF), RoundedCornerShape(12.dp))
+                                .clickable { onSettingsLiveChange(settings.copy(sticker = s)) }
+                                .padding(5.dp),
+                            horizontalAlignment=Alignment.CenterHorizontally
+                        ){
+                            Box(Modifier.fillMaxWidth().height(42.dp).clip(RoundedCornerShape(8.dp)).background(Color(0xFF182338)),contentAlignment=Alignment.Center){Text(s,fontSize=26.sp)}
+                            Text(if(language==AppLanguage.ARABIC)"معاينة" else "Preview",fontSize=7.sp,color=Color(0xFF9BA7BA),modifier=Modifier.padding(top=3.dp))
+                        }
+                    }
+                }
+            }
             if(activeTool=="adjust") {
                 val value=when(adjustFeature) {
                     "brightness" -> settings.brightness; "contrast" -> settings.contrast; "saturation" -> settings.saturation
@@ -1961,6 +2612,57 @@ private fun EditorFeaturePanel(
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 
 @Composable
+private fun TextInputDialog(
+    settings: EditorSettings,
+    language: AppLanguage,
+    onChange: (EditorSettings) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val existing = settings.textLayers.firstOrNull()
+    var text by remember(existing?.id, existing?.text, settings.text) {
+        mutableStateOf(existing?.text ?: settings.text)
+    }
+    var selectedId by remember(existing?.id) { mutableStateOf(existing?.id) }
+    fun applyText(value: String) {
+        val layers = if (settings.textLayers.isEmpty()) {
+            listOf(TextLayer(text = value, size = settings.textSize, color = settings.textColor, font = settings.textFont))
+        } else {
+            settings.textLayers.map { layer ->
+                if (layer.id == selectedId) layer.copy(text = value) else layer
+            }
+        }
+        onChange(settings.copy(
+            text = value,
+            textVisible = value.isNotBlank() || layers.any { it.visible && it.text.isNotBlank() },
+            textLayers = layers
+        ))
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(if (language == AppLanguage.ARABIC) "اكتب النص" else "Enter text", fontWeight = FontWeight.ExtraBold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(
+                    if (language == AppLanguage.ARABIC) "اكتب النص ثم اضغط تطبيق. يمكنك تحريك النص وتكبيره مباشرة داخل المعاينة."
+                    else "Type your text, then apply it. You can move and scale it directly in the preview.",
+                    color = Color(0xFF8FA1BB), fontSize = 11.sp
+                )
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = { text = it },
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 120.dp),
+                    minLines = 4, maxLines = 8, singleLine = false,
+                    label = { Text(if (language == AppLanguage.ARABIC) "النص" else "Text") },
+                    placeholder = { Text(if (language == AppLanguage.ARABIC) "اكتب هنا…" else "Type here…") }
+                )
+            }
+        },
+        confirmButton = { Button(onClick = { applyText(text); onDismiss() }) { Text(if (language == AppLanguage.ARABIC) "تطبيق" else "Apply") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(if (language == AppLanguage.ARABIC) "إلغاء" else "Cancel") } }
+    )
+}
+
+@Composable
 private fun EditorTextPanel(
     settings: EditorSettings,
     language: AppLanguage,
@@ -1975,6 +2677,7 @@ private fun EditorTextPanel(
     var layers by remember(settings.textLayers, settings.text) { mutableStateOf(initial) }
     var selected by remember { mutableIntStateOf(0) }
     val layer = layers.getOrNull(selected) ?: TextLayer()
+    var draftText by remember(layer.id, layer.text) { mutableStateOf(layer.text) }
     val presets = if (language == AppLanguage.ARABIC)
         listOf("عنوان الفيديو","رحلتي الجديدة","لحظة لا تُنسى","صباح الخير","مساء الخير","استكشف العالم","ذكريات جميلة","اشترك الآن")
     else
@@ -1997,18 +2700,38 @@ private fun EditorTextPanel(
     Surface(Modifier.fillMaxWidth().padding(top=4.dp), color=Color(0xFF0B111C), shape=RoundedCornerShape(16.dp)) {
         Column(Modifier.fillMaxWidth().padding(10.dp)) {
             Row(verticalAlignment=Alignment.CenterVertically) {
-                Text(if(language==AppLanguage.ARABIC) "استوديو النص" else "Text Studio", fontWeight=FontWeight.Bold, fontSize=13.sp, modifier=Modifier.weight(1f))
-                AssistChip(onClick=onLayers,label={Text(if(language==AppLanguage.ARABIC)"الطبقات" else "Layers",fontSize=9.sp)},leadingIcon={Icon(Icons.Default.Layers,null,Modifier.size(15.dp))})
+                Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Box(
+                    Modifier.size(30.dp).clip(RoundedCornerShape(9.dp))
+                        .background(Brush.linearGradient(listOf(Color(0xFF6B3CFF), Color(0xFF2585FF)))),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Default.TextFields, null, tint = Color.White, modifier = Modifier.size(16.dp))
+                }
+                Spacer(Modifier.width(8.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(if(language==AppLanguage.ARABIC) "استوديو النص" else "Text Studio", color=Color.White, fontWeight=FontWeight.ExtraBold, fontSize=13.sp)
+                    Text(if(language==AppLanguage.ARABIC) "تحكم مباشر بالنص والخط والحركة" else "Direct control of text, fonts and motion", color=Color(0xFF8799B3), fontSize=8.sp, maxLines=1)
+                }
+                AssistChip(
+                    onClick=onLayers,
+                    label={Text(if(language==AppLanguage.ARABIC)"الطبقات" else "Layers",fontSize=9.sp)},
+                    leadingIcon={Icon(Icons.Default.Layers,null,Modifier.size(15.dp))}
+                )
+            }
             }
             Spacer(Modifier.height(6.dp))
             Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
                 LazyRow(Modifier.weight(1f),horizontalArrangement=Arrangement.spacedBy(6.dp),contentPadding=PaddingValues(end=6.dp)) {
                     items(layers.indices.toList(),key={it}) { i ->
-                        FilterChip(selected=i==selected,onClick={selected=i},label={Text(if(layers[i].name.isBlank()) "T${i+1}" else layers[i].name.take(10),fontSize=9.sp)},leadingIcon={Icon(if(layers[i].visible) Icons.Default.Visibility else Icons.Default.VisibilityOff,null,Modifier.size(14.dp))})
+                        FilterChip(selected=i==selected,onClick={selected=i},label={Text(if(layers[i].name.isBlank()) (if(language==AppLanguage.ARABIC) "نص ${i+1}" else "Text ${i+1}") else layers[i].name.take(10),fontSize=9.sp)},leadingIcon={Icon(if(layers[i].visible) Icons.Default.Visibility else Icons.Default.VisibilityOff,null,Modifier.size(14.dp))})
                     }
                 }
                 IconButton(onClick={
-                    layers=layers+TextLayer(name="Text ${layers.size+1}",y=(-0.55f+layers.size.coerceAtMost(4)*0.22f))
+                    layers=layers+TextLayer(name=if(language==AppLanguage.ARABIC) "نص ${layers.size+1}" else "Text ${layers.size+1}",y=(-0.55f+layers.size.coerceAtMost(4)*0.22f))
                     selected=layers.lastIndex
                     val first=layers.firstOrNull()
                     onChange(settings.copy(textLayers=layers,text=first?.text.orEmpty(),textSize=first?.size?:settings.textSize,textColor=first?.color?:settings.textColor,textFont=first?.font?:settings.textFont,textVisible=true))
@@ -2016,7 +2739,24 @@ private fun EditorTextPanel(
             }
 
             Column(Modifier.fillMaxWidth().heightIn(max=310.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(9.dp)) {
-                OutlinedTextField(value=layer.text,onValueChange={edit(layer.copy(text=it))},modifier=Modifier.fillMaxWidth(),minLines=2,maxLines=4,label={Text(if(language==AppLanguage.ARABIC)"النص" else "Text")},placeholder={Text(if(language==AppLanguage.ARABIC)"اكتب النص هنا…" else "Type your text…")})
+                OutlinedTextField(
+                    value=draftText,
+                    onValueChange={draftText=it},
+                    modifier=Modifier.fillMaxWidth(),
+                    minLines=2,
+                    maxLines=4,
+                    label={Text(if(language==AppLanguage.ARABIC)"النص" else "Text")},
+                    placeholder={Text(if(language==AppLanguage.ARABIC)"اكتب النص هنا…" else "Type your text…")}
+                )
+                Button(
+                    onClick={edit(layer.copy(text = draftText, visible = draftText.isNotBlank()))},
+                    enabled=draftText != layer.text,
+                    modifier=Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Default.Check, null, Modifier.size(16.dp))
+                    Spacer(Modifier.width(5.dp))
+                    Text(if(language==AppLanguage.ARABIC)"تطبيق النص" else "Apply text", fontSize=10.sp)
+                }
                 Text(if(language==AppLanguage.ARABIC)"قوالب سريعة" else "Quick templates",fontWeight=FontWeight.SemiBold,fontSize=10.sp)
                 LazyRow(horizontalArrangement=Arrangement.spacedBy(6.dp),contentPadding=PaddingValues(bottom=2.dp)){items(presets){preset->AssistChip(onClick={edit(layer.copy(text=preset))},label={Text(preset,fontSize=9.sp)})}}
                 Text(if(language==AppLanguage.ARABIC)"معاينة الخط" else "Font preview",fontWeight=FontWeight.SemiBold,fontSize=10.sp)
@@ -2043,7 +2783,7 @@ private fun EditorTextPanel(
                             Column(Modifier.padding(horizontal=10.dp, vertical=8.dp), horizontalAlignment=Alignment.CenterHorizontally) {
                                 Text(
                                     text = if (language == AppLanguage.ARABIC) "أبجد هوز" else "Aa Bb",
-                                    fontFamily = FontFamily(Font(font.regular)),
+                                    fontFamily = fontFamilyFor(font.key),
                                     fontSize = 20.sp,
                                     fontWeight = FontWeight.Normal,
                                     maxLines = 1
@@ -2061,11 +2801,11 @@ private fun EditorTextPanel(
                 Row(verticalAlignment=Alignment.CenterVertically){Text(if(language==AppLanguage.ARABIC)"الحجم ${layer.size.toInt()}" else "Size ${layer.size.toInt()}",fontSize=10.sp,modifier=Modifier.weight(1f));Switch(checked=layer.bold,onCheckedChange={edit(layer.copy(bold=it))});Text(if(language==AppLanguage.ARABIC)"عريض" else "Bold",fontSize=9.sp)}
                 Slider(layer.size,{edit(layer.copy(size=it))},valueRange=10f..120f)
                 Text(if(language==AppLanguage.ARABIC)"لون النص" else "Text color",fontWeight=FontWeight.SemiBold,fontSize=10.sp)
-                LazyRow(horizontalArrangement=Arrangement.spacedBy(6.dp)){items(listOf(Color.White to "أبيض",Color(0xFFFFD54F) to "ذهبي",Color(0xFF80D8FF) to "سماوي",Color(0xFFFF80AB) to "وردي",Color(0xFFB39DDB) to "بنفسجي",Color.Black to "أسود"),key={it.second}){(c,label)->FilterChip(selected=layer.color==c.toArgb().toLong(),onClick={edit(layer.copy(color=c.toArgb().toLong()))},label={Text(if(language==AppLanguage.ARABIC)label else label,fontSize=9.sp)})}}
+                LazyRow(horizontalArrangement=Arrangement.spacedBy(6.dp)){items(listOf(Color.White to ("أبيض" to "White"),Color(0xFFFFD54F) to ("ذهبي" to "Gold"),Color(0xFF80D8FF) to ("سماوي" to "Cyan"),Color(0xFFFF80AB) to ("وردي" to "Pink"),Color(0xFFB39DDB) to ("بنفسجي" to "Purple"),Color.Black to ("أسود" to "Black")),key={it.first}){(c,labels)->FilterChip(selected=layer.color==c.toArgb().toLong(),onClick={edit(layer.copy(color=c.toArgb().toLong()))},label={Text(if(language==AppLanguage.ARABIC)labels.first else labels.second,fontSize=9.sp)})}}
                 Text(if(language==AppLanguage.ARABIC)"الشفافية ${(layer.alpha*100).toInt()}%" else "Opacity ${(layer.alpha*100).toInt()}%",fontSize=10.sp)
                 Slider(layer.alpha,{edit(layer.copy(alpha=it))},valueRange=.1f..1f)
                 Text(if(language==AppLanguage.ARABIC)"المحاذاة" else "Alignment",fontWeight=FontWeight.SemiBold,fontSize=10.sp)
-                LazyRow(horizontalArrangement=Arrangement.spacedBy(6.dp)){items(listOf("start" to "يمين","center" to "وسط","end" to "يسار"),key={it.first}){(v,l)->FilterChip(selected=layer.textAlign==v,onClick={edit(layer.copy(textAlign=v))},label={Text(if(language==AppLanguage.ARABIC)l else v,fontSize=9.sp)})}}
+                LazyRow(horizontalArrangement=Arrangement.spacedBy(6.dp)){items(listOf("start" to ("يمين" to "Left"),"center" to ("وسط" to "Center"),"end" to ("يسار" to "Right")),key={it.first}){(v,labels)->FilterChip(selected=layer.textAlign==v,onClick={edit(layer.copy(textAlign=v))},label={Text(if(language==AppLanguage.ARABIC)labels.first else labels.second,fontSize=9.sp)})}}
                 Text(if(language==AppLanguage.ARABIC)"المسافات" else "Spacing",fontWeight=FontWeight.SemiBold,fontSize=10.sp)
                 Text(if(language==AppLanguage.ARABIC)"تباعد الحروف ${String.format("%.1f",layer.letterSpacing)}" else "Letter spacing ${String.format("%.1f",layer.letterSpacing)}",fontSize=9.sp)
                 Slider(layer.letterSpacing,{edit(layer.copy(letterSpacing=it))},valueRange=-2f..8f)
@@ -2108,14 +2848,18 @@ private fun EditorScreen(
     onProjectNameChanged: (String) -> Unit,
     onBack: () -> Unit,
     initialTool: String? = null,
+    initialTemplate: String? = null,
     language: AppLanguage,
     onLanguageSelected: (AppLanguage) -> Unit
 ) {
     val context = LocalContext.current
     var current by remember { mutableStateOf(clips.firstOrNull()) }
     var settings by remember(projectId) { mutableStateOf(EditorSettingsRepository.load(context, projectId)) }
+    LaunchedEffect(projectId,initialTemplate){initialTemplate?.let{id->val next=applyEditorTemplate(settings,id);settings=next;EditorSettingsRepository.save(context,projectId,next)}}
     var showTrim by remember { mutableStateOf(false) }
     var showExport by remember { mutableStateOf(false) }
+    var showTextInput by remember { mutableStateOf(false) }
+    var isFullscreenPreview by remember { mutableStateOf(false) }
     var showKeyframes by remember { mutableStateOf(false) }
     var showVideoKeyframes by remember { mutableStateOf(false) }
     var showAudioKeyframes by remember { mutableStateOf(false) }
@@ -2124,8 +2868,10 @@ private fun EditorScreen(
     var showSubtitles by remember { mutableStateOf(false) }
     var showLayers by remember { mutableStateOf(false) }
     var showMarkers by remember { mutableStateOf(false) }
-    var showMoreTools by remember { mutableStateOf(false) }
     var playheadMs by remember { mutableLongStateOf(0L) }
+    // Text timing is maintained per text layer so every caption/title has a real
+    // start/end range on the master timeline. New text defaults to the full project.
+    var textTimings by remember(projectId) { mutableStateOf(loadTextTimings(context, projectId)) }
     var previewPlaying by remember { mutableStateOf(false) }
     var previewError by remember { mutableStateOf<String?>(null) }
     var previewToggleToken by remember { mutableIntStateOf(0) }
@@ -2134,7 +2880,45 @@ private fun EditorScreen(
     var status by remember { mutableStateOf("") }
     var lastExportUri by remember { mutableStateOf<Uri?>(null) }
     var watermarkRemovedForExport by rememberSaveable(projectId) { mutableStateOf(false) }
+    var exportInProgress by remember { mutableStateOf(false) }
+    var exportProgress by remember { mutableFloatStateOf(0f) }
+    var exportElapsedSec by remember { mutableLongStateOf(0L) }
+    var exportEtaSec by remember { mutableLongStateOf(0L) }
+    var exportInterstitial by remember { mutableStateOf<InterstitialAd?>(null) }
+    var exportJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
     val exportScope = rememberCoroutineScope()
+
+    LaunchedEffect(Unit) {
+        com.google.android.gms.ads.MobileAds.initialize(context)
+        InterstitialAd.load(
+            context,
+            "ca-app-pub-3940256099942544/1033173712",
+            AdRequest.Builder().build(),
+            object : InterstitialAdLoadCallback() {
+                override fun onAdLoaded(ad: InterstitialAd) { exportInterstitial = ad }
+                override fun onAdFailedToLoad(error: LoadAdError) { exportInterstitial = null }
+            }
+        )
+    }
+
+    LaunchedEffect(exportInProgress) {
+        if (!exportInProgress) {
+            exportElapsedSec = 0L
+            exportEtaSec = 0L
+            return@LaunchedEffect
+        }
+        exportElapsedSec = 0L
+        exportEtaSec = 0L
+        while (isActive && exportInProgress) {
+            delay(1000L)
+            if (!isActive || !exportInProgress) break
+            exportElapsedSec += 1L
+            val fraction = exportProgress.coerceIn(0.01f, 0.999f)
+            if (fraction > 0.05f) {
+                exportEtaSec = ((exportElapsedSec.toDouble() * (1.0 - fraction) / fraction).toLong()).coerceAtLeast(0L)
+            }
+        }
+    }
 
     LaunchedEffect(Unit) {
         WatermarkRewardManager.load(context)
@@ -2172,14 +2956,32 @@ private fun EditorScreen(
     }
     val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("video/mp4")) { uri ->
         if (uri != null && clips.isNotEmpty()) {
+            exportJob?.cancel()
+            exportInProgress = true
+            exportProgress = 0f
+            exportElapsedSec = 0L
+            exportEtaSec = 0L
             status = if (language == AppLanguage.ARABIC) "جاري التصدير…" else "Exporting…"
-            exportScope.launch {
-                val result = ExportEngine(context, context.contentResolver).export(
-                    clips = clips, settings = exportSettings, editor = settings, output = uri,
-                    includeWatermark = !watermarkRemovedForExport,
-                    onProgress = { progress -> status = progress.message }
-                )
+            exportJob = exportScope.launch {
+                val result = runCatching {
+                    ExportEngine(context, context.contentResolver).export(
+                        clips = clips, settings = exportSettings, editor = settings, output = uri,
+                        includeWatermark = !watermarkRemovedForExport,
+                        textTimings = textTimings,
+                        onProgress = { progress ->
+                            exportProgress = progress.fraction.coerceIn(0f, 1f)
+                            if (exportProgress > 0.05f && exportElapsedSec > 0L) {
+                                exportEtaSec = ((exportElapsedSec.toDouble() * (1.0 - exportProgress) / exportProgress).toLong()).coerceAtLeast(0L)
+                            }
+                            status = progress.message
+                        }
+                    )
+                }.getOrElse { Result.failure(it) }
+                exportInProgress = false
+                exportJob = null
+                exportEtaSec = 0L
                 status = if (result.isSuccess) {
+                    exportProgress = 1f
                     lastExportUri = uri
                     watermarkRemovedForExport = false
                     if (language == AppLanguage.ARABIC) "تم تصدير الفيديو بنجاح" else "Video exported successfully"
@@ -2189,6 +2991,44 @@ private fun EditorScreen(
             }
         }
     }
+
+    fun startExportDocument() {
+        if (clips.isEmpty()) {
+            status = if (language == AppLanguage.ARABIC) "لا توجد وسائط للتصدير" else "There is no media to export"
+            return
+        }
+        exportLauncher.launch("${projectName.ifBlank { "VideoForge" }}.mp4")
+    }
+
+    fun showExportAdThenContinue() {
+        val activity = context as? Activity
+        val ad = exportInterstitial
+        if (activity == null || ad == null) {
+            exportInterstitial = null
+            startExportDocument()
+            return
+        }
+        exportInterstitial = null
+        ad.fullScreenContentCallback = object : FullScreenContentCallback() {
+            override fun onAdDismissedFullScreenContent() {
+                startExportDocument()
+                InterstitialAd.load(
+                    context,
+                    "ca-app-pub-3940256099942544/1033173712",
+                    AdRequest.Builder().build(),
+                    object : InterstitialAdLoadCallback() {
+                        override fun onAdLoaded(next: InterstitialAd) { exportInterstitial = next }
+                        override fun onAdFailedToLoad(error: LoadAdError) { exportInterstitial = null }
+                    }
+                )
+            }
+            override fun onAdFailedToShowFullScreenContent(adError: com.google.android.gms.ads.AdError) {
+                startExportDocument()
+            }
+        }
+        ad.show(activity)
+    }
+
     val subtitleImportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
             runCatching {
@@ -2220,7 +3060,7 @@ private fun EditorScreen(
     val redoStack = remember(projectId) { mutableStateListOf<EditorSnapshot>() }
 
     fun pushUndo() {
-        undoStack.add(EditorSnapshot(clips, settings, editingName))
+        undoStack.add(EditorSnapshot(clips, settings, editingName, textTimings))
         if (undoStack.size > 50) undoStack.removeAt(0)
         redoStack.clear()
     }
@@ -2231,10 +3071,23 @@ private fun EditorScreen(
         onClipsChanged(next)
     }
 
+    fun syncTextTimings(next: EditorSettings) {
+        val total = timelineTotalDuration(clips).coerceAtLeast(1L)
+        val synced = next.textLayers.mapIndexed { index, layer ->
+            val old = textTimings[layer.id] ?: textTimings["text-$index"]
+            val start = old?.startMs?.coerceIn(0L, (total - 300L).coerceAtLeast(0L)) ?: 0L
+            val end = old?.endMs?.coerceIn(start + 300L, total) ?: total
+            layer.id to TextTimelineTiming(start, end)
+        }.toMap()
+        textTimings = synced
+        saveTextTimings(context, projectId, synced)
+    }
+
     fun commitSettings(next: EditorSettings) {
         if (next == settings) return
         pushUndo()
         settings = next
+        syncTextTimings(next)
         EditorSettingsRepository.save(context, projectId, next)
         if (clips.isNotEmpty()) ProjectRepository.save(context, projectId, clips, editingName)
     }
@@ -2243,26 +3096,44 @@ private fun EditorScreen(
 
     fun updateSettingsLive(next: EditorSettings) {
         settings = next
+        // Keep timing entries aligned with the current layer list. Timing is deliberately
+        // separate from text styling so dragging a timeline edge never mutates typography.
+        syncTextTimings(next)
         EditorSettingsRepository.save(context, projectId, next)
+    }
+
+    fun updateTextTiming(id: String, startMs: Long, endMs: Long) {
+        val total = timelineTotalDuration(clips).coerceAtLeast(1L)
+        val safeStart = startMs.coerceIn(0L, (total - 300L).coerceAtLeast(0L))
+        val safeEnd = endMs.coerceIn(safeStart + 300L, total)
+        if (textTimings[id]?.startMs == safeStart && textTimings[id]?.endMs == safeEnd) return
+        pushUndo()
+        textTimings = textTimings + (id to TextTimelineTiming(safeStart, safeEnd))
+        saveTextTimings(context, projectId, textTimings)
+        playheadMs = safeStart
     }
 
 
     fun undo() {
         val snap = undoStack.removeLastOrNull() ?: return
-        redoStack.add(EditorSnapshot(clips, settings, editingName))
+        redoStack.add(EditorSnapshot(clips, settings, editingName, textTimings))
         onClipsChanged(snap.clips)
         settings = snap.settings
         editingName = snap.projectName
+        textTimings = snap.textTimings
+        saveTextTimings(context, projectId, textTimings)
         onProjectNameChanged(snap.projectName)
         EditorSettingsRepository.save(context, projectId, snap.settings)
     }
 
     fun redo() {
         val snap = redoStack.removeLastOrNull() ?: return
-        undoStack.add(EditorSnapshot(clips, settings, editingName))
+        undoStack.add(EditorSnapshot(clips, settings, editingName, textTimings))
         onClipsChanged(snap.clips)
         settings = snap.settings
         editingName = snap.projectName
+        textTimings = snap.textTimings
+        saveTextTimings(context, projectId, textTimings)
         onProjectNameChanged(snap.projectName)
         EditorSettingsRepository.save(context, projectId, snap.settings)
     }
@@ -2442,17 +3313,35 @@ private fun EditorScreen(
     Scaffold(
         containerColor = Color(0xFF050912),
         topBar = {
-            CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+            CompositionLocalProvider(LocalLayoutDirection provides if (language == AppLanguage.ARABIC) LayoutDirection.Rtl else LayoutDirection.Ltr) {
                 Surface(color = Color(0xFF07111F), tonalElevation = 0.dp) {
                     Row(Modifier.fillMaxWidth().height(58.dp).padding(horizontal = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                         IconButton(onClick = onBack) {
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = Color.White)
                         }
+                        IconButton(onClick = ::undo, enabled = undoStack.isNotEmpty()) {
+                            Icon(Icons.AutoMirrored.Filled.Undo, null, tint = if (undoStack.isNotEmpty()) Color.White else Color(0xFF53657D))
+                        }
+                        IconButton(onClick = ::redo, enabled = redoStack.isNotEmpty()) {
+                            Icon(Icons.AutoMirrored.Filled.Redo, null, tint = if (redoStack.isNotEmpty()) Color.White else Color(0xFF53657D))
+                        }
                         Text(
                             editingName.ifBlank { if (language == AppLanguage.ARABIC) "مشروع جديد" else "New Project" },
-                            color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold,
-                            modifier = Modifier.weight(1f), textAlign = TextAlign.Center
+                            color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold,
+                            modifier = Modifier.weight(1f), textAlign = TextAlign.Center, maxLines = 1
                         )
+                        IconButton(onClick = { isFullscreenPreview = !isFullscreenPreview }, enabled = clips.isNotEmpty()) {
+                            Icon(if (isFullscreenPreview) Icons.Default.FullscreenExit else Icons.Default.Fullscreen, null, tint = Color.White)
+                        }
+                        Box(
+                            Modifier.clip(RoundedCornerShape(11.dp))
+                                .background(Color(0xFF101D30))
+                                .border(1.dp, Color(0xFF294568), RoundedCornerShape(11.dp))
+                                .clickable(enabled = clips.isNotEmpty()) { if (clips.isNotEmpty()) showExport = true }
+                                .padding(horizontal = 11.dp, vertical = 9.dp)
+                        ) {
+                            Text(if (language == AppLanguage.ARABIC) "تصدير" else "Export", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                        }
                         Box(
                             Modifier.clip(RoundedCornerShape(11.dp))
                                 .background(Brush.horizontalGradient(listOf(Color(0xFF6E39FF), Color(0xFF2F7BFF))))
@@ -2467,15 +3356,13 @@ private fun EditorScreen(
                         ) {
                             Text(if (language == AppLanguage.ARABIC) "حفظ" else "Save", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                         }
-                        IconButton(onClick = { showMoreTools = true }) {
-                            Icon(Icons.Default.MoreVert, null, tint = Color(0xFFB9C3D6))
-                        }
+                        Spacer(Modifier.width(4.dp))
                     }
                 }
             }
         },
         bottomBar = {
-            Surface(color = Color(0xFF07111F), tonalElevation = 12.dp, shadowElevation = 14.dp) {
+            if (!isFullscreenPreview) Surface(color = Color(0xFF07111F), tonalElevation = 12.dp, shadowElevation = 14.dp) {
                 Column(Modifier.fillMaxWidth()) {
                     if (activeEditorTool != null) {
                         Box(Modifier.fillMaxWidth().heightIn(max = 175.dp).background(Color(0xFF091321))) {
@@ -2538,33 +3425,57 @@ private fun EditorScreen(
                                     onAudioKeyframes = { showAudioKeyframes=true },
                                     onMusicKeyframes = { showMusicKeyframes=true },
                                     onPickMusic = { musicImportLauncher.launch(arrayOf("audio/*")) },
-                                    onTextDialog = { activeEditorTool = "text" },
+                                    onTextDialog = {
+                                        tool = null
+                                        activeEditorTool = null
+                                        showTextInput = true
+                                    },
                                     onTextAnimation = { activeEditorTool = "textAnimation" },
                                     onSubtitles = { activeEditorTool = "subtitles" },
                                     onLayersDialog = { showLayers=true },
                                     onVideoKeyframes = { showVideoKeyframes=true },
                                     onMarkers = { showMarkers=true },
-                                    onOpenAdvancedTool = { activeEditorTool = it }
+                                    playheadMs = playheadMs,
+                                    onSeek = { ms ->
+                                        playheadMs = ms.coerceIn(0L, timelineTotalDuration(clips))
+                                        timelineClipAt(clips, playheadMs)?.let { (clipAt, _) -> current = clipAt }
+                                    },
+                                    onOpenAdvancedTool = { advancedTool ->
+                                        activeEditorTool = null
+                                        tool = advancedTool
+                                    },
+                                    onClosePanel = { activeEditorTool = null }
                                 )
                             }
                         }
                     }
                     Row(
-                        Modifier.fillMaxWidth().height(64.dp).padding(horizontal = 9.dp, vertical = 4.dp),
-                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        Modifier.fillMaxWidth().height(70.dp).horizontalScroll(rememberScrollState()).padding(horizontal = 7.dp, vertical = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(5.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         val mainTools = listOf(
-                            Triple("edit", Icons.Default.ContentCut, if(language==AppLanguage.ARABIC) "قص" else "Trim"),
-                            Triple("delete", Icons.Default.Delete, if(language==AppLanguage.ARABIC) "حذف" else "Delete"),
+                            Triple("edit", Icons.Default.ContentCut, if(language==AppLanguage.ARABIC) "تحرير" else "Edit"),
                             Triple("audio", Icons.Default.MusicNote, if(language==AppLanguage.ARABIC) "صوت" else "Audio"),
                             Triple("text", Icons.Default.TextFields, if(language==AppLanguage.ARABIC) "نص" else "Text"),
-                            Triple("filters", Icons.Default.FilterVintage, if(language==AppLanguage.ARABIC) "فلاتر" else "Filters")
+                            Triple("filters", Icons.Default.FilterVintage, if(language==AppLanguage.ARABIC) "فلاتر" else "Filters"),
+                            Triple("effects", Icons.Default.AutoAwesome, if(language==AppLanguage.ARABIC) "مؤثرات" else "Effects"),
+                            Triple("adjust", Icons.Default.Tune, if(language==AppLanguage.ARABIC) "ضبط" else "Adjust"),
+                            Triple("canvas", Icons.Default.CropFree, if(language==AppLanguage.ARABIC) "قص وإطار" else "Canvas"),
+                            Triple("speed", Icons.Default.Speed, if(language==AppLanguage.ARABIC) "السرعة" else "Speed"),
+                            Triple("transition", Icons.Default.Transform, if(language==AppLanguage.ARABIC) "انتقال" else "Transitions"),
+                            Triple("subtitles", Icons.Default.Subtitles, if(language==AppLanguage.ARABIC) "ترجمة" else "Subtitles"),
+                            Triple("layers", Icons.Default.Layers, if(language==AppLanguage.ARABIC) "طبقات" else "Layers"),
+                            Triple("videoKeyframes", Icons.Default.Timeline, if(language==AppLanguage.ARABIC) "حركة" else "Motion"),
+                            Triple("sticker", Icons.Default.EmojiEmotions, if(language==AppLanguage.ARABIC) "ملصقات" else "Stickers"),
+                            Triple("overlay", Icons.Default.PictureInPictureAlt, if(language==AppLanguage.ARABIC) "صورة" else "PIP"),
+                            Triple("markers", Icons.Default.Bookmark, if(language==AppLanguage.ARABIC) "علامات" else "Markers"),
+                            Triple("delete", Icons.Default.Delete, if(language==AppLanguage.ARABIC) "حذف" else "Delete")
                         )
                         mainTools.forEach { (id, icon, label) ->
                             val selectedTool = activeEditorTool == id
                             Column(
-                                Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(10.dp))
+                                Modifier.width(68.dp).fillMaxHeight().clip(RoundedCornerShape(10.dp))
                                     .background(if(selectedTool) Brush.linearGradient(listOf(Color(0xFF6635FF),Color(0xFF2E78FF))) else Brush.linearGradient(listOf(Color.Transparent,Color.Transparent)))
                                     .clickable {
                                         if(id=="delete") {
@@ -2572,7 +3483,34 @@ private fun EditorScreen(
                                             if(clip!=null && clips.size>1){
                                                 val next=clips.filterNot{it==clip}; commitClips(next); current=next.firstOrNull()
                                             }
-                                        } else activeEditorTool=id
+                                        } else if (id == "text") {
+                                            if (showTextInput) {
+                                                showTextInput = false
+                                                activeEditorTool = null
+                                            } else {
+                                                if (settings.textLayers.none { it.visible }) {
+                                                    val newLayer = TextLayer(
+                                                        name = if (language == AppLanguage.ARABIC) "نص 1" else "Text 1",
+                                                        text = "",
+                                                        visible = true,
+                                                        y = 0f
+                                                    )
+                                                    updateSettings(settings.copy(
+                                                        textLayers = listOf(newLayer),
+                                                        text = "",
+                                                        textVisible = true
+                                                    ))
+                                                } else {
+                                                    val next = settings.copy(textVisible = true)
+                                                    if (next != settings) updateSettings(next)
+                                                }
+                                                activeEditorTool = null
+                                                showTextInput = true
+                                            }
+                                        } else {
+                                            showTextInput = false
+                                            activeEditorTool = if (activeEditorTool == id) null else id
+                                        }
                                     },
                                 horizontalAlignment=Alignment.CenterHorizontally,
                                 verticalArrangement=Arrangement.Center
@@ -2591,17 +3529,26 @@ private fun EditorScreen(
             // The preview gets a fixed, generous share of the actual screen height (not just
             // whatever its aspect ratio implies from width alone) so it reads as a real, large
             // preview like a professional editor instead of shrinking inside a scrolling column.
-            Box(Modifier.fillMaxWidth().height(245.dp)) {
+            Box(Modifier.fillMaxWidth().then(if (isFullscreenPreview) Modifier.fillMaxHeight() else Modifier.height(245.dp))) {
                 EditorPreview(
                 clip = current,
                 settings = settings,
                 playheadMs = playheadMs,
                 clipOffsetMs = current?.let { timelinePositionOf(clips, it) } ?: 0L,
+                textTimings = textTimings,
                 showWatermark = !watermarkRemovedForExport,
                 onSettingsChange = { next ->
                     settings = next
                     EditorSettingsRepository.save(context, projectId, next)
                 },
+                onTextEditingChange = { next ->
+                    val oldIds = settings.textLayers.map { it.id }
+                    val newIds = next.textLayers.map { it.id }
+                    settings = next
+                    if (oldIds != newIds) syncTextTimings(next)
+                },
+                textEditingEnabled = showTextInput,
+                onTextEditingFinished = { showTextInput = false },
                 onPlaybackPosition = { position ->
                     playheadMs = position.coerceIn(0L, timelineTotalDuration(clips))
                     timelineClipAt(clips, playheadMs)?.let { (clipAtPlayhead, _) ->
@@ -2609,13 +3556,36 @@ private fun EditorScreen(
                     }
                 },
                 onPlaybackStateChanged = { previewPlaying = it },
+                onPlaybackEnded = {
+                    val index = current?.let { clips.indexOf(it) } ?: -1
+                    if (index in 0 until clips.lastIndex) {
+                        val nextClip = clips[index + 1]
+                        current = nextClip
+                        playheadMs = timelinePositionOf(clips, nextClip)
+                        previewToggleToken += 1
+                    } else {
+                        playheadMs = timelineTotalDuration(clips)
+                        previewPlaying = false
+                    }
+                },
                 onPlaybackError = { previewError = it },
                 playbackToggleToken = previewToggleToken
                 )
             }
 
-            Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())) {
+            if (!isFullscreenPreview) Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())) {
 
+            if (status.isNotBlank()) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 2.dp),
+                    color = Color(0xFF0B1829),
+                    shape = RoundedCornerShape(10.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF24476E))
+                ) {
+                    Text(status, color = Color(0xFFB9C9DF), fontSize = 9.sp,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp), maxLines = 2)
+                }
+            }
 
             Row(
                 Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
@@ -2669,6 +3639,7 @@ private fun EditorScreen(
             }
             Timeline(
                 clips = clips, current = current, playheadMs = playheadMs,
+                language = language,
                 videoKeyframes = settings.videoKeyframes,
                 textKeyframes = settings.textLayers.flatMap { it.keyframes },
                 audioKeyframes = current?.let { selected ->
@@ -2754,6 +3725,10 @@ private fun EditorScreen(
                 },
                 onAddMedia = { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)) },
                 textLayerNames = settings.textLayers.mapIndexed { i, layer -> layer.name.ifBlank { (if (language == AppLanguage.ARABIC) "نص " else "Text ") + (i + 1) } },
+                textLayerIds = settings.textLayers.map { it.id },
+                textTimings = textTimings,
+                onTextTimingChange = ::updateTextTiming,
+                pipLayerCount = settings.pipLayers.count { it.visible },
                 filterName = settings.filter
             )
 
@@ -2781,6 +3756,7 @@ private fun EditorScreen(
         }
     }
 
+    // Direct text editing lives inside EditorPreview; no text dialog is opened.
     if (showKeyframes) {
         KeyframeDialog(settings, clips, current, playheadMs, language, { updateSettings(it) }, { showKeyframes = false })
     }
@@ -2809,43 +3785,7 @@ private fun EditorScreen(
     if (showMarkers) {
         MarkerDialog(settings, playheadMs, language, { updateSettings(it) }, { ms -> playheadMs = ms }, { showMarkers = false })
     }
-    if (showMoreTools) {
-        ModalBottomSheet(onDismissRequest = { showMoreTools = false }, containerColor = Color(0xFF07111F)) {
-            CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
-                Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal=16.dp,vertical=10.dp)) {
-                    Text(if(language==AppLanguage.ARABIC)"الأدوات" else "Tools",color=Color.White,fontSize=19.sp,fontWeight=FontWeight.Bold)
-                    Spacer(Modifier.height(8.dp))
-                    val extraTools=listOf(
-                        "speed" to if(language==AppLanguage.ARABIC)"السرعة" else "Speed",
-                        "adjust" to if(language==AppLanguage.ARABIC)"ضبط" else "Adjust",
-                        "canvas" to if(language==AppLanguage.ARABIC)"اللوحة" else "Canvas",
-                        "effects" to if(language==AppLanguage.ARABIC)"المؤثرات" else "Effects",
-                        "transition" to if(language==AppLanguage.ARABIC)"الانتقالات" else "Transitions",
-                        "subtitles" to if(language==AppLanguage.ARABIC)"الترجمة" else "Subtitles",
-                        "layers" to if(language==AppLanguage.ARABIC)"الطبقات" else "Layers",
-                        "videoKeyframes" to if(language==AppLanguage.ARABIC)"الحركة" else "Motion",
-                        "sticker" to if(language==AppLanguage.ARABIC)"الملصقات" else "Stickers",
-                        "overlay" to if(language==AppLanguage.ARABIC)"الصورة داخل الصورة" else "PIP",
-                        "markers" to if(language==AppLanguage.ARABIC)"العلامات" else "Markers"
-                    )
-                    extraTools.forEach { (id,label) ->
-                        Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).clickable{activeEditorTool=id;showMoreTools=false}.padding(horizontal=12.dp,vertical=11.dp),verticalAlignment=Alignment.CenterVertically){
-                            Text(label,color=Color.White,fontSize=12.sp,modifier=Modifier.weight(1f))
-                            Icon(Icons.Default.ChevronLeft,null,tint=Color(0xFF8190A8),modifier=Modifier.size(18.dp))
-                        }
-                    }
-                    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).clickable{
-                        picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo));showMoreTools=false
-                    }.padding(horizontal=12.dp,vertical=11.dp),verticalAlignment=Alignment.CenterVertically){
-                        Text(if(language==AppLanguage.ARABIC)"إضافة فيديو أو صورة" else "Add video or image",color=Color.White,fontSize=12.sp,modifier=Modifier.weight(1f))
-                        Icon(Icons.Default.AddPhotoAlternate,null,tint=Color(0xFF7C5CFF),modifier=Modifier.size(19.dp))
-                    }
-                }
-            }
-        }
-    }
-
-    if (showTrim && current != null) TrimDialog(clip = current!!, onDismiss = { showTrim = false }, onApply = { start, end ->
+    if (showTrim && current != null) TrimDialog(clip = current!!, language = language, onDismiss = { showTrim = false }, onApply = { start, end ->
         val old = current!!; val updated = old.copy(trimStartMs = start, trimEndMs = end)
         commitClips(clips.map { if (it == old) updated else it }); current = updated; showTrim = false
         status = if (language == AppLanguage.ARABIC) "تم تطبيق القص" else "Trim applied"
@@ -2861,8 +3801,25 @@ private fun EditorScreen(
             onExport = { selected ->
                 exportSettings = selected
                 showExport = false
-                exportLauncher.launch("${editingName.ifBlank { "VideoForge" }}.mp4")
+                showExportAdThenContinue()
             }
+        )
+    }
+    if (exportInProgress) {
+        ExportProgressDialog(
+            language = language,
+            progress = exportProgress,
+            elapsedSec = exportElapsedSec,
+            etaSec = exportEtaSec,
+            onCancel = {
+                exportJob?.cancel()
+                exportJob = null
+                exportInProgress = false
+                exportProgress = 0f
+                exportEtaSec = 0L
+                status = if (language == AppLanguage.ARABIC) "تم إلغاء التصدير" else "Export cancelled"
+            },
+            onDismiss = { }
         )
     }
     tool?.let { active ->
@@ -2970,15 +3927,75 @@ onDuplicate = {
 }
 
 @Composable
+private fun ExportProgressDialog(
+    language: AppLanguage,
+    progress: Float,
+    elapsedSec: Long,
+    etaSec: Long,
+    onCancel: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val ar = language == AppLanguage.ARABIC
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(if (ar) "تصدير الفيديو" else "Exporting video", fontWeight = FontWeight.ExtraBold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(
+                    if (ar) "جاري معالجة الفيديو، لا تغلق التطبيق." else "Rendering your video. Keep the editor open.",
+                    color = Color(0xFF8FA1BB), fontSize = 11.sp
+                )
+                LinearProgressIndicator(
+                    progress = { progress.coerceIn(0f, 1f) },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text("${(progress * 100).toInt()}%", fontWeight = FontWeight.Bold)
+                    Text(
+                        if (ar) "الوقت: ${elapsedSec / 60}:${(elapsedSec % 60).toString().padStart(2, '0')}"
+                        else "Time: ${elapsedSec / 60}:${(elapsedSec % 60).toString().padStart(2, '0')}",
+                        color = Color(0xFF6FB9FF), fontSize = 11.sp
+                    )
+                }
+                Text(
+                    if (ar) "سيظهر الفيديو الناتج في مشاركة آخر فيديو بعد اكتمال التصدير."
+                    else "The finished video will be available from Share last export when rendering completes.",
+                    color = Color(0xFF7D8EA8), fontSize = 9.sp
+                )
+                if (etaSec > 0L && progress < 0.995f) {
+                    Text(
+                        if (ar) "الوقت المتبقي التقريبي: " + (etaSec / 60) + ":" + (etaSec % 60).toString().padStart(2, '0')
+                        else "Estimated remaining: " + (etaSec / 60) + ":" + (etaSec % 60).toString().padStart(2, '0'),
+                        color = Color(0xFF8FD9A8), fontSize = 10.sp
+                    )
+                }
+                Text(
+                    if (ar) "يمكنك إلغاء التصدير لتحرير موارد الجهاز."
+                    else "You can cancel the export to release device resources.",
+                    color = Color(0xFF7D8EA8), fontSize = 9.sp
+                )
+            }
+        },
+        confirmButton = { TextButton(onClick = onCancel) { Text(if (ar) "إلغاء التصدير" else "Cancel export") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(if (ar) "إخفاء" else "Hide") } }
+    )
+}
+
+@Composable
 private fun EditorPreview(
     clip: Clip?,
     settings: EditorSettings,
     playheadMs: Long,
     clipOffsetMs: Long = 0L,
+    textTimings: Map<String, TextTimelineTiming> = emptyMap(),
     showWatermark: Boolean = true,
     onSettingsChange: (EditorSettings) -> Unit,
+    onTextEditingChange: (EditorSettings) -> Unit = onSettingsChange,
+    textEditingEnabled: Boolean = false,
+    onTextEditingFinished: () -> Unit = {},
     onPlaybackPosition: (Long) -> Unit = {},
     onPlaybackStateChanged: (Boolean) -> Unit = {},
+    onPlaybackEnded: () -> Unit = {},
     onPlaybackError: (String) -> Unit = {},
     playbackToggleToken: Int = 0
 ) {
@@ -3011,20 +4028,40 @@ private fun EditorPreview(
             contentAlignment = Alignment.Center
         ) {
         if (clip == null) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) { Icon(Icons.Default.VideoLibrary, null, Modifier.size(54.dp), tint = Color.Gray); Text("Add media", color = Color.Gray, fontSize = 11.sp) }
+            Column(horizontalAlignment = Alignment.CenterHorizontally) { Icon(Icons.Default.VideoLibrary, null, Modifier.size(54.dp), tint = Color.Gray); Text(if (LocalLayoutDirection.current == LayoutDirection.Rtl) "أضف وسائط" else "Add media", color = Color.Gray, fontSize = 11.sp) }
         } else {
-            val player = remember(clip.uri, clip.isFreezeFrame, clip.freezeDurationMs, clip.durationMs) {
+            val player = remember(
+                clip.uri,
+                clip.isFreezeFrame,
+                clip.freezeDurationMs,
+                clip.durationMs,
+                clip.trimStartMs,
+                clip.trimEndMs
+            ) {
                 ExoPlayer.Builder(context).build().apply {
                     val isStillImage = clip.isFreezeFrame || isImageUri(context, clip.uri)
+                    val clipEnd = if (clip.trimEndMs == Long.MAX_VALUE) clip.durationMs else clip.trimEndMs
+                    val safeStart = clip.trimStartMs.coerceAtLeast(0L)
+                    val safeEnd = clipEnd.coerceAtLeast(safeStart + 1L)
                     val item = if (isStillImage) {
                         val stillDurationMs = if (clip.isFreezeFrame) {
                             clip.freezeDurationMs.coerceAtLeast(1L)
                         } else {
-                            clipTimelineDuration(clip).takeIf { it > 0L } ?: DEFAULT_IMAGE_CLIP_DURATION_MS
+                            (safeEnd - safeStart).coerceAtLeast(1L)
                         }
-                        MediaItem.Builder().setUri(clip.uri).setImageDurationMs(stillDurationMs).build()
+                        MediaItem.Builder()
+                            .setUri(clip.uri)
+                            .setImageDurationMs(stillDurationMs)
+                            .build()
                     } else {
-                        MediaItem.fromUri(clip.uri)
+                        val clipping = MediaItem.ClippingConfiguration.Builder()
+                            .setStartPositionMs(safeStart)
+                            .setEndPositionMs(safeEnd)
+                            .build()
+                        MediaItem.Builder()
+                            .setUri(clip.uri)
+                            .setClippingConfiguration(clipping)
+                            .build()
                     }
                     setMediaItem(item)
                     // Initialize the Media3 effects pipeline before prepare so the preview
@@ -3048,7 +4085,21 @@ private fun EditorPreview(
 
             LaunchedEffect(player, playbackToggleToken) {
                 if (playbackToggleToken != lastPlaybackToggleToken) {
-                    if (player.isPlaying) player.pause() else player.play()
+                    if (player.isPlaying) {
+                        player.pause()
+                    } else {
+                        if (player.playbackState == androidx.media3.common.Player.STATE_ENDED) {
+                            val restart = clip.trimStartMs.coerceAtLeast(0L)
+                            player.seekTo(restart)
+                            onPlaybackPosition(clipOffsetMs)
+                        } else if (player.playbackState == androidx.media3.common.Player.STATE_IDLE) {
+                            player.prepare()
+                        }
+                        runCatching { player.play() }.onFailure {
+                            onPlaybackError(it.message ?: "Unable to start preview")
+                            onPlaybackStateChanged(false)
+                        }
+                    }
                     lastPlaybackToggleToken = playbackToggleToken
                 }
             }
@@ -3061,15 +4112,26 @@ private fun EditorPreview(
                     override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
                         onPlaybackError(error.message ?: "Playback error")
                         onPlaybackStateChanged(false)
+                        runCatching { player.pause() }
                     }
                     override fun onPlaybackStateChanged(state: Int) {
-                        if (state == androidx.media3.common.Player.STATE_ENDED) onPlaybackStateChanged(false)
+                        if (state == androidx.media3.common.Player.STATE_ENDED) {
+                            onPlaybackStateChanged(false)
+                            onPlaybackEnded()
+                        }
                     }
                 }
                 player.addListener(listener)
                 onDispose {
                     player.removeListener(listener)
                     onPlaybackStateChanged(false)
+                    runCatching { player.release() }
+                }
+            }
+
+            DisposableEffect(musicPlayer) {
+                onDispose {
+                    runCatching { musicPlayer.release() }
                 }
             }
 
@@ -3157,12 +4219,54 @@ private fun EditorPreview(
                 if (settings.contrast != 1f) effects += Contrast(((settings.contrast - 1f) * 0.5f).coerceIn(-1f, 1f))
                 if (settings.saturation != 1f || settings.hue != 0f || settings.temperature != 0f || settings.tint != 0f) effects += HslAdjustment.Builder().adjustSaturation(((settings.saturation - 1f) * 100f + settings.temperature * 0.10f).coerceIn(-100f, 100f)).adjustHue((settings.hue + settings.temperature * 0.12f + settings.tint * 0.08f).coerceIn(-180f, 180f)).build()
                 when (settings.filter) {
-                    "mono" -> effects += RgbFilter.createGrayscaleFilter()
+                    "mono" -> {
+                        effects += RgbFilter.createGrayscaleFilter()
+                        effects += Contrast(0.10f)
+                    }
+                    "noir" -> {
+                        effects += RgbFilter.createGrayscaleFilter()
+                        effects += Contrast(0.30f)
+                        effects += Brightness(-0.06f)
+                    }
                     "invert" -> effects += RgbFilter.createInvertedFilter()
                     "sepia" -> effects += HslAdjustment.Builder().adjustHue(28f).adjustSaturation(-18f).build()
                     "warm" -> effects += HslAdjustment.Builder().adjustHue(18f).adjustSaturation(10f).build()
                     "cool" -> effects += HslAdjustment.Builder().adjustHue(-18f).adjustSaturation(6f).build()
                     "vivid" -> effects += HslAdjustment.Builder().adjustSaturation(28f).build()
+                    "dream" -> {
+                        effects += HslAdjustment.Builder().adjustSaturation(12f).adjustHue(8f).build()
+                        effects += Brightness(0.08f)
+                    }
+                    "faded" -> {
+                        effects += HslAdjustment.Builder().adjustSaturation(-28f).build()
+                        effects += Brightness(0.08f)
+                    }
+                    "tealOrange" -> {
+                        effects += HslAdjustment.Builder().adjustHue(8f).adjustSaturation(18f).build()
+                        effects += Contrast(0.08f)
+                    }
+                    "vintage" -> {
+                        effects += HslAdjustment.Builder().adjustHue(32f).adjustSaturation(-22f).build()
+                        effects += Brightness(-0.02f)
+                    }
+                    "sunset" -> {
+                        effects += HslAdjustment.Builder().adjustHue(22f).adjustSaturation(22f).build()
+                        effects += Brightness(0.03f)
+                    }
+                    "ice" -> {
+                        effects += HslAdjustment.Builder().adjustHue(-28f).adjustSaturation(8f).build()
+                        effects += Brightness(0.04f)
+                    }
+                    "dramatic" -> {
+                        effects += Contrast(0.28f)
+                        effects += HslAdjustment.Builder().adjustSaturation(12f).build()
+                        effects += Brightness(-0.04f)
+                    }
+                    "soft" -> {
+                        effects += Contrast(-0.12f)
+                        effects += HslAdjustment.Builder().adjustSaturation(-6f).build()
+                        effects += Brightness(0.06f)
+                    }
                 }
                 if (settings.rotation % 360 != 0 || kotlin.math.abs(settings.cropZoom - 1f) > 0.001f) effects += ScaleAndRotateTransformation.Builder().setScale(settings.cropZoom.coerceIn(1f, 6f), settings.cropZoom.coerceIn(1f, 6f)).setRotationDegrees(((settings.rotation % 360) + 360) % 360f).build()
                 if (settings.flipHorizontal || settings.flipVertical) effects += MatrixTransformation { android.graphics.Matrix().apply { postScale(if (settings.flipHorizontal) -1f else 1f, if (settings.flipVertical) -1f else 1f) } }
@@ -3183,7 +4287,12 @@ private fun EditorPreview(
                         android.graphics.Matrix().apply { postScale(scale, scale); postRotate(rotation); postTranslate(x * 500f, y * 500f) }
                     }
                 }
-                player.setVideoEffects(effects)
+                runCatching {
+                    player.setVideoEffects(effects)
+                }.onFailure { error ->
+                    onPlaybackError(error.message ?: "Video effect preview failed")
+                    runCatching { player.setVideoEffects(emptyList()) }
+                }
             }
             LaunchedEffect(playheadMs, clip.trimStartMs, clip.trimEndMs, settings.musicUri, settings.musicStartMs, settings.musicDurationMs) {
                 val local = (playheadMs - clipOffsetMs).coerceAtLeast(0L)
@@ -3293,44 +4402,11 @@ private fun EditorPreview(
                     }
                 }
             )
-            // Professional player chrome: visible resolution badges, live timecode, and an actual play/pause control.
-            Row(
-                Modifier.align(Alignment.TopStart).padding(start = 10.dp, top = 40.dp),
-                horizontalArrangement = Arrangement.spacedBy(5.dp)
-            ) {
-                Surface(color = Color(0xDD111827), shape = RoundedCornerShape(6.dp)) {
-                    Text("1080P", color = Color.White, fontSize = 8.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 7.dp, vertical = 4.dp))
-                }
-                Surface(color = Color(0xDD6C3BFF), shape = RoundedCornerShape(6.dp)) {
-                    Text("HD", color = Color.White, fontSize = 8.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 7.dp, vertical = 4.dp))
-                }
-            }
-            Surface(modifier = Modifier.align(Alignment.BottomStart).padding(start = 10.dp, bottom = 10.dp), color = Color(0xCC0B1019), shape = RoundedCornerShape(7.dp)) {
-                Text(
-                    formatTimelineTime((playheadMs - clipOffsetMs).coerceAtLeast(0L)) + " / " + formatTimelineTime(clipTimelineDuration(clip)),
-                    color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp)
-                )
-            }
-            Box(Modifier.align(Alignment.Center).size(54.dp)) {
-                FilledIconButton(onClick = { if (player.isPlaying) player.pause() else player.play() }, modifier = Modifier.fillMaxSize()) {
-                    Icon(if (player.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(28.dp))
-                }
-            }
+
             val tint = when (settings.filter) { "warm" -> Color(0x44FF9E5E); "cool" -> Color(0x443A8DFF); "mono" -> Color(0x66333333); "vivid" -> Color(0x2200FFAA); else -> Color.Transparent }
             if (tint.alpha > 0f) Box(Modifier.fillMaxSize().background(tint))
             if (settings.overlayOpacity > 0f) Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = settings.overlayOpacity)))
-            if (showWatermark) {
-                Image(
-                    painter = painterResource(R.drawable.videoforge_logo),
-                    contentDescription = "VideoForge watermark",
-                    contentScale = androidx.compose.ui.layout.ContentScale.Fit,
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(top = 10.dp, end = 10.dp)
-                        .width(88.dp)
-                        .alpha(0.82f)
-                )
-            }
+
             val pipPreviewLayers = settings.pipLayers.ifEmpty {
                 if (settings.overlayImageUri.isNotBlank()) listOf(PipLayer(uri=settings.overlayImageUri, x=settings.overlayImageX, y=settings.overlayImageY, scale=settings.overlayImageScale, rotation=settings.overlayImageRotation, alpha=settings.overlayImageAlpha)) else emptyList()
             }
@@ -3377,64 +4453,345 @@ private fun EditorPreview(
                     )
                 }
             }
-            val previewLayers = settings.textLayers.ifEmpty { if (settings.textVisible && settings.text.isNotBlank()) listOf(TextLayer(text=settings.text, size=settings.textSize, color=settings.textColor, font=settings.textFont)) else emptyList() }
+            val previewLayers = settings.textLayers.ifEmpty {
+                if (settings.textVisible && settings.text.isNotBlank()) {
+                    listOf(TextLayer(text = settings.text, size = settings.textSize, color = settings.textColor, font = settings.textFont))
+                } else emptyList()
+            }
             var selectedLayerId by remember { mutableStateOf(previewLayers.firstOrNull()?.id) }
-            LaunchedEffect(previewLayers) {
+            LaunchedEffect(previewLayers.map { it.id }, textEditingEnabled) {
                 if (selectedLayerId == null || previewLayers.none { it.id == selectedLayerId }) {
                     selectedLayerId = previewLayers.firstOrNull()?.id
                 }
             }
-            previewLayers.filter { it.visible }.forEach { layer ->
+
+            val selectedTextLayer = previewLayers.firstOrNull { it.id == selectedLayerId }
+            val latestSettings by rememberUpdatedState(settings)
+            val textFocusRequester = remember { FocusRequester() }
+            val keyboardController = LocalSoftwareKeyboardController.current
+            var textFieldValue by remember(selectedTextLayer?.id) {
+                mutableStateOf(TextFieldValue(selectedTextLayer?.text.orEmpty()))
+            }
+
+            LaunchedEffect(selectedTextLayer?.id, selectedTextLayer?.text) {
+                val modelText = selectedTextLayer?.text.orEmpty()
+                if (modelText != textFieldValue.text) {
+                    textFieldValue = TextFieldValue(modelText)
+                }
+            }
+            LaunchedEffect(textEditingEnabled, selectedTextLayer?.id) {
+                if (textEditingEnabled && selectedTextLayer != null) {
+                    kotlinx.coroutines.delay(120L)
+                    runCatching { textFocusRequester.requestFocus() }
+                    runCatching { keyboardController?.show() }
+                }
+            }
+
+            fun changeSelectedLayer(transform: (TextLayer) -> TextLayer) {
+                val id = selectedLayerId ?: return
+                val baseSettings = latestSettings
+                val nextLayers = baseSettings.textLayers.map { layer ->
+                    if (layer.id == id) transform(layer) else layer
+                }
+                onTextEditingChange(baseSettings.copy(
+                    textLayers = nextLayers,
+                    text = nextLayers.firstOrNull()?.text.orEmpty(),
+                    textSize = nextLayers.firstOrNull()?.size ?: baseSettings.textSize,
+                    textColor = nextLayers.firstOrNull()?.color ?: baseSettings.textColor,
+                    textFont = nextLayers.firstOrNull()?.font ?: baseSettings.textFont,
+                    textVisible = nextLayers.any { it.visible && it.text.isNotBlank() }
+                ))
+            }
+
+            previewLayers.filter { it.visible }.forEachIndexed { layerIndex, layer ->
                 val selected = selectedLayerId == layer.id
+                val textTiming = textTimings[layer.id]
+                    ?: textTimings["text-$layerIndex"]
+                    ?: TextTimelineTiming(0L, Long.MAX_VALUE)
+                val textVisibleNow = playheadMs in textTiming.startMs..textTiming.endMs
+                if (!textVisibleNow) return@forEachIndexed
+
                 val localTextTime = (playheadMs - clipOffsetMs).coerceAtLeast(0L)
-                val textAnimProgress = (localTextTime / 650f).coerceIn(0f,1f)
-                val textEase = 1f - (1f-textAnimProgress)*(1f-textAnimProgress)
-                val animAlpha = when(layer.animation){"fade"->textEase;"typewriter"->textEase;else->1f}
-                val animScale = when(layer.animation){"pop"->0.55f+0.45f*textEase;"zoom"->0.25f+0.75f*textEase;else->1f}
-                val animX = if(layer.animation=="slide") -0.35f*(1f-textEase) else 0f
+                val textAnimProgress = (localTextTime / 650f).coerceIn(0f, 1f)
+                val textEase = 1f - (1f - textAnimProgress) * (1f - textAnimProgress)
+                val animAlpha = when (layer.animation) { "fade", "typewriter" -> textEase; else -> 1f }
+                val animScale = when (layer.animation) {
+                    "pop" -> 0.55f + 0.45f * textEase
+                    "zoom" -> 0.25f + 0.75f * textEase
+                    else -> 1f
+                }
+                val animX = if (layer.animation == "slide") -0.35f * (1f - textEase) else 0f
+                val isDirectEditor = textEditingEnabled && selected
+
                 Box(
                     Modifier
                         .align(Alignment.Center)
-                        .offset(x=((layer.x+animX)*120).dp, y=(layer.y*90).dp)
+                        .offset(x = ((layer.x + animX) * 120).dp, y = (layer.y * 90).dp)
                         .rotate(layer.rotation)
-                        .scale(layer.scale*animScale)
-                        .pointerInput(layer.id, selected) {
-                            detectTransformGestures { _, pan, zoom, rotation ->
-                                selectedLayerId = layer.id
-                                val next = settings.textLayers.map { item ->
-                                    if (item.id != layer.id) item else item.copy(
-                                        x = (item.x + pan.x / 120f).coerceIn(-1.2f, 1.2f),
-                                        y = (item.y + pan.y / 90f).coerceIn(-1.2f, 1.2f),
-                                        scale = (item.scale * zoom).coerceIn(0.15f, 6f),
-                                        rotation = item.rotation + rotation
-                                    )
+                        .scale(layer.scale * animScale)
+                        .then(
+                            if (isDirectEditor) {
+                                Modifier.pointerInput(layer.id, selected, textEditingEnabled) {
+                                    detectTransformGestures { _, pan, zoom, rotation ->
+                                        selectedLayerId = layer.id
+                                        changeSelectedLayer { item ->
+                                            item.copy(
+                                                x = (item.x + pan.x / 120f).coerceIn(-1.2f, 1.2f),
+                                                y = (item.y + pan.y / 90f).coerceIn(-1.2f, 1.2f),
+                                                scale = (item.scale * zoom).coerceIn(0.15f, 6f),
+                                                rotation = item.rotation + rotation
+                                            )
+                                        }
+                                    }
                                 }
-                                if (settings.textLayers.isNotEmpty()) onSettingsChange(settings.copy(textLayers = next))
+                            } else {
+                                Modifier
+                                    .clickable { selectedLayerId = layer.id }
+                                    .pointerInput(layer.id, selected) {
+                                        detectTransformGestures { _, pan, zoom, rotation ->
+                                            selectedLayerId = layer.id
+                                            changeSelectedLayer { item ->
+                                                item.copy(
+                                                    x = (item.x + pan.x / 120f).coerceIn(-1.2f, 1.2f),
+                                                    y = (item.y + pan.y / 90f).coerceIn(-1.2f, 1.2f),
+                                                    scale = (item.scale * zoom).coerceIn(0.15f, 6f),
+                                                    rotation = item.rotation + rotation
+                                                )
+                                            }
+                                        }
+                                    }
                             }
-                        }
+                        )
                         .clip(RoundedCornerShape(6.dp))
-                        .then(if (layer.backgroundAlpha > 0f) Modifier.background(Color(layer.backgroundColor).copy(alpha=layer.backgroundAlpha.coerceIn(0f,1f)), RoundedCornerShape(6.dp)) else Modifier)
+                        .then(
+                            if (layer.backgroundAlpha > 0f)
+                                Modifier.background(Color(layer.backgroundColor).copy(alpha = layer.backgroundAlpha.coerceIn(0f, 1f)), RoundedCornerShape(6.dp))
+                            else Modifier
+                        )
                         .then(if (selected) Modifier.border(1.dp, Color(0xFFB88CFF), RoundedCornerShape(6.dp)) else Modifier)
-                        .padding(horizontal=layer.backgroundPadding.dp, vertical=(layer.backgroundPadding * 0.55f).dp),
+                        .padding(horizontal = layer.backgroundPadding.dp, vertical = (layer.backgroundPadding * 0.55f).dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    val displayText = if(layer.animation=="typewriter") layer.text.take((layer.text.length*textAnimProgress).toInt().coerceIn(0,layer.text.length)) else layer.text
+                    val displayText = if (layer.animation == "typewriter") {
+                        layer.text.take((layer.text.length * textAnimProgress).toInt().coerceIn(0, layer.text.length))
+                    } else layer.text
                     val commonSize = layer.size.sp
-                    val commonWeight = if(layer.bold) FontWeight.Bold else FontWeight.Normal
+                    val commonWeight = if (layer.bold) FontWeight.Bold else FontWeight.Normal
                     val commonFont = fontFamilyFor(layer.font, layer.bold)
-                    if (layer.strokeEnabled && layer.strokeWidth > 0f) {
-                        Text(displayText, color=Color(layer.strokeColor).copy(alpha=layer.alpha*animAlpha), fontSize=commonSize, fontWeight=commonWeight, fontFamily=commonFont, textAlign=when(layer.textAlign){"start"->TextAlign.Start;"end"->TextAlign.End;else->TextAlign.Center}, lineHeight=(layer.size*layer.lineHeightMultiplier).sp, letterSpacing=layer.letterSpacing.sp, style=androidx.compose.ui.text.TextStyle(drawStyle=androidx.compose.ui.graphics.drawscope.Stroke(width=layer.strokeWidth)))
+                    if (isDirectEditor) {
+                        BasicTextField(
+                            value = if (selectedTextLayer?.id == layer.id) textFieldValue else TextFieldValue(layer.text),
+                            onValueChange = { value ->
+                                if (selectedTextLayer?.id == layer.id) {
+                                    textFieldValue = value
+                                    changeSelectedLayer { it.copy(text = value.text, visible = value.text.isNotBlank()) }
+                                }
+                            },
+                            modifier = Modifier
+                                .widthIn(min = 70.dp, max = 300.dp)
+                                .focusRequester(textFocusRequester),
+                            textStyle = TextStyle(
+                                color = Color(layer.color).copy(alpha = layer.alpha * animAlpha),
+                                fontSize = commonSize,
+                                fontWeight = commonWeight,
+                                fontFamily = commonFont,
+                                textAlign = when (layer.textAlign) {
+                                    "start" -> TextAlign.Start
+                                    "end" -> TextAlign.End
+                                    else -> TextAlign.Center
+                                },
+                                lineHeight = (layer.size * layer.lineHeightMultiplier).sp,
+                                letterSpacing = layer.letterSpacing.sp,
+                                shadow = if (layer.glowEnabled) {
+                                    androidx.compose.ui.graphics.Shadow(Color(layer.glowColor), Offset.Zero, layer.glowRadius)
+                                } else if (layer.shadowEnabled) {
+                                    androidx.compose.ui.graphics.Shadow(Color(layer.shadowColor), Offset(layer.shadowDx, layer.shadowDy), layer.shadowRadius)
+                                } else null
+                            ),
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                            keyboardActions = KeyboardActions(onDone = { keyboardController?.hide() }),
+                            minLines = 1,
+                            maxLines = 5,
+                            cursorBrush = androidx.compose.ui.graphics.SolidColor(Color(0xFFB88CFF))
+                        )
+                    } else {
+                        if (layer.strokeEnabled && layer.strokeWidth > 0f) {
+                            Text(
+                                displayText,
+                                color = Color(layer.strokeColor).copy(alpha = layer.alpha * animAlpha),
+                                fontSize = commonSize,
+                                fontWeight = commonWeight,
+                                fontFamily = commonFont,
+                                textAlign = when (layer.textAlign) { "start" -> TextAlign.Start; "end" -> TextAlign.End; else -> TextAlign.Center },
+                                lineHeight = (layer.size * layer.lineHeightMultiplier).sp,
+                                letterSpacing = layer.letterSpacing.sp,
+                                style = TextStyle(drawStyle = androidx.compose.ui.graphics.drawscope.Stroke(width = layer.strokeWidth))
+                            )
+                        }
+                        Text(
+                            displayText,
+                            color = Color(layer.color).copy(alpha = layer.alpha * animAlpha),
+                            fontSize = commonSize,
+                            fontWeight = commonWeight,
+                            fontFamily = commonFont,
+                            textAlign = TextAlign.Center,
+                            style = TextStyle(
+                                lineHeight = (layer.size * layer.lineHeightMultiplier).sp,
+                                letterSpacing = layer.letterSpacing.sp,
+                                textAlign = when (layer.textAlign) { "start" -> TextAlign.Start; "end" -> TextAlign.End; else -> TextAlign.Center },
+                                shadow = if (layer.glowEnabled) {
+                                    androidx.compose.ui.graphics.Shadow(Color(layer.glowColor), Offset.Zero, layer.glowRadius)
+                                } else if (layer.shadowEnabled) {
+                                    androidx.compose.ui.graphics.Shadow(Color(layer.shadowColor), Offset(layer.shadowDx, layer.shadowDy), layer.shadowRadius)
+                                } else null
+                            )
+                        )
                     }
-                    Text(displayText, color=Color(layer.color).copy(alpha=layer.alpha*animAlpha), fontSize=commonSize, fontWeight=commonWeight, fontFamily=commonFont, textAlign=TextAlign.Center, style=androidx.compose.ui.text.TextStyle(lineHeight=(layer.size*layer.lineHeightMultiplier).sp, letterSpacing=layer.letterSpacing.sp, textAlign=when(layer.textAlign){"start"->TextAlign.Start;"end"->TextAlign.End;else->TextAlign.Center}, shadow=if(layer.glowEnabled) androidx.compose.ui.graphics.Shadow(Color(layer.glowColor), Offset.Zero, layer.glowRadius) else if(layer.shadowEnabled) androidx.compose.ui.graphics.Shadow(Color(layer.shadowColor), Offset(layer.shadowDx, layer.shadowDy), layer.shadowRadius) else null))
+
+                    if (selected && !textEditingEnabled) {
+                        IconButton(
+                            onClick = {
+                                val next = settings.textLayers.filterNot { it.id == layer.id }
+                                onSettingsChange(settings.copy(
+                                    textLayers = next,
+                                    text = next.firstOrNull()?.text.orEmpty(),
+                                    textVisible = next.any { it.visible && it.text.isNotBlank() }
+                                ))
+                                selectedLayerId = next.firstOrNull()?.id
+                            },
+                            modifier = Modifier.align(Alignment.TopEnd).size(26.dp)
+                        ) {
+                            Icon(Icons.Default.Close, null, tint = Color.White, modifier = Modifier.size(15.dp))
+                        }
+                    }
                 }
             }
-            if (previewLayers.isNotEmpty()) {
+
+            if (textEditingEnabled && selectedTextLayer != null) {
+                val palette = listOf(
+                    0xFFFFFFFFL to "White",
+                    0xFFFFD54FL to "Gold",
+                    0xFF80D8FFL to "Cyan",
+                    0xFFFF80ABL to "Pink",
+                    0xFFB39DDBL to "Purple",
+                    0xFF7CFF8AL to "Green"
+                )
+                val fonts = fontOptions().take(12)
+                Surface(
+                    Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .padding(7.dp),
+                    color = Color(0xE6091321),
+                    shape = RoundedCornerShape(13.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF355B8B))
+                ) {
+                    Column(Modifier.padding(horizontal = 7.dp, vertical = 5.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                if (LocalLayoutDirection.current == LayoutDirection.Rtl) "تحرير النص مباشرة" else "Direct text editing",
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 10.sp,
+                                modifier = Modifier.weight(1f)
+                            )
+                            IconButton(
+                                onClick = {
+                                    keyboardController?.hide()
+                                    onTextEditingFinished()
+                                },
+                                modifier = Modifier.size(28.dp)
+                            ) {
+                                Icon(Icons.Default.Check, null, tint = Color(0xFF72E6A2), modifier = Modifier.size(17.dp))
+                            }
+                            IconButton(
+                                onClick = {
+                                    val next = settings.textLayers.filterNot { it.id == selectedTextLayer.id }
+                                    onTextEditingChange(settings.copy(
+                                        textLayers = next,
+                                        text = next.firstOrNull()?.text.orEmpty(),
+                                        textVisible = next.any { it.visible && it.text.isNotBlank() }
+                                    ))
+                                    selectedLayerId = next.firstOrNull()?.id
+                                    keyboardController?.hide()
+                                },
+                                modifier = Modifier.size(28.dp)
+                            ) {
+                                Icon(Icons.Default.Delete, null, tint = Color(0xFFFF7D91), modifier = Modifier.size(17.dp))
+                            }
+                        }
+                        Row(
+                            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(5.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(if (LocalLayoutDirection.current == LayoutDirection.Rtl) "الخط" else "Font", color = Color(0xFF91A2BA), fontSize = 8.sp)
+                            fonts.forEach { font ->
+                                FilterChip(
+                                    selected = selectedTextLayer.font == font.key,
+                                    onClick = { changeSelectedLayer { it.copy(font = font.key) } },
+                                    label = {
+                                        Text(
+                                            if (LocalLayoutDirection.current == LayoutDirection.Rtl) font.ar else font.en,
+                                            fontSize = 8.sp,
+                                            fontFamily = fontFamilyFor(font.key)
+                                        )
+                                    }
+                                )
+                            }
+                        }
+                        Row(
+                            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(if (LocalLayoutDirection.current == LayoutDirection.Rtl) "اللون" else "Color", color = Color(0xFF91A2BA), fontSize = 8.sp)
+                            palette.forEach { (value, label) ->
+                                Box(
+                                    Modifier
+                                        .size(25.dp)
+                                        .clip(androidx.compose.foundation.shape.CircleShape)
+                                        .background(Color(value))
+                                        .border(
+                                            if (selectedTextLayer.color == value) 2.dp else 1.dp,
+                                            if (selectedTextLayer.color == value) Color.White else Color(0xFF47698D),
+                                            androidx.compose.foundation.shape.CircleShape
+                                        )
+                                        .clickable { changeSelectedLayer { it.copy(color = value) } }
+                                )
+                            }
+                            Spacer(Modifier.width(4.dp))
+                            IconButton(
+                                onClick = { changeSelectedLayer { it.copy(size = (it.size - 2f).coerceAtLeast(12f)) } },
+                                modifier = Modifier.size(28.dp)
+                            ) { Icon(Icons.Default.TextDecrease, null, tint = Color.White, modifier = Modifier.size(17.dp)) }
+                            Text("${selectedTextLayer.size.toInt()}", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                            IconButton(
+                                onClick = { changeSelectedLayer { it.copy(size = (it.size + 2f).coerceAtMost(120f)) } },
+                                modifier = Modifier.size(28.dp)
+                            ) { Icon(Icons.Default.TextIncrease, null, tint = Color.White, modifier = Modifier.size(17.dp)) }
+                            IconButton(
+                                onClick = { changeSelectedLayer { it.copy(rotation = it.rotation - 15f) } },
+                                modifier = Modifier.size(28.dp)
+                            ) { Icon(Icons.AutoMirrored.Filled.RotateRight, null, tint = Color.White, modifier = Modifier.size(17.dp)) }
+                            IconButton(
+                                onClick = { changeSelectedLayer { it.copy(rotation = it.rotation + 15f) } },
+                                modifier = Modifier.size(28.dp)
+                            ) { Icon(Icons.Default.RotateRight, null, tint = Color.White, modifier = Modifier.size(17.dp)) }
+                        }
+                    }
+                }
+            }
+
+            if (previewLayers.isNotEmpty() && !textEditingEnabled) {
                 Text(
                     if (LocalLayoutDirection.current == LayoutDirection.Rtl) "اسحب النص • قرص للتكبير/الدوران" else "Drag text • pinch to scale/rotate",
-                    color = Color.White.copy(alpha=.65f), fontSize = 8.sp,
-                    modifier = Modifier.align(Alignment.BottomCenter).padding(bottom=7.dp)
+                    color = Color.White.copy(alpha = .65f),
+                    fontSize = 8.sp,
+                    modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 7.dp)
                 )
             }
+
             if (settings.sticker.isNotBlank()) {
                 Text(
                     settings.sticker,
@@ -3836,8 +5193,15 @@ private fun fontOptions(): List<FontOption> = listOf(
 )
 
 private fun fontFamilyFor(key: String, bold: Boolean = false): FontFamily {
-    val f = fontOptions().firstOrNull { it.key == key } ?: fontOptions().first()
-    return FontFamily(if (bold) Font(f.bold) else Font(f.regular))
+    // Keep live editing on platform-safe system families. The selected key remains
+    // persisted, while previewing it never depends on asynchronous resource typefaces.
+    return when (key) {
+        "noto_naskh_arabic", "amiri", "lateef", "harmattan", "scheherazade_new",
+        "markazi_text", "aref_ruqaa", "katibeh" -> FontFamily.Serif
+        "jomhuria", "lalezar", "changa", "lemonada" -> FontFamily.Cursive
+        "readex_pro", "rubik", "lato", "inter", "cabin", "dejavu_sans" -> FontFamily.Monospace
+        else -> FontFamily.SansSerif
+    }
 }
 
 @Composable private fun TextDialog(s: EditorSettings, language: AppLanguage, onChange: (EditorSettings) -> Unit, onDismiss: () -> Unit) {
@@ -4002,6 +5366,42 @@ private fun VideoPresetDialog(s: EditorSettings, language: AppLanguage, onChange
 }
 
 @Composable
+private fun EditorReferenceTitle(text: String) {
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(7.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                Modifier.size(width = 4.dp, height = 25.dp)
+                    .clip(RoundedCornerShape(3.dp))
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(Color(0xFF9A63FF), Color(0xFF2D8CFF))
+                        )
+                    )
+            )
+            Spacer(Modifier.width(9.dp))
+            Text(
+                text,
+                color = Color.White,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.ExtraBold,
+                maxLines = 1
+            )
+        }
+        Box(
+            Modifier.fillMaxWidth().height(1.dp)
+                .background(
+                    Brush.horizontalGradient(
+                        listOf(Color(0xFF6B3CFF), Color(0xFF2585FF), Color.Transparent)
+                    )
+                )
+        )
+    }
+}
+
+@Composable
 private fun MusicTrimDialog(
     uri: Uri,
     language: AppLanguage,
@@ -4058,7 +5458,7 @@ private fun MusicTrimDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (language == AppLanguage.ARABIC) "اختيار مقطع صوتي" else "Choose audio segment") },
+        title = { EditorReferenceTitle(if (language == AppLanguage.ARABIC) "اختيار مقطع صوتي" else "Choose audio segment") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text(fileName, maxLines = 1, color = Color.White, fontWeight = FontWeight.SemiBold)
@@ -4149,7 +5549,7 @@ private fun FilterDialog(
 
     AlertDialog(
         onDismissRequest=onDismiss,
-        title={Text(if(language==AppLanguage.ARABIC)"الفلاتر" else "Filters")},
+        title={EditorReferenceTitle(if(language==AppLanguage.ARABIC)"الفلاتر" else "Filters")},
         text={
             Column(Modifier.verticalScroll(rememberScrollState())) {
                 Text(
@@ -4232,7 +5632,7 @@ private fun EffectsDialog(s: EditorSettings, language: AppLanguage, onChange:(Ed
     var blockSize by remember(s.mosaicBlockSize){mutableFloatStateOf(s.mosaicBlockSize)}
     var mx by remember(s.mosaicX){mutableFloatStateOf(s.mosaicX)}; var my by remember(s.mosaicY){mutableFloatStateOf(s.mosaicY)}
     var mw by remember(s.mosaicWidth){mutableFloatStateOf(s.mosaicWidth)}; var mh by remember(s.mosaicHeight){mutableFloatStateOf(s.mosaicHeight)}
-    AlertDialog(onDismissRequest=onDismiss,title={Text(if(language==AppLanguage.ARABIC)"المؤثرات" else "Effects")},text={
+    AlertDialog(onDismissRequest=onDismiss,title={EditorReferenceTitle(if(language==AppLanguage.ARABIC)"المؤثرات" else "Effects")},text={
         Column(Modifier.verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(7.dp)){
             Text(if(language==AppLanguage.ARABIC)"المؤثرات والمعالجة" else "Effects & processing",fontWeight=FontWeight.Bold)
             Text(if(language==AppLanguage.ARABIC)"ضبابية ${blur.toInt()}" else "Blur ${blur.toInt()}"); Slider(value=blur,onValueChange={blur=it},valueRange=0f..20f)
@@ -4252,13 +5652,13 @@ private fun EffectsDialog(s: EditorSettings, language: AppLanguage, onChange:(Ed
 }
 @Composable private fun AdjustDialog(s: EditorSettings, language: AppLanguage, onChange:(EditorSettings)->Unit,onDismiss:()->Unit){
     var b by remember{mutableFloatStateOf(s.brightness)};var c by remember{mutableFloatStateOf(s.contrast)};var sat by remember{mutableFloatStateOf(s.saturation)};var hue by remember{mutableFloatStateOf(s.hue)};var temp by remember{mutableFloatStateOf(s.temperature)};var tintValue by remember{mutableFloatStateOf(s.tint)}
-    AlertDialog(onDismissRequest=onDismiss,title={Text(if(language==AppLanguage.ARABIC)"ضبط متقدم" else "Advanced Adjust")},text={Column{Text(if(language==AppLanguage.ARABIC)"السطوع ${(b*100).toInt()}" else "Brightness ${(b*100).toInt()}");Slider(value = b, onValueChange = { v -> b = v }, valueRange = -1f..1f);Text(if(language==AppLanguage.ARABIC)"التباين ${(c*100).toInt()}%" else "Contrast ${(c*100).toInt()}%");Slider(value = c, onValueChange = { v -> c = v }, valueRange = 0f..2f);Text(if(language==AppLanguage.ARABIC)"التشبع ${(sat*100).toInt()}%" else "Saturation ${(sat*100).toInt()}%");Slider(value = sat, onValueChange = { v -> sat = v }, valueRange = 0f..2f);Text(if(language==AppLanguage.ARABIC)"درجة اللون ${hue.toInt()}°" else "Hue ${hue.toInt()}°");Slider(value = hue, onValueChange = { v -> hue = v }, valueRange = -180f..180f);Text(if(language==AppLanguage.ARABIC)"حرارة اللون ${temp.toInt()}" else "Temperature ${temp.toInt()}");Slider(value = temp, onValueChange = { v -> temp = v }, valueRange = -100f..100f);Text(if(language==AppLanguage.ARABIC)"الصبغة ${tintValue.toInt()}" else "Tint ${tintValue.toInt()}");Slider(value = tintValue, onValueChange = { v -> tintValue = v }, valueRange = -100f..100f)}},confirmButton={TextButton(onClick={onChange(s.copy(brightness=b,contrast=c,saturation=sat,hue=hue,temperature=temp,tint=tintValue));onDismiss()}){Text(if(language==AppLanguage.ARABIC)"تطبيق" else "Apply")}},dismissButton={TextButton(onClick=onDismiss){Text(if(language==AppLanguage.ARABIC)"إلغاء" else "Cancel")}})
+    AlertDialog(onDismissRequest=onDismiss,title={EditorReferenceTitle(if(language==AppLanguage.ARABIC)"ضبط متقدم" else "Advanced Adjust")},text={Column{Text(if(language==AppLanguage.ARABIC)"السطوع ${(b*100).toInt()}" else "Brightness ${(b*100).toInt()}");Slider(value = b, onValueChange = { v -> b = v }, valueRange = -1f..1f);Text(if(language==AppLanguage.ARABIC)"التباين ${(c*100).toInt()}%" else "Contrast ${(c*100).toInt()}%");Slider(value = c, onValueChange = { v -> c = v }, valueRange = 0f..2f);Text(if(language==AppLanguage.ARABIC)"التشبع ${(sat*100).toInt()}%" else "Saturation ${(sat*100).toInt()}%");Slider(value = sat, onValueChange = { v -> sat = v }, valueRange = 0f..2f);Text(if(language==AppLanguage.ARABIC)"درجة اللون ${hue.toInt()}°" else "Hue ${hue.toInt()}°");Slider(value = hue, onValueChange = { v -> hue = v }, valueRange = -180f..180f);Text(if(language==AppLanguage.ARABIC)"حرارة اللون ${temp.toInt()}" else "Temperature ${temp.toInt()}");Slider(value = temp, onValueChange = { v -> temp = v }, valueRange = -100f..100f);Text(if(language==AppLanguage.ARABIC)"الصبغة ${tintValue.toInt()}" else "Tint ${tintValue.toInt()}");Slider(value = tintValue, onValueChange = { v -> tintValue = v }, valueRange = -100f..100f)}},confirmButton={TextButton(onClick={onChange(s.copy(brightness=b,contrast=c,saturation=sat,hue=hue,temperature=temp,tint=tintValue));onDismiss()}){Text(if(language==AppLanguage.ARABIC)"تطبيق" else "Apply")}},dismissButton={TextButton(onClick=onDismiss){Text(if(language==AppLanguage.ARABIC)"إلغاء" else "Cancel")}})
 }
 
 @Composable private fun CanvasDialog(s:EditorSettings,language:AppLanguage,onChange:(EditorSettings)->Unit,onDismiss:()->Unit){
     val vals=listOf("16:9","9:16","1:1","4:5","2:3","3:4","3:2","21:9");
     val labels=if(language==AppLanguage.ARABIC) listOf("أفقي 16:9","عمودي 9:16","مربع 1:1","عمودي 4:5","صورة 2:3","عمودي 3:4","صورة 3:2","سينمائي عريض 21:9") else listOf("Landscape 16:9","Portrait 9:16","Square 1:1","Portrait 4:5","Photo 2:3","Portrait 3:4","Photo 3:2","Ultra-wide 21:9")
-    SimpleChoiceDialog(if(language==AppLanguage.ARABIC)"مقاس الفيديو"else"Canvas / Aspect ratio",labels,null,onDismiss){onChange(s.copy(aspect=vals[it]));onDismiss()}
+    SimpleChoiceDialog(if(language==AppLanguage.ARABIC)"مقاس الفيديو"else"Canvas / Aspect ratio",labels,null,language,onDismiss){onChange(s.copy(aspect=vals[it]));onDismiss()}
 }
 
 @Composable private fun TransitionDialog(s:EditorSettings,language:AppLanguage,onChange:(EditorSettings)->Unit,onDismiss:()->Unit){
@@ -4267,7 +5667,7 @@ private fun EffectsDialog(s: EditorSettings, language: AppLanguage, onChange:(Ed
     var selected=remember{mutableStateOf(s.transition)}
     var duration by remember{mutableFloatStateOf(s.transitionDuration)}
     var intensity by remember{mutableFloatStateOf(s.motionIntensity)}
-    AlertDialog(onDismissRequest=onDismiss,title={Text(if(language==AppLanguage.ARABIC)"انتقالات وتأثيرات الحركة"else"Transitions & Motion")},text={
+    AlertDialog(onDismissRequest=onDismiss,title={EditorReferenceTitle(if(language==AppLanguage.ARABIC)"انتقالات وتأثيرات الحركة"else"Transitions & Motion")},text={
         Column(Modifier.verticalScroll(rememberScrollState())){
             labels.forEachIndexed{i,label->FilterChip(selected=selected.value==vals[i],onClick={selected.value=vals[i]},label={Text(label)},modifier=Modifier.fillMaxWidth().padding(vertical=2.dp))}
             Spacer(Modifier.height(8.dp))
@@ -4294,7 +5694,7 @@ private fun EffectsDialog(s: EditorSettings, language: AppLanguage, onChange:(Ed
     var scale by remember(s.stickerScale){mutableFloatStateOf(s.stickerScale)}
     var rotation by remember(s.stickerRotation){mutableFloatStateOf(s.stickerRotation)}
     var alpha by remember(s.stickerAlpha){mutableFloatStateOf(s.stickerAlpha)}
-    AlertDialog(onDismissRequest=onDismiss,title={Text(if(language==AppLanguage.ARABIC)"الملصقات"else"Stickers")},text={
+    AlertDialog(onDismissRequest=onDismiss,title={EditorReferenceTitle(if(language==AppLanguage.ARABIC)"الملصقات"else"Stickers")},text={
         Column(Modifier.verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(6.dp)){
             LazyRow(horizontalArrangement=Arrangement.spacedBy(5.dp),contentPadding=PaddingValues(vertical=4.dp)){items(vals){v->FilterChip(selected=sticker==v,onClick={sticker=v},label={Text(v,fontSize=20.sp)})}}
             Text(if(language==AppLanguage.ARABIC)"الموضع الأفقي ${(x*100).toInt()}%"else"Horizontal ${(x*100).toInt()}%")
@@ -4331,7 +5731,7 @@ private fun OverlayDialog(
     }
     AlertDialog(
         onDismissRequest=onDismiss,
-        title={ Text(if(language==AppLanguage.ARABIC) "طبقات الصورة / PIP" else "Image / PIP Layers") },
+        title={ EditorReferenceTitle(if(language==AppLanguage.ARABIC) "طبقات الصورة / PIP" else "Image / PIP Layers") },
         text={ Column(Modifier.verticalScroll(rememberScrollState()).fillMaxWidth(), verticalArrangement=Arrangement.spacedBy(6.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement=Arrangement.spacedBy(6.dp)) {
                 Button(onClick=onPickImage, modifier=Modifier.weight(1f)) { Icon(Icons.Default.AddPhotoAlternate,null); Spacer(Modifier.width(4.dp)); Text(if(language==AppLanguage.ARABIC) "إضافة PIP" else "Add PIP") }
@@ -4345,7 +5745,7 @@ private fun OverlayDialog(
                     val active=index==selected
                     Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).background(if(active) Color(0xFF25203A) else Color(0xFF151922)).clickable{selected=index}.padding(6.dp), verticalAlignment=Alignment.CenterVertically) {
                         Text((index+1).toString(), color=if(active) Color(0xFFB88CFF) else Color.Gray, fontWeight=FontWeight.Bold, modifier=Modifier.width(22.dp))
-                        Text("PIP " + (index+1), Modifier.weight(1f), maxLines=1, fontSize=11.sp)
+                        Text((if(language==AppLanguage.ARABIC) "PIP " else "PIP ") + (index+1), Modifier.weight(1f), maxLines=1, fontSize=11.sp)
                         IconButton(onClick={ if(index>0){ val n=layers.toMutableList(); val t=n[index-1]; n[index-1]=n[index]; n[index]=t; layers=n; selected=index-1 } }, enabled=index>0, modifier=Modifier.size(30.dp)){ Icon(Icons.Default.KeyboardArrowUp,null,Modifier.size(18.dp)) }
                         IconButton(onClick={ if(index<layers.lastIndex){ val n=layers.toMutableList(); val t=n[index+1]; n[index+1]=n[index]; n[index]=t; layers=n; selected=index+1 } }, enabled=index<layers.lastIndex, modifier=Modifier.size(30.dp)){ Icon(Icons.Default.KeyboardArrowDown,null,Modifier.size(18.dp)) }
                         IconButton(onClick={ layers=layers.filterIndexed{i,_->i!=index}; selected=(selected.coerceAtMost(layers.lastIndex)).coerceAtLeast(0) }, modifier=Modifier.size(30.dp)){ Icon(Icons.Default.DeleteOutline,null,Modifier.size(18.dp)) }

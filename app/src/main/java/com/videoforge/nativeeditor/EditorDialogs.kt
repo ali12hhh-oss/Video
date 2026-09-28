@@ -1,13 +1,58 @@
+
 package com.videoforge.nativeeditor
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
+import androidx.compose.material.icons.filled.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.ui.Alignment
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+
+private val AUDIO_BITRATES = listOf(96000 to "96 kbps", 128000 to "128 kbps", 192000 to "192 kbps", 256000 to "256 kbps", 320000 to "320 kbps")
+
+@Composable
+private fun ReferenceDialogTitle(text: String) {
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(7.dp)
+    ) {
+        Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+            Box(
+                Modifier.size(width = 4.dp, height = 25.dp)
+                    .clip(RoundedCornerShape(3.dp))
+                    .background(Brush.verticalGradient(listOf(Color(0xFF9A63FF), Color(0xFF2D8CFF))))
+            )
+            Spacer(Modifier.width(9.dp))
+            Text(
+                text,
+                color = Color.White,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.ExtraBold,
+                maxLines = 1
+            )
+        }
+        Box(
+            Modifier.fillMaxWidth().height(1.dp)
+                .background(
+                    Brush.horizontalGradient(
+                        listOf(Color(0xFF6B3CFF), Color(0xFF2585FF), Color.Transparent)
+                    )
+                )
+        )
+    }
+}
 
 @Composable
 fun KeyframeDialog(
@@ -35,7 +80,7 @@ fun KeyframeDialog(
     }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (ar) "إطار حركة النص" else "Text keyframe") },
+        title = { ReferenceDialogTitle(if (ar) "إطار حركة النص" else "Text keyframe") },
         text = {
             Column(
                 Modifier.verticalScroll(rememberScrollState()),
@@ -114,7 +159,7 @@ fun VideoKeyframeDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (ar) "إطار حركة الفيديو" else "Video keyframe") },
+        title = { ReferenceDialogTitle(if (ar) "إطار حركة الفيديو" else "Video keyframe") },
         text = {
             Column(
                 Modifier.verticalScroll(rememberScrollState()),
@@ -157,7 +202,7 @@ fun VideoKeyframeDialog(
  val existing=remember(playheadMs,s.subtitles){s.subtitles.firstOrNull{playheadMs>=it.startMs&&playheadMs<it.endMs}}
  var t by remember(existing?.id){mutableStateOf(existing?.text?:"")}
  var durationSec by remember(existing?.id){mutableFloatStateOf(((existing?.endMs?.minus(existing.startMs)?:2000L).coerceAtLeast(1000L)/1000f).coerceIn(1f,30f))}
- AlertDialog(onDismissRequest=onDismiss,title={Text(if(ar)"الترجمة" else "Subtitles")},text={Column(Modifier.verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(8.dp)){
+ AlertDialog(onDismissRequest=onDismiss,title={ReferenceDialogTitle(if(ar)"الترجمة" else "Subtitles")},text={Column(Modifier.verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(8.dp)){
   Text(formatTimelineTime(playheadMs),fontSize=11.sp)
   OutlinedTextField(value=t,onValueChange={t=it},label={Text(if(ar)"النص" else "Text")},modifier=Modifier.fillMaxWidth(),minLines=2)
   Text(if(ar)"مدة الترجمة: "+"%.1f".format(durationSec)+" ث" else "Subtitle duration: "+"%.1f".format(durationSec)+" s",fontSize=11.sp); Slider(value=durationSec,onValueChange={durationSec=it},valueRange=1f..30f)
@@ -173,7 +218,7 @@ fun LayerManagerDialog(
     val ar = language == AppLanguage.ARABIC
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (ar) "الطبقات" else "Layers") },
+        title = { ReferenceDialogTitle(if (ar) "الطبقات" else "Layers") },
         text = {
             Column(
                 Modifier.verticalScroll(rememberScrollState()),
@@ -246,13 +291,13 @@ fun LayerManagerDialog(
 @Composable fun MarkerDialog(s:EditorSettings,playheadMs:Long,language:AppLanguage,onChange:(EditorSettings)->Unit,onSeek:(Long)->Unit,onDismiss:()->Unit){
  val ar=language==AppLanguage.ARABIC
  var newLabel by remember(playheadMs){mutableStateOf(if(ar)"علامة جديدة" else "New marker")}
- AlertDialog(onDismissRequest=onDismiss,title={Text(if(ar)"علامات الخط الزمني" else "Timeline markers")},text={Column(Modifier.verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(7.dp)){
+ AlertDialog(onDismissRequest=onDismiss,title={ReferenceDialogTitle(if(ar)"علامات الخط الزمني" else "Timeline markers")},text={Column(Modifier.verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(7.dp)){
   Text(if(ar)"الموضع الحالي: "+formatTimelineTime(playheadMs) else "Current position: "+formatTimelineTime(playheadMs),fontSize=11.sp)
   OutlinedTextField(value=newLabel,onValueChange={newLabel=it},singleLine=true,label={Text(if(ar)"اسم العلامة" else "Marker label")},modifier=Modifier.fillMaxWidth())
   if(s.markers.isEmpty()) Text(if(ar)"لا توجد علامات بعد." else "No markers yet.",fontSize=11.sp)
   s.markers.sortedBy{it.timeMs}.forEach{m->Row(Modifier.fillMaxWidth(),verticalAlignment=androidx.compose.ui.Alignment.CenterVertically){TextButton(onClick={onSeek(m.timeMs)},modifier=Modifier.weight(1f)){Text(formatTimelineTime(m.timeMs)+"  •  "+m.label,maxLines=1)};IconButton(onClick={onChange(s.copy(markers=s.markers.filterNot{it.id==m.id}.sortedBy{it.timeMs}))}){Text("×")}}}
  }},confirmButton={TextButton(onClick={val label=newLabel.trim().ifBlank{if(ar)"علامة" else "Marker"};val same=s.markers.firstOrNull{it.timeMs==playheadMs};val next=if(same!=null)s.markers.map{if(it.id==same.id)it.copy(label=label)else it}else s.markers+TimelineMarker(timeMs=playheadMs,label=label);onChange(s.copy(markers=next.sortedBy{it.timeMs}));onDismiss()}){Text(if(ar)"إضافة / تحديث" else "Add / update")}},dismissButton={TextButton(onClick=onDismiss){Text(if(ar)"إغلاق" else "Close")}})}
-@Composable fun TrimDialog(clip:Clip,onDismiss:()->Unit,onApply:(Long,Long)->Unit){val originalEnd=if(clip.trimEndMs==Long.MAX_VALUE)clip.durationMs else clip.trimEndMs;var start by remember{mutableFloatStateOf(clip.trimStartMs.toFloat())};var end by remember{mutableFloatStateOf(originalEnd.toFloat())};val gap=100L;val duration=clip.durationMs.coerceAtLeast(gap);AlertDialog(onDismissRequest=onDismiss,title={Text("Trim")},text={Column(Modifier.verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(6.dp)){Text(formatTimelineTime(start.toLong())+" — "+formatTimelineTime(end.toLong()),fontSize=12.sp);Text("Start");Slider(value=start,onValueChange={start=it.coerceIn(0f,(end-gap).coerceAtLeast(0f))},valueRange=0f..duration.toFloat());Text("End");Slider(value=end,onValueChange={end=it.coerceIn((start+gap).coerceAtMost(duration.toFloat()),duration.toFloat())},valueRange=0f..duration.toFloat())}},confirmButton={TextButton(onClick={onApply(start.toLong(),end.toLong())}){Text("Apply")}},dismissButton={TextButton(onClick=onDismiss){Text("Cancel")}})}
+@Composable fun TrimDialog(clip:Clip,language:AppLanguage,onDismiss:()->Unit,onApply:(Long,Long)->Unit){val ar=language==AppLanguage.ARABIC;val originalEnd=if(clip.trimEndMs==Long.MAX_VALUE)clip.durationMs else clip.trimEndMs;var start by remember{mutableFloatStateOf(clip.trimStartMs.toFloat())};var end by remember{mutableFloatStateOf(originalEnd.toFloat())};val gap=100L;val duration=clip.durationMs.coerceAtLeast(gap);AlertDialog(onDismissRequest=onDismiss,title={ReferenceDialogTitle(if(ar)"قص" else "Trim")},text={Column(Modifier.verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(6.dp)){Text(formatTimelineTime(start.toLong())+" — "+formatTimelineTime(end.toLong()),fontSize=12.sp);Text(if(ar)"البداية" else "Start");Slider(value=start,onValueChange={start=it.coerceIn(0f,(end-gap).coerceAtLeast(0f))},valueRange=0f..duration.toFloat());Text(if(ar)"النهاية" else "End");Slider(value=end,onValueChange={end=it.coerceIn((start+gap).coerceAtMost(duration.toFloat()),duration.toFloat())},valueRange=0f..duration.toFloat())}},confirmButton={TextButton(onClick={onApply(start.toLong(),end.toLong())}){Text(if(ar)"تطبيق" else "Apply")}},dismissButton={TextButton(onClick=onDismiss){Text(if(ar)"إلغاء" else "Cancel")}})}
 @Composable
 fun ExportDialog(
     language: AppLanguage,
@@ -263,57 +308,93 @@ fun ExportDialog(
     onSettings: (ExportSettings) -> Unit,
     onExport: (ExportSettings) -> Unit
 ) {
+    val ar = language == AppLanguage.ARABIC
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (language == AppLanguage.ARABIC) "تصدير الفيديو" else "Export video") },
+        title = { ReferenceDialogTitle(if (ar) "تصدير الفيديو" else "Export video") },
         text = {
-            Column(
-                Modifier.verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Text(
-                    if (language == AppLanguage.ARABIC) "اختر جودة الفيديو" else "Choose video quality",
-                    fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold
-                )
-                ExportResolution.values().forEach { r ->
-                    FilterChip(
-                        selected = settings.resolution == r,
-                        onClick = { onSettings(settings.copy(resolution = r)) },
-                        label = { Text(r.label) }
-                    )
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                Surface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp), color = Color(0xFF0C1728), border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF24476F))) {
+                    Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(Modifier.size(32.dp).clip(RoundedCornerShape(9.dp)).background(Brush.linearGradient(listOf(Color(0xFF6B3CFF), Color(0xFF2585FF)))), contentAlignment = Alignment.Center) {
+                                Text("HD", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold)
+                            }
+                            Spacer(Modifier.width(8.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(if (ar) "الدقة" else "Resolution", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 13.sp)
+                                Text(if (ar) "الإعدادات ستُستخدم فعلياً أثناء التصدير." else "These settings are used by the real export pipeline.", color = Color(0xFF8396B1), fontSize = 9.sp)
+                            }
+                        }
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(7.dp), contentPadding = PaddingValues(end = 2.dp)) {
+                            items(ExportResolution.values().toList()) { r ->
+                                FilterChip(selected = settings.resolution == r, onClick = { onSettings(settings.copy(resolution = r)) }, label = { Text(r.label, fontSize = 9.sp) })
+                            }
+                        }
+                    }
                 }
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = MaterialTheme.shapes.medium,
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
-                ) {
-                    Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                        Text(
-                            if (language == AppLanguage.ARABIC) "النسخة المجانية" else "Free version",
-                            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
-                        )
-                        Text(
-                            if (watermarkRemoved) {
-                                if (language == AppLanguage.ARABIC) "تمت إزالة العلامة المائية لهذا التصدير." else "Watermark removed for this export."
-                            } else {
-                                if (language == AppLanguage.ARABIC) "ستظهر علامة VideoForge صغيرة أعلى يمين الفيديو." else "A small VideoForge watermark will appear at the top-right of the video."
-                            },
-                            fontSize = 11.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                Surface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp), color = Color(0xFF0A1422), border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF1D3858))) {
+                    Column(Modifier.padding(11.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(if (ar) "معدل الإطارات" else "Frame rate", fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            items(ExportFps.values().toList()) { fps ->
+                                FilterChip(selected = settings.fps == fps, onClick = { onSettings(settings.copy(fps = fps)) }, label = { Text("${fps.value} FPS", fontSize = 9.sp) })
+                            }
+                        }
+                        Text(if (ar) "الجودة" else "Quality", fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            items(ExportQuality.values().toList()) { quality ->
+                                FilterChip(selected = settings.quality == quality, onClick = { onSettings(settings.copy(quality = quality)) }, label = { Text(if (ar) quality.label else when (quality) {
+                                    ExportQuality.AUTO -> "Auto"
+                                    ExportQuality.LOW -> "Economy"
+                                    ExportQuality.MEDIUM -> "Balanced"
+                                    ExportQuality.HIGH -> "High"
+                                    ExportQuality.MAX -> "Maximum"
+                                }, fontSize = 9.sp) })
+                            }
+                        }
+                    }
+                }
+                Surface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp), color = Color(0xFF0A1422), border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF1D3858))) {
+                    Column(Modifier.padding(11.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(if (ar) "الترميز والصوت" else "Codec & audio", fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text(if (ar) "الصيغة: MP4" else "Format: MP4", fontSize = 10.sp)
+                                Text(if (ar) "متوافق مع معظم الأجهزة" else "Compatible with most devices", color = Color(0xFF71839D), fontSize = 8.sp)
+                            }
+                            Switch(checked = settings.hevc, onCheckedChange = { onSettings(settings.copy(hevc = it)) })
+                            Text("HEVC", fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                        }
+                        Text(if (ar) "معدل صوت AAC" else "AAC audio bitrate", fontWeight = FontWeight.Bold, fontSize = 10.sp)
+                        val audioRates = AUDIO_BITRATES
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            items(audioRates) { (rate, label) ->
+                                FilterChip(
+                                    selected = settings.audioBitrate == rate,
+                                    onClick = { onSettings(settings.copy(audioBitrate = rate)) },
+                                    label = { Text(label, fontSize = 8.sp) }
+                                )
+                            }
+                        }
+                    }
+                }
+                Surface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp), color = Color(0xFF0A1422), border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF1D3858))) {
+                    Column(Modifier.padding(11.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text(if (ar) "العلامة المائية" else "Watermark", fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                        Text(if (watermarkRemoved) {
+                            if (ar) "تم فتح التصدير بدون العلامة لهذه العملية." else "Watermark removal is unlocked for this export."
+                        } else {
+                            if (ar) "النسخة المجانية تضيف علامة صغيرة. يمكنك إزالتها بمشاهدة إعلان مكافأة." else "The free version adds a small watermark. Watch a rewarded ad to remove it."
+                        }, fontSize = 9.sp, color = Color(0xFF8396B1))
                         if (!watermarkRemoved) {
-                            Button(
-                                onClick = onWatchAdToRemoveWatermark,
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Text(if (language == AppLanguage.ARABIC) "مشاهدة إعلان لإزالة العلامة" else "Watch an ad to remove watermark")
+                            Button(onClick = onWatchAdToRemoveWatermark, modifier = Modifier.fillMaxWidth()) {
+                                Text("▶", color = Color.White, fontSize = 12.sp)
+                                Spacer(Modifier.width(6.dp))
+                                Text(if (ar) "مشاهدة إعلان وإزالة العلامة" else "Watch ad & remove watermark")
                             }
                         } else {
-                            Text(
-                                if (language == AppLanguage.ARABIC) "يمكنك الآن التصدير بدون العلامة المائية." else "You can now export without the watermark.",
-                                fontSize = 10.sp,
-                                color = MaterialTheme.colorScheme.primary
-                            )
+                            Text(if (ar) "✓ جاهز للتصدير بدون العلامة" else "✓ Ready to export without watermark", color = MaterialTheme.colorScheme.primary, fontSize = 9.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -321,25 +402,24 @@ fun ExportDialog(
         },
         confirmButton = {
             Button(onClick = { onExport(settings) }) {
-                Text(if (language == AppLanguage.ARABIC) "تصدير" else "Export")
+                Text("↑", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.width(5.dp))
+                Text(if (ar) "تصدير الفيديو" else "Export video")
             }
         },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(if (language == AppLanguage.ARABIC) "إلغاء" else "Cancel")
-            }
-        }
+        dismissButton = { TextButton(onClick = onDismiss) { Text(if (ar) "إلغاء" else "Cancel") } }
     )
 }
-@Composable fun TextAnimationDialog(s:EditorSettings,language:AppLanguage,onChange:(EditorSettings)->Unit,onDismiss:()->Unit){val v=listOf("none","fade","pop","zoom","slide","typewriter");AlertDialog(onDismissRequest=onDismiss,title={Text("Text animation")},text={Column{v.forEach{x->FilterChip(selected=s.textAnimation==x,onClick={onChange(s.copy(textAnimation=x))},label={Text(x)})}}},confirmButton={TextButton(onClick=onDismiss){Text("Close")}})}
-@Composable fun RotateDialog(s:EditorSettings,language:AppLanguage,onChange:(EditorSettings)->Unit,onDismiss:()->Unit){AlertDialog(onDismissRequest=onDismiss,title={Text("Rotate")},text={Row{listOf(0,90,180,270).forEach{v->TextButton(onClick={onChange(s.copy(rotation=v))}){Text(v.toString()+"°")}}}},confirmButton={TextButton(onClick=onDismiss){Text("Close")}})}
-@Composable fun FlipDialog(s:EditorSettings,language:AppLanguage,onChange:(EditorSettings)->Unit,onDismiss:()->Unit){AlertDialog(onDismissRequest=onDismiss,title={Text("Flip")},text={Column{Row{Text("Horizontal",Modifier.weight(1f));Switch(s.flipHorizontal,{onChange(s.copy(flipHorizontal=it))})};Row{Text("Vertical",Modifier.weight(1f));Switch(s.flipVertical,{onChange(s.copy(flipVertical=it))})}}},confirmButton={TextButton(onClick=onDismiss){Text("Close")}})}
-@Composable fun CropDialog(s:EditorSettings,language:AppLanguage,onChange:(EditorSettings)->Unit,onDismiss:()->Unit){val ar=language==AppLanguage.ARABIC;AlertDialog(onDismissRequest=onDismiss,title={Text(if(ar)"قص وإطار" else "Crop")},text={Column(Modifier.verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(6.dp)){Text(if(ar)"التكبير: %.2fx".format(s.cropZoom) else "Zoom: %.2fx".format(s.cropZoom),fontSize=12.sp);Slider(value=s.cropZoom,onValueChange={onChange(s.copy(cropZoom=it))},valueRange=1f..4f);Text(if(ar)"الموضع الأفقي" else "Horizontal position",fontSize=11.sp);Slider(value=s.cropX,onValueChange={onChange(s.copy(cropX=it))},valueRange=-1f..1f);Text(if(ar)"الموضع العمودي" else "Vertical position",fontSize=11.sp);Slider(value=s.cropY,onValueChange={onChange(s.copy(cropY=it))},valueRange=-1f..1f)}},confirmButton={TextButton(onClick=onDismiss){Text(if(ar)"إغلاق" else "Close")}})}
+
+@Composable fun TextAnimationDialog(s:EditorSettings,language:AppLanguage,onChange:(EditorSettings)->Unit,onDismiss:()->Unit){val ar=language==AppLanguage.ARABIC;val v=listOf("none" to ("بدون" to "None"),"fade" to ("ظهور" to "Fade"),"pop" to ("انبثاق" to "Pop"),"zoom" to ("تكبير" to "Zoom"),"slide" to ("انزلاق" to "Slide"),"typewriter" to ("كتابة" to "Typewriter"));AlertDialog(onDismissRequest=onDismiss,title={ReferenceDialogTitle(if(ar)"حركة النص" else "Text animation")},text={Column{v.forEach{(key,labels)->FilterChip(selected=s.textAnimation==key,onClick={onChange(s.copy(textAnimation=key))},label={Text(if(ar)labels.first else labels.second)})}}},confirmButton={TextButton(onClick=onDismiss){Text(if(ar)"إغلاق" else "Close")}})}
+@Composable fun RotateDialog(s:EditorSettings,language:AppLanguage,onChange:(EditorSettings)->Unit,onDismiss:()->Unit){val ar=language==AppLanguage.ARABIC;AlertDialog(onDismissRequest=onDismiss,title={ReferenceDialogTitle(if(ar)"تدوير" else "Rotate")},text={Row{listOf(0,90,180,270).forEach{v->TextButton(onClick={onChange(s.copy(rotation=v))}){Text(v.toString()+"°")}}}},confirmButton={TextButton(onClick=onDismiss){Text(if(ar)"إغلاق" else "Close")}})}
+@Composable fun FlipDialog(s:EditorSettings,language:AppLanguage,onChange:(EditorSettings)->Unit,onDismiss:()->Unit){val ar=language==AppLanguage.ARABIC;AlertDialog(onDismissRequest=onDismiss,title={ReferenceDialogTitle(if(ar)"قلب" else "Flip")},text={Column{Row{Text(if(ar)"أفقي" else "Horizontal",Modifier.weight(1f));Switch(s.flipHorizontal,{onChange(s.copy(flipHorizontal=it))})};Row{Text(if(ar)"عمودي" else "Vertical",Modifier.weight(1f));Switch(s.flipVertical,{onChange(s.copy(flipVertical=it))})}}},confirmButton={TextButton(onClick=onDismiss){Text(if(ar)"إغلاق" else "Close")}})}
+@Composable fun CropDialog(s:EditorSettings,language:AppLanguage,onChange:(EditorSettings)->Unit,onDismiss:()->Unit){val ar=language==AppLanguage.ARABIC;AlertDialog(onDismissRequest=onDismiss,title={ReferenceDialogTitle(if(ar)"قص وإطار" else "Crop")},text={Column(Modifier.verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(6.dp)){Text(if(ar)"التكبير: %.2fx".format(s.cropZoom) else "Zoom: %.2fx".format(s.cropZoom),fontSize=12.sp);Slider(value=s.cropZoom,onValueChange={onChange(s.copy(cropZoom=it))},valueRange=1f..4f);Text(if(ar)"الموضع الأفقي" else "Horizontal position",fontSize=11.sp);Slider(value=s.cropX,onValueChange={onChange(s.copy(cropX=it))},valueRange=-1f..1f);Text(if(ar)"الموضع العمودي" else "Vertical position",fontSize=11.sp);Slider(value=s.cropY,onValueChange={onChange(s.copy(cropY=it))},valueRange=-1f..1f)}},confirmButton={TextButton(onClick=onDismiss){Text(if(ar)"إغلاق" else "Close")}})}
 @Composable fun HistoryDialog(language:AppLanguage,undoCount:Int,redoCount:Int,onUndo:()->Unit,onRedo:()->Unit,onClear:()->Unit,onDismiss:()->Unit){
     val ar = language == AppLanguage.ARABIC
     AlertDialog(
         onDismissRequest=onDismiss,
-        title={Text(if(ar) "السجل" else "History")},
+        title={ReferenceDialogTitle(if(ar) "السجل" else "History")},
         text={
             Column(verticalArrangement=Arrangement.spacedBy(8.dp)){
                 Text(if(ar) "تراجع: $undoCount • إعادة: $redoCount" else "Undo: $undoCount • Redo: $redoCount")
@@ -357,7 +437,7 @@ fun ExportDialog(
 }
 @Composable fun EditToolsDialog(language:AppLanguage,clips:List<Clip>,current:Clip?,onTrim:()->Unit,onSplit:()->Unit,onDelete:()->Unit,onMoveLeft:()->Unit,onMoveRight:()->Unit,onReplace:()->Unit,onDuplicate:()->Unit,onDismiss:()->Unit){
     val ar=language==AppLanguage.ARABIC
-    AlertDialog(onDismissRequest=onDismiss,title={Text(if(ar) "أدوات المقطع" else "Clip tools")},text={
+    AlertDialog(onDismissRequest=onDismiss,title={ReferenceDialogTitle(if(ar) "أدوات المقطع" else "Clip tools")},text={
         Column(Modifier.verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(6.dp)){
             Button(onClick=onTrim,enabled=current!=null,modifier=Modifier.fillMaxWidth()){Text(if(ar) "قص" else "Trim")}
             Button(onClick=onSplit,enabled=current!=null,modifier=Modifier.fillMaxWidth()){Text(if(ar) "تقسيم" else "Split")}
@@ -369,4 +449,4 @@ fun ExportDialog(
         }
     },confirmButton={TextButton(onClick=onDismiss){Text(if(ar) "إغلاق" else "Close")}})
 }
-@Composable fun SimpleChoiceDialog(title:String,items:List<String>,selected:Int?,onDismiss:()->Unit,onSelect:(Int)->Unit){AlertDialog(onDismissRequest=onDismiss,title={Text(title)},text={Column(Modifier.verticalScroll(rememberScrollState())){items.forEachIndexed{i,v->FilterChip(selected==i,{onSelect(i)},label={Text(v)})}}},confirmButton={TextButton(onClick=onDismiss){Text("Close")}})}
+@Composable fun SimpleChoiceDialog(title:String,items:List<String>,selected:Int?,language:AppLanguage,onDismiss:()->Unit,onSelect:(Int)->Unit){AlertDialog(onDismissRequest=onDismiss,title={ReferenceDialogTitle(title)},text={Column(Modifier.verticalScroll(rememberScrollState())){items.forEachIndexed{i,v->FilterChip(selected==i,{onSelect(i)},label={Text(v)})}}},confirmButton={TextButton(onClick=onDismiss){Text(if(language==AppLanguage.ARABIC)"إغلاق" else "Close")}})}

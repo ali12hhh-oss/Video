@@ -44,6 +44,7 @@ import androidx.media3.transformer.Composition
 import androidx.media3.transformer.Transformer
 import androidx.media3.transformer.DefaultEncoderFactory
 import androidx.media3.transformer.VideoEncoderSettings
+import androidx.media3.transformer.AudioEncoderSettings
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
@@ -117,6 +118,74 @@ private class AnimatedTextOverlay(
 }
 
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
+private class TimedTextOverlay(
+    private val baseText: SpannableString,
+    private val startMs: Long,
+    private val endMs: Long,
+    private val x0: Float,
+    private val y0: Float,
+    private val scaleX0: Float,
+    private val scaleY0: Float,
+    private val rotation0: Float,
+    private val alpha0: Float,
+    private val animation: String,
+    private val durationUs: Long,
+    private val keyframes: List<TextKeyframe> = emptyList()
+) : TextOverlay() {
+    override fun getText(presentationTimeUs: Long): SpannableString {
+        val t = presentationTimeUs / 1000L
+        if (t !in startMs until endMs) return SpannableString("")
+        if (animation != "typewriter" || baseText.isEmpty()) return baseText
+        val progress = ((t - startMs).toFloat() * 1000f / durationUs.coerceAtLeast(1L)).coerceIn(0f, 1f)
+        val count = (baseText.length * progress).toInt().coerceIn(1, baseText.length)
+        return SpannableString(baseText.subSequence(0, count))
+    }
+
+    override fun getOverlaySettings(presentationTimeUs: Long): OverlaySettings {
+        val t = presentationTimeUs / 1000L
+        if (t !in startMs until endMs) {
+            return StaticOverlaySettings.Builder().setAlphaScale(0f).build()
+        }
+        val localUs = ((t - startMs) * 1000L).coerceAtLeast(0L)
+        val progress = (localUs.toFloat() / durationUs.coerceAtLeast(1L)).coerceIn(0f, 1f)
+        val eased = 1f - (1f - progress) * (1f - progress)
+        var x = x0
+        var y = y0
+        var scale = 1f
+        var rotation = rotation0
+        var alpha = alpha0
+        if (keyframes.isNotEmpty()) {
+            val ks = keyframes.sortedBy { it.timeMs }
+            val localMs = t - startMs
+            val a = ks.lastOrNull { it.timeMs <= localMs } ?: ks.first()
+            val b = ks.firstOrNull { it.timeMs >= localMs } ?: ks.last()
+            val span = (b.timeMs - a.timeMs).coerceAtLeast(1L)
+            val k0 = ((localMs - a.timeMs).toFloat() / span).coerceIn(0f, 1f)
+            val k = easedProgress(k0, b.easing)
+            fun lerp(a0: Float, b0: Float) = a0 + (b0 - a0) * k
+            x = lerp(a.x, b.x)
+            y = lerp(a.y, b.y)
+            scale = lerp(a.scale, b.scale)
+            rotation = interpolateAngleDegrees(a.rotation, b.rotation, k)
+            alpha = lerp(a.alpha, b.alpha)
+        }
+        when (animation) {
+            "fade" -> alpha *= eased
+            "pop" -> scale *= 0.55f + 0.45f * eased
+            "zoom" -> scale *= 0.25f + 0.75f * eased
+            "slide" -> x -= 0.45f * (1f - eased)
+        }
+        return StaticOverlaySettings.Builder()
+            .setBackgroundFrameAnchor(x.coerceIn(-1f, 1f), y.coerceIn(-1f, 1f))
+            .setOverlayFrameAnchor(0f, 0f)
+            .setScale(scaleX0 * scale, scaleY0 * scale)
+            .setRotationDegrees(rotation)
+            .setAlphaScale(alpha.coerceIn(0f, 1f))
+            .build()
+    }
+}
+
+@androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 private class TimedSubtitleOverlay(
     private val subtitle: Subtitle,
     private val baseText: SpannableString,
@@ -155,7 +224,8 @@ class ExportEngine(private val context: Context, private val resolver: ContentRe
         editor: EditorSettings = EditorSettings(),
         output: Uri,
         onProgress: (ExportProgress) -> Unit,
-        includeWatermark: Boolean = true
+        includeWatermark: Boolean = true,
+        textTimings: Map<String, TextTimelineTiming> = emptyMap()
     ): Result<Unit> = withContext(Dispatchers.Main.immediate) {
         var tempFileToDelete: File? = null
         try {
@@ -277,7 +347,7 @@ class ExportEngine(private val context: Context, private val resolver: ContentRe
                 // timestamped GPU transforms (zoom/slide/spin/blur/flash) at clip boundaries.
                 addMotionTransitionEffects(videoEffects, editor.transition, clipDurationUs(clip), editor.motionIntensity)
 
-                val overlays = buildOverlayEffect(editor, includeWatermark)
+                val overlays = buildOverlayEffect(editor, includeWatermark, textTimings)
                 if (overlays != null) videoEffects += overlays
                 presentationFor(settings.resolution, editor.aspect)?.let { videoEffects += it }
 
@@ -390,9 +460,25 @@ class ExportEngine(private val context: Context, private val resolver: ContentRe
             tempFileToDelete = temp
             if (temp.exists()) temp.delete()
 
+            // Make the visible export controls real: resolution is applied by Presentation,
+            // frame rate is applied per clip, and quality/audio choices now configure the encoders.
+            val encoderFactory = DefaultEncoderFactory.Builder(context)
+                .setRequestedVideoEncoderSettings(
+                    VideoEncoderSettings.Builder()
+                        .setBitrate(targetVideoBitrate(settings))
+                        .build()
+                )
+                .setRequestedAudioEncoderSettings(
+                    AudioEncoderSettings.Builder()
+                        .setBitrate(settings.audioBitrate.coerceIn(64_000, 320_000))
+                        .build()
+                )
+                .build()
+
             val transformer = Transformer.Builder(context)
                 .setVideoMimeType(if (settings.hevc) MimeTypes.VIDEO_H265 else MimeTypes.VIDEO_H264)
                 .setAudioMimeType(MimeTypes.AUDIO_AAC)
+                .setEncoderFactory(encoderFactory)
                 .setPortraitEncodingEnabled(true)
                 .build()
 
@@ -429,7 +515,11 @@ class ExportEngine(private val context: Context, private val resolver: ContentRe
             }
 
             onProgress(ExportProgress(0.97f, "Saving video…"))
-            resolver.openOutputStream(output)?.use { out -> File(temp.absolutePath).inputStream().use { it.copyTo(out) } } ?: error("Cannot open output destination")
+            withContext(Dispatchers.IO) {
+                resolver.openOutputStream(output)?.use { out ->
+                    File(temp.absolutePath).inputStream().use { input -> input.copyTo(out) }
+                } ?: error("Cannot open output destination")
+            }
             temp.delete()
             onProgress(ExportProgress(1f, "Export complete"))
             Result.success(Unit)
@@ -438,6 +528,21 @@ class ExportEngine(private val context: Context, private val resolver: ContentRe
             runCatching { tempFileToDelete?.delete() }
             Result.failure(e)
         }
+    }
+
+    private fun targetVideoBitrate(settings: ExportSettings): Int {
+        val resolution = settings.resolution
+        val fps = settings.fps.value
+        val pixels = if (resolution.width > 0 && resolution.height > 0) {
+            resolution.width.toLong() * resolution.height.toLong()
+        } else {
+            1920L * 1080L
+        }
+        // Practical VBR target: roughly 0.075 bits/pixel/frame, then apply the user's
+        // quality preset. Keep the range device-friendly for mobile hardware.
+        val base = pixels.toDouble() * fps.toDouble() * 0.075
+        val adjusted = base * settings.quality.multiplier
+        return adjusted.toLong().coerceIn(1_200_000L, 40_000_000L).toInt()
     }
 
     private fun clipDurationMs(clip: Clip): Long {
@@ -525,12 +630,24 @@ class ExportEngine(private val context: Context, private val resolver: ContentRe
             // Wipe/fade remain semantic presets in the UI. True crossfade/wipe between two
             // independent sequences requires a compositor/overlap pipeline rather than a simple
             // item effect, and is intentionally kept out of the export path here.
-            "wipe", "fade" -> Unit
+            "fade" -> {
+                effects += TimestampWrapper(Brightness(-0.22f * strength), 0L, window)
+            }
+            "wipe" -> animated(0L, window) { t ->
+                val m = android.graphics.Matrix()
+                val amount = 0.22f * strength * (1f - t)
+                m.postTranslate(-amount, 0f)
+                m
+            }
         }
     }
 
     @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
-    private fun buildOverlayEffect(editor: EditorSettings, includeWatermark: Boolean): OverlayEffect? {
+    private fun buildOverlayEffect(
+        editor: EditorSettings,
+        includeWatermark: Boolean,
+        textTimings: Map<String, TextTimelineTiming>
+    ): OverlayEffect? {
         val overlays = mutableListOf<androidx.media3.effect.TextureOverlay>()
         editor.subtitles.filter { it.text.isNotBlank() && it.endMs > it.startMs }.forEach { subtitle ->
             val span = SpannableString(subtitle.text)
@@ -549,7 +666,7 @@ class ExportEngine(private val context: Context, private val resolver: ContentRe
         } else if (editor.textVisible && editor.text.isNotBlank()) {
             listOf(TextLayer(text = editor.text, size = editor.textSize, color = editor.textColor, font = editor.textFont))
         } else emptyList()
-        layers.forEach { layer ->
+        layers.forEachIndexed { layerIndex, layer ->
             val span = SpannableString(layer.text)
             val color = android.graphics.Color.argb((layer.alpha.coerceIn(0f, 1f) * 255).toInt(),
                 ((layer.color shr 16) and 0xFF).toInt(), ((layer.color shr 8) and 0xFF).toInt(), (layer.color and 0xFF).toInt())
@@ -568,7 +685,23 @@ class ExportEngine(private val context: Context, private val resolver: ContentRe
                 span.setSpan(ShadowSpan(sh, layer.shadowRadius.coerceIn(0f, 24f), layer.shadowDx.coerceIn(-20f,20f), layer.shadowDy.coerceIn(-20f,20f)), 0, span.length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
             }
             val baseScale = (layer.size / 100f).coerceIn(0.12f, 1.5f)
-            overlays += AnimatedTextOverlay(
+            val timing = textTimings[layer.id] ?: textTimings["text-$layerIndex"]
+            val timedOverlay = if (timing != null) {
+                TimedTextOverlay(
+                    baseText = span,
+                    startMs = timing.startMs,
+                    endMs = timing.endMs,
+                    x0 = layer.x.coerceIn(-1f, 1f),
+                    y0 = layer.y.coerceIn(-1f, 1f),
+                    scaleX0 = baseScale * layer.scale,
+                    scaleY0 = baseScale * layer.scale,
+                    rotation0 = layer.rotation,
+                    alpha0 = layer.alpha.coerceIn(0f, 1f),
+                    animation = if (layer.animation == "none") editor.textAnimation else layer.animation,
+                    durationUs = 650_000L,
+                    keyframes = layer.keyframes
+                )
+            } else AnimatedTextOverlay(
                 baseText = span,
                 x0 = layer.x.coerceIn(-1f, 1f),
                 y0 = layer.y.coerceIn(-1f, 1f),
@@ -579,6 +712,7 @@ class ExportEngine(private val context: Context, private val resolver: ContentRe
                 durationUs = 650_000L,
                 keyframes = layer.keyframes
             )
+            overlays += timedOverlay
         }
         val pipLayers = editor.pipLayers.ifEmpty {
             if (editor.overlayImageUri.isNotBlank()) listOf(

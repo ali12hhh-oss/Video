@@ -50,9 +50,13 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
+import androidx.compose.ui.unit.IntOffset
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlin.math.max
@@ -83,6 +87,9 @@ private val TextLayerColors = listOf(Color(0xFF6C4CD9), Color(0xFFD98A34), Color
 // few seconds, matching how CapCut/VN-style trim handles feel.
 private const val MS_PER_DP = 60L
 private const val MIN_CLIP_DURATION_MS = 300L
+private const val MIN_TEXT_DURATION_MS = 300L
+
+data class TextTimelineTiming(val startMs: Long, val endMs: Long)
 
 private fun timelineClipDurationForUi(clip: Clip): Long {
     val end = if (clip.trimEndMs == Long.MAX_VALUE) clip.durationMs else clip.trimEndMs
@@ -143,22 +150,33 @@ private fun BoxScope.TrimHandle(alignment: Alignment, onDragMs: (Long) -> Unit) 
         Modifier
             .align(alignment)
             .fillMaxHeight()
-            .width(16.dp)
-            .background(Color.White.copy(alpha = 0.28f))
+            .width(24.dp)
+            .zIndex(10f)
+            .background(Color.White.copy(alpha = 0.34f))
             .pointerInput(Unit) {
-                detectDragGestures { change, dragAmount ->
+                // Do not update the Clip model on every pointer event. Recomposition during a
+                // drag used to cancel this gesture, which made the handles appear untouchable.
+                // Accumulate the complete gesture and commit it once when the finger is released.
+                var accumulatedDp = 0f
+                detectDragGestures(
+                    onDragStart = { accumulatedDp = 0f },
+                    onDragCancel = { accumulatedDp = 0f },
+                    onDragEnd = {
+                        val deltaMs = (accumulatedDp * MS_PER_DP).toLong()
+                        if (deltaMs != 0L) onDragMsState.value(deltaMs)
+                        accumulatedDp = 0f
+                    }
+                ) { change, dragAmount ->
                     change.consume()
-                    val dp = with(density) { dragAmount.x.toDp().value }
-                    val deltaMs = (dp * MS_PER_DP).toLong()
-                    if (deltaMs != 0L) onDragMsState.value(deltaMs)
+                    accumulatedDp += with(density) { dragAmount.x.toDp().value }
                 }
             },
         contentAlignment = Alignment.Center
     ) {
         Box(
             Modifier
-                .width(3.dp)
-                .height(22.dp)
+                .width(4.dp)
+                .height(28.dp)
                 .clip(RoundedCornerShape(2.dp))
                 .background(Color.White)
         )
@@ -199,8 +217,14 @@ fun Timeline(
     onVideoKeyframeMove: (Long, Long) -> Unit,
     onAddMedia: () -> Unit = {},
     textLayerNames: List<String> = emptyList(),
-    filterName: String = "none"
+    textLayerIds: List<String> = emptyList(),
+    textTimings: Map<String, TextTimelineTiming> = emptyMap(),
+    onTextTimingChange: (String, Long, Long) -> Unit = { _, _, _ -> },
+    pipLayerCount: Int = 0,
+    filterName: String = "none",
+    language: AppLanguage = AppLanguage.ENGLISH
 ) {
+    val arabic = language == AppLanguage.ARABIC
     val total = clips.sumOf { timelineClipDurationForUi(it) }.coerceAtLeast(1L)
     val safePlayhead = playheadMs.coerceIn(0L, total)
     val scroll = rememberScrollState()
@@ -216,6 +240,20 @@ fun Timeline(
     }
     val videoClips = clips.filter { !imageUri(it.uri) && !it.isFreezeFrame }
     val imageClips = clips.filter { imageUri(it.uri) || it.isFreezeFrame }
+    val activeTrackCount =
+        (if (videoClips.isNotEmpty()) 1 else 0) +
+        (if (imageClips.isNotEmpty()) 1 else 0) +
+        (if (pipLayerCount > 0) 1 else 0) +
+        (if (textLayerNames.isNotEmpty()) 1 else 0) +
+        (if (musicUri.isNotBlank()) 1 else 0)
+    val activeTracksHeight =
+        (if (videoClips.isNotEmpty()) 56 else 0) +
+        (if (imageClips.isNotEmpty()) 56 else 0) +
+        (if (pipLayerCount > 0) 42 else 0) +
+        (if (textLayerNames.isNotEmpty()) 42 else 0) +
+        (if (musicUri.isNotBlank()) 48 else 0) +
+        ((activeTrackCount - 1).coerceAtLeast(0) * 5)
+    val timelineBoxHeight = (24 + 25 + activeTracksHeight + 8).dp
 
     fun clipStartMs(clip: Clip): Long = clips.takeWhile { it != clip }.sumOf { timelineClipDurationForUi(it) }
     fun xFor(time: Long, density: Float): Float =
@@ -246,19 +284,25 @@ fun Timeline(
             )
         }
 
-        Box(
-            Modifier
-                .fillMaxWidth()
-                .heightIn(min = 230.dp, max = 310.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(Color(0xFF07111F))
-                .border(1.dp, Color(0xFF172D48), RoundedCornerShape(12.dp))
-        ) {
-            val density = LocalDensity.current
-            val widthPx = with(density) { timelineWidth.toPx() }
-            val playheadX = with(density) { (safePlayhead.toFloat() / total.toFloat() * timelineWidth.toPx()).toDp() }
+        // The timeline is a chronological editing axis, not a translated UI row.
+        // Keep it physically left-to-right in both languages so the playhead, clip blocks,
+        // trim handles and time ruler always share the exact same coordinate system.
+        CompositionLocalProvider(LocalLayoutDirection provides androidx.compose.ui.unit.LayoutDirection.Ltr) {
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .height(timelineBoxHeight)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Color(0xFF07111F))
+                    .border(1.dp, Color(0xFF172D48), RoundedCornerShape(12.dp))
+            ) {
+                val density = LocalDensity.current
+                val widthPx = with(density) { timelineWidth.toPx() }
+                val playheadX = with(density) {
+                    ((safePlayhead.toFloat() / total.toFloat()).coerceIn(0f, 1f) * timelineWidth.toPx()).toDp()
+                }
 
-            Row(
+                Row(
                 Modifier
                     .fillMaxSize()
                     .horizontalScroll(scroll)
@@ -384,69 +428,178 @@ fun Timeline(
                             }
                         }
 
-                        TrackLane(
-                            label = "Video",
-                            labelIcon = Icons.Default.Videocam,
-                            tint = Color(0xFF55A8FF),
-                            laneClips = videoClips
-                        )
-
-                        TrackLane(
-                            label = "Images",
-                            labelIcon = Icons.Default.Photo,
-                            tint = Color(0xFF33D6B2),
-                            laneClips = imageClips
-                        )
-
-                        // Text lane: real selectable text segments rather than detached chips.
-                        Box(
-                            Modifier.fillMaxWidth().height(42.dp)
-                                .clip(RoundedCornerShape(7.dp))
-                                .background(Color(0xFF111126))
-                        ) {
-                            Icon(
-                                Icons.Default.TextFields,
-                                contentDescription = "Text",
-                                tint = Color(0xFFC69BFF),
-                                modifier = Modifier.align(Alignment.CenterStart).padding(start = 6.dp).size(15.dp)
+                        if (videoClips.isNotEmpty()) {
+                            TrackLane(
+                                label = "Video",
+                                labelIcon = Icons.Default.Videocam,
+                                tint = Color(0xFF55A8FF),
+                                laneClips = videoClips
                             )
-                            textLayerNames.forEachIndexed { i, name ->
-                                val left = if (textLayerNames.size == 1) 0.12f else i.toFloat() / textLayerNames.size
-                                val width = (0.32f).coerceAtMost(0.85f)
-                                Box(
-                                    Modifier.fillMaxHeight().fillMaxWidth(width)
-                                        .offset(x = with(density) { (left * widthPx).toDp() })
-                                        .padding(vertical = 4.dp, horizontal = 2.dp)
-                                        .clip(RoundedCornerShape(5.dp))
-                                        .background(TextLayerColors[i % TextLayerColors.size])
-                                        .clickable { onKeyframeSeek(safePlayhead) },
-                                    contentAlignment = Alignment.CenterStart
-                                ) {
-                                    Text(
-                                        "T  $name",
-                                        color = Color.White,
-                                        fontSize = 8.sp,
-                                        maxLines = 1,
-                                        modifier = Modifier.padding(horizontal = 8.dp)
-                                    )
+                        }
+
+                        // Image/PIP media gets a lane only after the user actually adds an image.
+                        if (imageClips.isNotEmpty()) {
+                            TrackLane(
+                                label = "Images",
+                                labelIcon = Icons.Default.Photo,
+                                tint = Color(0xFF33D6B2),
+                                laneClips = imageClips
+                            )
+                        }
+
+                        // Graphics/PIP gets its own lane only when a real PIP layer exists.
+                        if (pipLayerCount > 0) {
+                            Box(
+                                Modifier.fillMaxWidth().height(42.dp)
+                                    .clip(RoundedCornerShape(7.dp))
+                                    .background(Color(0xFF10162A))
+                            ) {
+                                Icon(
+                                    Icons.Default.Photo,
+                                    contentDescription = if (arabic) "صورة داخل صورة" else "Picture in picture",
+                                    tint = Color(0xFF7EC8FF),
+                                    modifier = Modifier.align(Alignment.CenterStart).padding(start = 6.dp).size(15.dp)
+                                )
+                                repeat(pipLayerCount.coerceAtMost(4)) { i ->
+                                    val left = (0.08f + i * 0.18f).coerceAtMost(0.72f)
+                                    Box(
+                                        Modifier.fillMaxHeight().fillMaxWidth(0.22f)
+                                            .offset(x = with(density) { (left * widthPx).toDp() })
+                                            .padding(vertical = 4.dp)
+                                            .clip(RoundedCornerShape(5.dp))
+                                            .background(Color(0xFF24658A))
+                                    ) {
+                                        Text(
+                                            if (arabic) "صورة ${i + 1}" else "PIP ${i + 1}",
+                                            color = Color.White,
+                                            fontSize = 7.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            modifier = Modifier.align(Alignment.Center)
+                                        )
+                                    }
                                 }
                             }
                         }
 
-                        // Music lane with a visible range and draggable start/end handles.
-                        Box(
-                            Modifier.fillMaxWidth().height(48.dp)
-                                .clip(RoundedCornerShape(7.dp))
-                                .background(Color(0xFF101C2C))
-                                .clickable { onAudioTrackClick() }
-                        ) {
-                            Icon(
-                                Icons.Default.MusicNote,
-                                contentDescription = "Audio",
-                                tint = Color(0xFF39BFFF),
-                                modifier = Modifier.align(Alignment.CenterStart).padding(start = 6.dp).size(16.dp)
-                            )
-                            if (musicUri.isNotBlank()) {
+                        // Text has a real temporal lane. Every layer gets a resizable block
+                        // whose start/end are independent from the video clip boundaries.
+                        if (textLayerNames.isNotEmpty()) {
+                            Box(
+                                Modifier.fillMaxWidth().height(48.dp)
+                                    .clip(RoundedCornerShape(7.dp))
+                                    .background(Color(0xFF111126))
+                            ) {
+                                Icon(
+                                    Icons.Default.TextFields,
+                                    contentDescription = if (arabic) "نص" else "Text",
+                                    tint = Color(0xFFC69BFF),
+                                    modifier = Modifier.align(Alignment.CenterStart).padding(start = 6.dp).size(15.dp)
+                                )
+                                textLayerNames.forEachIndexed { i, name ->
+                                    val id = textLayerIds.getOrNull(i) ?: "text-$i"
+                                    val timing = textTimings[id] ?: TextTimelineTiming(0L, total)
+                                    val start = timing.startMs.coerceIn(0L, (total - MIN_TEXT_DURATION_MS).coerceAtLeast(0L))
+                                    val end = timing.endMs.coerceIn(start + MIN_TEXT_DURATION_MS, total)
+                                    val leftFraction = start.toFloat() / total.toFloat()
+                                    val widthFraction = ((end - start).toFloat() / total.toFloat()).coerceIn(0.01f, 1f)
+                                    val barWidthDp = with(density) { (widthFraction * widthPx).toDp() }
+                                    Box(
+                                        Modifier.fillMaxHeight()
+                                            .fillMaxWidth(widthFraction)
+                                            .offset(x = with(density) { (leftFraction * widthPx).toDp() })
+                                            .padding(vertical = 4.dp, horizontal = 2.dp)
+                                            .clip(RoundedCornerShape(5.dp))
+                                            .background(TextLayerColors[i % TextLayerColors.size]),
+                                        contentAlignment = Alignment.CenterStart
+                                    ) {
+                                        var bodyDragPx by remember(id, start, end) { mutableStateOf(0f) }
+                                        Text(
+                                            "T  $name",
+                                            color = Color.White,
+                                            fontSize = 8.sp,
+                                            maxLines = 1,
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .pointerInput(id, start, end, total) {
+                                                    detectDragGestures(
+                                                        onDragStart = { bodyDragPx = 0f },
+                                                        onDragCancel = { bodyDragPx = 0f },
+                                                        onDragEnd = {
+                                                            val delta = (bodyDragPx / widthPx * total).toLong()
+                                                            val duration = (end - start).coerceAtLeast(MIN_TEXT_DURATION_MS)
+                                                            val nextStart = (start + delta).coerceIn(0L, (total - duration).coerceAtLeast(0L))
+                                                            onTextTimingChange(id, nextStart, nextStart + duration)
+                                                            bodyDragPx = 0f
+                                                        }
+                                                    ) { change, drag ->
+                                                        change.consume()
+                                                        bodyDragPx += drag.x
+                                                    }
+                                                }
+                                                .padding(horizontal = 9.dp),
+                                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                        )
+                                        Box(
+                                            Modifier.fillMaxHeight().width(12.dp)
+                                                .align(Alignment.CenterStart)
+                                                .zIndex(5f)
+                                                .background(Color.White.copy(alpha = .86f))
+                                                .pointerInput(id, start, end, total) {
+                                                    var accumulatedPx = 0f
+                                                    detectDragGestures(
+                                                        onDragStart = { accumulatedPx = 0f },
+                                                        onDragCancel = { accumulatedPx = 0f },
+                                                        onDragEnd = {
+                                                            val delta = (accumulatedPx / widthPx * total).toLong()
+                                                            val nextStart = (start + delta).coerceIn(0L, end - MIN_TEXT_DURATION_MS)
+                                                            onTextTimingChange(id, nextStart, end)
+                                                        }
+                                                    ) { change, drag ->
+                                                        change.consume()
+                                                        accumulatedPx += drag.x
+                                                    }
+                                                }
+                                        )
+                                        Box(
+                                            Modifier.fillMaxHeight().width(12.dp)
+                                                .align(Alignment.CenterEnd)
+                                                .zIndex(5f)
+                                                .background(Color.White.copy(alpha = .86f))
+                                                .pointerInput(id, start, end, total) {
+                                                    var accumulatedPx = 0f
+                                                    detectDragGestures(
+                                                        onDragStart = { accumulatedPx = 0f },
+                                                        onDragCancel = { accumulatedPx = 0f },
+                                                        onDragEnd = {
+                                                            val delta = (accumulatedPx / widthPx * total).toLong()
+                                                            val nextEnd = (end + delta).coerceIn(start + MIN_TEXT_DURATION_MS, total)
+                                                            onTextTimingChange(id, start, nextEnd)
+                                                        }
+                                                    ) { change, drag ->
+                                                        change.consume()
+                                                        accumulatedPx += drag.x
+                                                    }
+                                                }
+                                        )
+                                    }                                    }
+                                }
+                            }
+                        }
+
+                        // Audio/music gets a lane only after a real music file is selected.
+                        if (musicUri.isNotBlank()) {
+                            Box(
+                                Modifier.fillMaxWidth().height(48.dp)
+                                    .clip(RoundedCornerShape(7.dp))
+                                    .background(Color(0xFF101C2C))
+                                    .clickable { onAudioTrackClick() }
+                            ) {
+                                Icon(
+                                    Icons.Default.MusicNote,
+                                    contentDescription = if (arabic) "صوت" else "Audio",
+                                    tint = Color(0xFF39BFFF),
+                                    modifier = Modifier.align(Alignment.CenterStart).padding(start = 6.dp).size(16.dp)
+                                )
                                 val start = musicStartMs.coerceIn(0L, total)
                                 val end = (start + musicDurationMs.coerceAtLeast(1L)).coerceIn(start + 1L, total)
                                 val leftFraction = start.toFloat() / total.toFloat()
@@ -502,23 +655,19 @@ fun Timeline(
                                             }
                                     )
                                 }
-                            } else {
-                                Text(
-                                    "إضافة صوت" ,
-                                    color = Color(0xFF7C8DA6),
-                                    fontSize = 9.sp,
-                                    modifier = Modifier.align(Alignment.Center).padding(start = 16.dp)
-                                )
                             }
                         }
                     }
 
                     // The playhead is a real vertical editing cursor spanning every lane.
+                    // It is intentionally anchored to the LTR timeline coordinates above; this
+                    // prevents Arabic RTL from mirroring the cursor outside the media strip.
                     Box(
                         Modifier
                             .offset(x = playheadX)
                             .fillMaxHeight()
                             .width(1.dp)
+                            .zIndex(20f)
                             .background(Color.White.copy(alpha = 0.92f))
                     )
                     Box(
@@ -527,8 +676,8 @@ fun Timeline(
                             .width(10.dp)
                             .height(10.dp)
                             .clip(RoundedCornerShape(5.dp))
+                            .zIndex(21f)
                             .background(Color.White)
-                            .align(Alignment.TopStart)
                     )
                 }
             }
@@ -561,4 +710,3 @@ fun Timeline(
         }
     }
 }
-
