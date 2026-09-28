@@ -2558,16 +2558,24 @@ private fun EditorScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         val mainTools = listOf(
-                            Triple("edit", Icons.Default.ContentCut, if(language==AppLanguage.ARABIC) "قص" else "Trim"),
-                            Triple("delete", Icons.Default.Delete, if(language==AppLanguage.ARABIC) "حذف" else "Delete"),
-                            Triple("audio", Icons.Default.MusicNote, if(language==AppLanguage.ARABIC) "صوت" else "Audio"),
+                            Triple("edit", Icons.Default.ContentCut, if(language==AppLanguage.ARABIC) "تحرير" else "Edit"),
+                            Triple("filters", Icons.Default.FilterVintage, if(language==AppLanguage.ARABIC) "فلاتر" else "Filters"),
+                            Triple("adjust", Icons.Default.Tune, if(language==AppLanguage.ARABIC) "ضبط" else "Adjust"),
+                            Triple("effects", Icons.Default.AutoAwesome, if(language==AppLanguage.ARABIC) "مؤثرات" else "Effects"),
                             Triple("text", Icons.Default.TextFields, if(language==AppLanguage.ARABIC) "نص" else "Text"),
-                            Triple("filters", Icons.Default.FilterVintage, if(language==AppLanguage.ARABIC) "فلاتر" else "Filters")
+                            Triple("audio", Icons.Default.MusicNote, if(language==AppLanguage.ARABIC) "صوت" else "Audio"),
+                            Triple("speed", Icons.Default.Speed, if(language==AppLanguage.ARABIC) "سرعة" else "Speed"),
+                            Triple("transition", Icons.Default.SwapHoriz, if(language==AppLanguage.ARABIC) "انتقال" else "Transitions"),
+                            Triple("canvas", Icons.Default.CropFree, if(language==AppLanguage.ARABIC) "مقاس" else "Canvas"),
+                            Triple("sticker", Icons.Default.EmojiEmotions, if(language==AppLanguage.ARABIC) "ملصقات" else "Stickers"),
+                            Triple("overlay", Icons.Default.Layers, if(language==AppLanguage.ARABIC) "PIP" else "PIP"),
+                            Triple("subtitles", Icons.Default.Subtitles, if(language==AppLanguage.ARABIC) "ترجمة" else "Subtitles")
                         )
-                        mainTools.forEach { (id, icon, label) ->
+                        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal=8.dp, vertical=4.dp), horizontalArrangement=Arrangement.spacedBy(5.dp)) {
+                            mainTools.forEach { (id, icon, label) ->
                             val selectedTool = activeEditorTool == id
                             Column(
-                                Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(10.dp))
+                                Modifier.width(68.dp).fillMaxHeight().clip(RoundedCornerShape(10.dp))
                                     .background(if(selectedTool) Brush.linearGradient(listOf(Color(0xFF6635FF),Color(0xFF2E78FF))) else Brush.linearGradient(listOf(Color.Transparent,Color.Transparent)))
                                     .clickable {
                                         if(id=="delete") {
@@ -3919,11 +3927,16 @@ private fun fontFamilyFor(key: String, bold: Boolean = false): FontFamily {
     val presets = if (language == AppLanguage.ARABIC)
         listOf("عنوان الفيديو", "رحلتي الجديدة", "لحظة لا تُنسى", "صباح الخير", "مساء الخير", "استكشف العالم", "ذكريات جميلة", "أجمل اللحظات", "تابعني للمزيد", "اشترك الآن", "شكراً للمشاهدة", "النهاية")
     else listOf("VIDEO TITLE", "MY NEW JOURNEY", "A MOMENT TO REMEMBER", "GOOD MORNING", "GOOD EVENING", "EXPLORE THE WORLD", "BEAUTIFUL MEMORIES", "BEST MOMENTS", "FOLLOW FOR MORE", "SUBSCRIBE NOW", "THANKS FOR WATCHING", "THE END")
-    var layers by remember(s.textLayers, s.text) { mutableStateOf(s.textLayers.ifEmpty { if (s.text.isNotBlank()) listOf(TextLayer(text=s.text, size=s.textSize, color=s.textColor, font=s.textFont)) else listOf(TextLayer(text="")) }) }
+    var layers by remember { mutableStateOf(s.textLayers.ifEmpty { if (s.text.isNotBlank()) listOf(TextLayer(text=s.text, size=s.textSize, color=s.textColor, font=s.textFont)) else listOf(TextLayer(text="")) }) }
     var selected by remember { mutableIntStateOf(0) }
     var bold by remember { mutableStateOf(layers.firstOrNull()?.bold ?: true) }
     val layer = layers.getOrNull(selected) ?: TextLayer()
-    fun edit(next: TextLayer) { layers = layers.mapIndexed { i, old -> if (i == selected) next else old } }
+    fun edit(next: TextLayer) {
+        val updated = layers.mapIndexed { i, old -> if (i == selected) next else old }
+        layers = updated
+        val first = updated.firstOrNull { it.text.isNotBlank() } ?: next
+        onChange(s.copy(text=first.text, textSize=first.size, textColor=first.color, textFont=first.font, textVisible=updated.any { it.text.isNotBlank() }, textLayers=updated))
+    }
     AlertDialog(onDismissRequest = onDismiss, title = { Text(if (language == AppLanguage.ARABIC) "النصوص والخطوط" else "Text & Fonts") }, text = {
         Column(Modifier.verticalScroll(rememberScrollState())) {
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -3938,7 +3951,19 @@ private fun fontFamilyFor(key: String, bold: Boolean = false): FontFamily {
             LazyRow(horizontalArrangement=Arrangement.spacedBy(6.dp), contentPadding=PaddingValues(vertical=4.dp)) { items(presets) { p -> AssistChip(onClick={edit(layer.copy(text=p))}, label={Text(p, maxLines=1)}) } }
             Text(if(language==AppLanguage.ARABIC) "الخط" else "Font", fontWeight=FontWeight.Bold, modifier=Modifier.padding(top=7.dp))
             LazyRow(horizontalArrangement=Arrangement.spacedBy(6.dp), contentPadding=PaddingValues(vertical=4.dp)) {
-                items(fontOptions()) { f -> FilterChip(selected=layer.font==f.key, onClick={edit(layer.copy(font=f.key))}, label={Text(if(language==AppLanguage.ARABIC) f.ar else f.en, fontFamily=fontFamilyFor(f.key), maxLines=1)}) }
+                items(fontOptions()) { f ->
+                    Column(
+                        Modifier.width(92.dp).clip(RoundedCornerShape(10.dp))
+                            .background(if(layer.font==f.key) Color(0xFF282044) else Color(0xFF111827))
+                            .border(1.dp, if(layer.font==f.key) Color(0xFF9B7BFF) else Color(0xFF273449), RoundedCornerShape(10.dp))
+                            .clickable { edit(layer.copy(font=f.key)) }
+                            .padding(horizontal=6.dp, vertical=5.dp),
+                        horizontalAlignment=Alignment.CenterHorizontally
+                    ) {
+                        Text(if(language==AppLanguage.ARABIC) "أبجدية" else "AaBb", fontFamily=fontFamilyFor(f.key, layer.bold), fontSize=18.sp, fontWeight=if(layer.bold) FontWeight.Bold else FontWeight.Normal, color=Color.White, maxLines=1)
+                        Text(if(language==AppLanguage.ARABIC) f.ar else f.en, fontSize=8.sp, color=Color(0xFFB9C4D8), maxLines=1)
+                    }
+                }
             }
             Text(if(language==AppLanguage.ARABIC) "الحجم ${layer.size.toInt()}" else "Size ${layer.size.toInt()}"); Slider(layer.size, {edit(layer.copy(size=it))}, valueRange = 16f..96f)
             Row(verticalAlignment=Alignment.CenterVertically) { Text(if(language==AppLanguage.ARABIC) "عريض" else "Bold", Modifier.weight(1f)); Switch(checked=bold, onCheckedChange={bold=it; edit(layer.copy(bold=it))}) }
@@ -4199,6 +4224,22 @@ private fun MusicTrimDialog(
     )
 }
 @Composable
+private fun filterPreviewColorFilter(value: String): androidx.compose.ui.graphics.ColorFilter? {
+    val m = androidx.compose.ui.graphics.ColorMatrix()
+    when (value) {
+        "mono", "noir" -> m.setToSaturation(0f)
+        "invert" -> m.set(floatArrayOf(-1f,0f,0f,0f,1f,0f,-1f,0f,0f,1f,0f,0f,-1f,0f,1f,0f,0f,0f,1f,0f))
+        "sepia", "vintage" -> m.set(floatArrayOf(.393f,.769f,.189f,0f,0f,.349f,.686f,.168f,0f,0f,.272f,.534f,.131f,0f,0f,0f,0f,0f,1f,0f))
+        "warm", "sunset" -> m.set(floatArrayOf(1.08f,0f,0f,0f,.02f,0f,1.01f,0f,0f,0f,0f,0f,.88f,0f,0f,0f,0f,0f,1f,0f))
+        "cool", "ice" -> m.set(floatArrayOf(.90f,0f,0f,0f,0f,0f,1.01f,0f,0f,0f,0f,0f,1.12f,0f,.02f,0f,0f,0f,1f,0f))
+        "vivid", "tealOrange" -> m.set(floatArrayOf(1.12f,0f,0f,0f,0f,0f,1.08f,0f,0f,0f,0f,0f,1.10f,0f,0f,0f,0f,0f,1f,0f))
+        "dream", "soft" -> m.set(floatArrayOf(1.04f,0f,0f,0f,.02f,0f,1.04f,0f,0f,.02f,0f,0f,1.04f,0f,.02f,0f,0f,0f,1f,0f))
+        "faded" -> m.set(floatArrayOf(.90f,0f,0f,0f,.08f,0f,.90f,0f,0f,.08f,0f,0f,.90f,0f,.08f,0f,0f,0f,1f,0f))
+        "dramatic" -> m.set(floatArrayOf(1.18f,0f,0f,0f,-.06f,0f,1.18f,0f,0f,-.06f,0f,0f,1.18f,0f,-.06f,0f,0f,0f,1f,0f))
+    }
+    return if (value == "none") null else androidx.compose.ui.graphics.ColorFilter.colorMatrix(m)
+}
+
 private fun FilterDialog(
     s: EditorSettings,
     clip: Clip?,
@@ -4273,20 +4314,8 @@ private fun FilterDialog(
                                         bitmap=thumbnail!!.asImageBitmap(),
                                         contentDescription=null,
                                         contentScale=androidx.compose.ui.layout.ContentScale.Crop,
-                                        modifier=Modifier.fillMaxSize().alpha(if(value=="none") 0.95f else 0.82f)
-                                    )
-                                    Box(
-                                        Modifier.fillMaxSize().background(
-                                            when(value) {
-                                                "warm","sunset","sepia" -> Color(0x55FF8A45)
-                                                "cool","ice" -> Color(0x553C8DFF)
-                                                "mono","noir" -> Color(0x66777777)
-                                                "vivid","tealOrange" -> Color(0x3318E0B8)
-                                                "dream","soft" -> Color(0x335C3BFF)
-                                                "invert" -> Color(0x554D155C)
-                                                else -> Color.Transparent
-                                            }
-                                        )
+                                        colorFilter=filterPreviewColorFilter(value),
+                                        modifier=Modifier.fillMaxSize()
                                     )
                                 }
                                 if(value=="none") Icon(Icons.Default.FilterNone,null,tint=Color.White,modifier=Modifier.size(22.dp))
