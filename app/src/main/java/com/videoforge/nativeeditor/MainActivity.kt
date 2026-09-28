@@ -1493,6 +1493,97 @@ private fun timelineClipAt(clips: List<Clip>, positionMs: Long): Pair<Clip, Long
 
 
 @Composable
+@Composable
+private fun EditorFeaturePreview(
+    tool: String,
+    feature: String,
+    selected: Boolean,
+    label: String,
+    settings: EditorSettings
+) {
+    val accent = if (selected) Color(0xFFB38CFF) else Color(0xFF6FA8FF)
+    when (tool) {
+        "filters" -> {
+            val filter = filterPreviewColorFilter(feature)
+            Box(Modifier.fillMaxSize().background(Brush.linearGradient(listOf(Color(0xFFB86B48), Color(0xFF345B86))), contentAlignment = Alignment.Center) {
+                Canvas(Modifier.fillMaxSize()) {
+                    drawCircle(Color(0xFFFFC56E).copy(alpha=.75f), size.minDimension*.23f, Offset(size.width*.70f,size.height*.35f))
+                    drawRect(Color(0xFF173A5A).copy(alpha=.8f), Offset(0f,size.height*.56f), androidx.compose.ui.geometry.Size(size.width,size.height*.44f))
+                }
+                Text("Aa", color=Color.White, fontSize=18.sp, fontWeight=FontWeight.Bold)
+            }
+        }
+        "canvas" -> {
+            val portrait = feature == "9:16" || feature == "4:5"
+            val square = feature == "1:1"
+            val w = if (portrait) 26.dp else if (square) 40.dp else 48.dp
+            val h = if (portrait) 42.dp else if (square) 40.dp else 28.dp
+            Box(Modifier.size(w,h).border(2.dp, accent, RoundedCornerShape(4.dp)), contentAlignment=Alignment.Center) {
+                Box(Modifier.fillMaxSize().padding(4.dp).background(Color(0xFF233D5E), RoundedCornerShape(2.dp)))
+            }
+        }
+        "speed" -> Canvas(Modifier.fillMaxSize()) {
+            val y = size.height*.52f
+            val points = listOf(0f,.22f,.48f,.72f,1f).mapIndexed { i,x ->
+                Offset(size.width*x, y + when(feature){"0.5"->18f;"1"->0f;"1.5"->-8f;"2"->-15f;else->-22f} * (if(i%2==0) 1f else .65f))
+            }
+            for(i in 0 until points.lastIndex) drawLine(accent, points[i], points[i+1], 3f)
+            drawCircle(Color.White, points[2], 3.5f)
+        }
+        "transition" -> Canvas(Modifier.fillMaxSize()) {
+            drawRect(Color(0xFF29476A), Offset(4f,10f), androidx.compose.ui.geometry.Size(size.width*.32f,size.height-20f))
+            drawRect(Color(0xFF6A3F91), Offset(size.width*.68f,10f), androidx.compose.ui.geometry.Size(size.width*.28f,size.height-20f))
+            val mid = Offset(size.width*.5f,size.height*.5f)
+            drawCircle(accent, mid, 9f)
+            drawLine(Color.White.copy(alpha=.8f), Offset(size.width*.38f,mid.y), Offset(size.width*.62f,mid.y), 2.5f)
+        }
+        "effects" -> Canvas(Modifier.fillMaxSize()) {
+            val radius = if(feature=="blur") 15f else 11f
+            drawCircle(Color(0xFF7C5CFF).copy(alpha=.55f), Offset(size.width*.35f,size.height*.5f), radius)
+            drawCircle(Color(0xFF18C8FF).copy(alpha=.55f), Offset(size.width*.58f,size.height*.5f), radius)
+            if(feature=="mosaic") {
+                for(x in 0..5) for(y in 0..3) drawRect(Color(0xFF9B7BFF).copy(alpha=.25f), Offset(size.width*x/6f,size.height*y/4f), androidx.compose.ui.geometry.Size(size.width/6f,size.height/4f), style=androidx.compose.ui.graphics.drawscope.Fill)
+            }
+        }
+        "sticker" -> Text(when(feature){"emoji"->"✨";"shape"->"◆";else->"✦"}, fontSize=27.sp, color=accent)
+        "overlay" -> {
+            Box(Modifier.size(42.dp,28.dp).border(1.dp, Color(0xFF526780), RoundedCornerShape(4.dp))) {
+                Box(Modifier.align(Alignment.BottomEnd).padding(2.dp).size(18.dp,13.dp).background(accent, RoundedCornerShape(3.dp)))
+            }
+        }
+        "markers" -> Canvas(Modifier.fillMaxSize()) {
+            drawLine(Color(0xFF40526B), Offset(6f,size.height*.55f), Offset(size.width-6f,size.height*.55f), 2f)
+            val x = when(feature){"previous"->.32f;"next"->.68f;else->.5f}
+            drawLine(accent, Offset(size.width*x,8f), Offset(size.width*x,size.height-8f), 3f)
+            drawCircle(accent, Offset(size.width*x,8f), 4f)
+        }
+        "adjust" -> Canvas(Modifier.fillMaxSize()) {
+            val y0=size.height*.55f
+            val v=when(feature){"brightness"->.25f;"contrast"->-.2f;"saturation"->.1f;"hue"->-.05f;"temperature"->.18f;else->0f}
+            drawLine(Color(0xFF32455E),Offset(5f,y0),Offset(size.width-5f,y0),2f)
+            drawCircle(accent,Offset(size.width*(.5f+v),y0),6f)
+            drawCircle(Color(0xFFFFB74D),Offset(size.width*.25f,y0),3f)
+            drawCircle(Color(0xFF42D6C5),Offset(size.width*.75f,y0),3f)
+        }
+        "text" -> Text(
+            if (feature=="position") "T↕" else if (feature=="rotate") "T↻" else if (feature=="color") "T●" else "Aa",
+            color=if(feature=="color") Color(0xFFFFD54F) else Color.White,
+            fontSize=18.sp, fontWeight=FontWeight.Bold
+        )
+        "audio" -> Canvas(Modifier.fillMaxSize()) {
+            val mute = feature=="mute"
+            for(i in 0 until 14) {
+                val amp = if(mute) 2f else (6f + kotlin.math.abs(kotlin.math.sin(i*.85))*14f).toFloat()
+                drawRoundRect(if(mute) Color(0xFF667085) else accent, Offset(5f+i*5.2f,size.height/2-amp), androidx.compose.ui.geometry.Size(3.2f,amp*2f), cornerRadius=androidx.compose.ui.geometry.CornerRadius(2f,2f))
+            }
+        }
+        else -> {
+            Icon(Icons.Default.AutoAwesome, null, tint=accent, modifier=Modifier.size(23.dp))
+        }
+    }
+}
+
+@Composable
 private fun EditorFeaturePanel(
     activeTool: String?, settings: EditorSettings, current: Clip?, clips: List<Clip>, language: AppLanguage,
     onSettingsLiveChange: (EditorSettings) -> Unit, onCurrentClipChange: (Clip) -> Unit, onTrim: () -> Unit, onSplit: () -> Unit,
@@ -1765,81 +1856,110 @@ private fun EditorFeaturePanel(
                         "canvas" -> settings.aspect == id
                         else -> false
                     }
-                    FilterChip(
-                        selected=selected,
-                        onClick={
-                            when(activeTool) {
-                                "edit" -> when(id) {
-                                    "trim" -> onTrim(); "split" -> onSplit(); "duplicate" -> onDuplicate(); "replace" -> onReplace()
-                                    "delete" -> onDelete(); "left" -> onMoveLeft(); "right" -> onMoveRight(); "freeze" -> onFreeze()
-                                }
-                                "audio" -> when(id) {
-                                    "volume","fadeIn","fadeOut" -> audioFeature=id
-                                    "mute" -> onSettingsLiveChange(settings.copy(muted=!settings.muted))
-                                    "keys" -> onAudioKeyframes(); "music" -> onPickMusic()
-                                    "extract" -> onExtractAudio()
-                                }
-                                "text" -> when(id) {
-                                    "text" -> onOpenAdvancedTool("text")
-                                    "position" -> {
-                                        val first = settings.textLayers.firstOrNull()
-                                        if (first != null) onSettingsLiveChange(settings.copy(textLayers = settings.textLayers.map { if (it.id == first.id) it.copy(x = 0f, y = 0f) else it }))
+                    Surface(
+                        modifier = Modifier
+                            .width(84.dp)
+                            .clip(RoundedCornerShape(11.dp))
+                            .clickable {
+                                when(activeTool) {
+                                    "edit" -> when(id) {
+                                        "trim" -> onTrim(); "split" -> onSplit(); "duplicate" -> onDuplicate(); "replace" -> onReplace()
+                                        "delete" -> onDelete(); "left" -> onMoveLeft(); "right" -> onMoveRight(); "freeze" -> onFreeze()
                                     }
-                                    "rotate" -> {
-                                        val first = settings.textLayers.firstOrNull()
-                                        if (first != null) onSettingsLiveChange(settings.copy(textLayers = settings.textLayers.map { if (it.id == first.id) it.copy(rotation = it.rotation + 15f) else it }))
+                                    "audio" -> when(id) {
+                                        "volume","fadeIn","fadeOut" -> audioFeature=id
+                                        "mute" -> onSettingsLiveChange(settings.copy(muted=!settings.muted))
+                                        "keys" -> onAudioKeyframes(); "music" -> onPickMusic()
+                                        "extract" -> onExtractAudio()
                                     }
-                                    "color" -> {
-                                        val first = settings.textLayers.firstOrNull()
-                                        if (first != null) {
-                                            val palette = listOf(0xFFFFFFFFL,0xFFFFD54FL,0xFF80D8FFL,0xFFFF80ABL,0xFFB39DDBL)
-                                            val next = palette[(palette.indexOf(first.color).coerceAtLeast(0)+1)%palette.size]
-                                            onSettingsLiveChange(settings.copy(textLayers = settings.textLayers.map { if (it.id == first.id) it.copy(color = next) else it }))
+                                    "text" -> when(id) {
+                                        "text" -> onOpenAdvancedTool("text")
+                                        "position" -> {
+                                            val first = settings.textLayers.firstOrNull()
+                                            if (first != null) onSettingsLiveChange(settings.copy(textLayers = settings.textLayers.map { if (it.id == first.id) it.copy(x = 0f, y = 0f) else it }))
                                         }
-                                    }
-                                    "deleteText" -> {
-                                        val first = settings.textLayers.firstOrNull()
-                                        if (first != null) {
-                                            val next = settings.textLayers.filterNot { it.id == first.id }
-                                            onSettingsLiveChange(settings.copy(textLayers = next, textVisible = next.isNotEmpty(), text = next.firstOrNull()?.text.orEmpty()))
+                                        "rotate" -> {
+                                            val first = settings.textLayers.firstOrNull()
+                                            if (first != null) onSettingsLiveChange(settings.copy(textLayers = settings.textLayers.map { if (it.id == first.id) it.copy(rotation = it.rotation + 15f) else it }))
                                         }
+                                        "color" -> {
+                                            val first = settings.textLayers.firstOrNull()
+                                            if (first != null) {
+                                                val palette = listOf(0xFFFFFFFFL,0xFFFFD54FL,0xFF80D8FFL,0xFFFF80ABL,0xFFB39DDBL)
+                                                val next = palette[(palette.indexOf(first.color).coerceAtLeast(0)+1)%palette.size]
+                                                onSettingsLiveChange(settings.copy(textLayers = settings.textLayers.map { if (it.id == first.id) it.copy(color = next) else it }))
+                                            }
+                                        }
+                                        "deleteText" -> {
+                                            val first = settings.textLayers.firstOrNull()
+                                            if (first != null) {
+                                                val next = settings.textLayers.filterNot { it.id == first.id }
+                                                onSettingsLiveChange(settings.copy(textLayers = next, textVisible = next.isNotEmpty(), text = next.firstOrNull()?.text.orEmpty()))
+                                            }
+                                        }
+                                        "animation" -> onTextAnimation()
+                                        "textLayers" -> onLayersDialog()
                                     }
-                                    "animation" -> onTextAnimation()
-                                    "textLayers" -> onLayersDialog()
-                                }
-                                "effects" -> effectFeature=id
-                                "filters" -> onSettingsLiveChange(settings.copy(filter=id))
-                                "adjust" -> adjustFeature=id
-                                "canvas" -> when(id) {
-                                    "crop" -> onOpenAdvancedTool("crop")
-                                    "rotate" -> onOpenAdvancedTool("rotate")
-                                    "flip" -> onOpenAdvancedTool("flip")
-                                    else -> onSettingsLiveChange(settings.copy(aspect=id))
-                                }
-                                "transition" -> if(id=="none") onSettingsLiveChange(settings.copy(transition="none")) else onOpenAdvancedTool("transition")
-                                "subtitles" -> when(id) { "open" -> onSubtitles(); "markers" -> onMarkers() }
-                                "layers" -> when(id) {
-                                    "manage" -> onLayersDialog()
-                                    "text" -> onLayersDialog()
-                                    "pip" -> onOpenAdvancedTool("overlay")
-                                }
-                                "videoKeyframes" -> when(id) { "video" -> onVideoKeyframes(); "markers" -> onMarkers() }
-                                "speed" -> onOpenAdvancedTool("speed")
-                                "sticker" -> onOpenAdvancedTool("sticker")
-                                "overlay" -> when(id) {
-                                    "add","position" -> onOpenAdvancedTool("overlay")
-                                    "manage" -> onLayersDialog()
-                                }
-                                "markers" -> onMarkers()
-                                else -> when(id) {
-                                    "subtitles" -> onOpenAdvancedTool("subtitles")
-                                    "freeze" -> onFreeze()
-                                    "extract" -> onExtractAudio()
+                                    "effects" -> effectFeature=id
+                                    "filters" -> onSettingsLiveChange(settings.copy(filter=id))
+                                    "adjust" -> adjustFeature=id
+                                    "canvas" -> when(id) {
+                                        "crop" -> onOpenAdvancedTool("crop")
+                                        "rotate" -> onOpenAdvancedTool("rotate")
+                                        "flip" -> onOpenAdvancedTool("flip")
+                                        else -> onSettingsLiveChange(settings.copy(aspect=id))
+                                    }
+                                    "transition" -> if(id=="none") onSettingsLiveChange(settings.copy(transition="none")) else onOpenAdvancedTool("transition")
+                                    "subtitles" -> when(id) { "open" -> onSubtitles(); "markers" -> onMarkers() }
+                                    "layers" -> when(id) {
+                                        "manage" -> onLayersDialog()
+                                        "text" -> onLayersDialog()
+                                        "pip" -> onOpenAdvancedTool("overlay")
+                                    }
+                                    "videoKeyframes" -> when(id) { "video" -> onVideoKeyframes(); "markers" -> onMarkers() }
+                                    "speed" -> onOpenAdvancedTool("speed")
+                                    "sticker" -> onOpenAdvancedTool("sticker")
+                                    "overlay" -> when(id) {
+                                        "add","position" -> onOpenAdvancedTool("overlay")
+                                        "manage" -> onLayersDialog()
+                                    }
+                                    "markers" -> onMarkers()
+                                    else -> when(id) {
+                                        "subtitles" -> onOpenAdvancedTool("subtitles")
+                                        "freeze" -> onFreeze()
+                                        "extract" -> onExtractAudio()
+                                    }
                                 }
                             }
-                        },
-                        leadingIcon={Icon(icon,null,Modifier.size(16.dp))},
-                        label={Text(label,fontSize=9.sp,maxLines=1)}
+                            .background(if (selected) Color(0xFF251A43) else Color(0xFF101925))
+                            .border(1.dp, if (selected) Color(0xFF7C5CFF) else Color(0xFF26354A), RoundedCornerShape(11.dp))
+                            .padding(5.dp),
+                        tonalElevation = 0.dp,
+                        color = if (selected) Color(0xFF1C1630) else Color(0xFF101925)
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Box(
+                                Modifier.fillMaxWidth().height(48.dp).clip(RoundedCornerShape(8.dp))
+                                    .background(Brush.linearGradient(listOf(Color(0xFF17253A), Color(0xFF0A101B)))),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                EditorFeaturePreview(
+                                    tool = activeTool,
+                                    feature = id,
+                                    selected = selected,
+                                    label = label,
+                                    settings = settings
+                                )
+                                if (selected) {
+                                    Box(Modifier.align(Alignment.TopEnd).padding(3.dp).size(15.dp)
+                                        .clip(RoundedCornerShape(8.dp)).background(Color(0xFF7C5CFF)),
+                                        contentAlignment = Alignment.Center) {
+                                        Icon(Icons.Default.Check, null, tint=Color.White, modifier=Modifier.size(10.dp))
+                                    }
+                                }
+                            }
+                            Text(label, fontSize=7.5.sp, maxLines=1, color=Color.White, modifier=Modifier.padding(top=4.dp))
+                        }
                     )
                 }
             }
