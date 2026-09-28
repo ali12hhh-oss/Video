@@ -35,11 +35,11 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.text.TextFieldValue
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardActions
-import androidx.compose.ui.text.input.KeyboardOptions
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -4589,7 +4589,7 @@ private fun EditorPreview(
                                 }
                             },
                             modifier = Modifier
-                                .widthIn(min = 70.dp, max = (maxWidth - 24.dp).coerceAtLeast(90.dp))
+                                .widthIn(min = 70.dp, max = 300.dp)
                                 .focusRequester(textFocusRequester),
                             textStyle = TextStyle(
                                 color = Color(layer.color).copy(alpha = layer.alpha * animAlpha),
