@@ -2693,7 +2693,7 @@ private fun EditorTextPanel(
                     placeholder={Text(if(language==AppLanguage.ARABIC)"اكتب النص هنا…" else "Type your text…")}
                 )
                 Button(
-                    onClick={edit(layer.copy(text=draftText, visible=draftText.isNotBlank())),
+                    onClick={edit(layer.copy(text = draftText, visible = draftText.isNotBlank()))},
                     enabled=draftText != layer.text,
                     modifier=Modifier.fillMaxWidth()
                 ) {
