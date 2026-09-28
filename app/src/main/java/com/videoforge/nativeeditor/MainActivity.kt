@@ -2421,27 +2421,36 @@ private fun EditorScreen(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(20)) { uris ->
-        if (uris.isNotEmpty()) {
-            var appendAt = timelineTotalDuration(clips)
-            val added = uris.mapIndexed { i, uri ->
+    // New Project intentionally starts with one safe media selection. Additional
+    // video/image clips are added later through the media tool, which also enables
+    // independent tracks and gaps without forcing a multi-select result through the
+    // initial editor state.
+    val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri != null) {
+            val imported = runCatching {
                 persistUriAccess(context, uri)
-                val capacity = defaultClipDurationMs(context, uri)
-                val initialDuration = if (isImageUri(context, uri)) DEFAULT_IMAGE_CLIP_DURATION_MS else capacity
-                val clip = Clip(
+                val image = isImageUri(context, uri)
+                val capacity = defaultClipDurationMs(context, uri).coerceAtLeast(1L)
+                val initialDuration = if (image) DEFAULT_IMAGE_CLIP_DURATION_MS else capacity
+                Clip(
                     uri = uri,
-                    name = context.getString(R.string.clip_number, clips.size + i + 1),
+                    name = context.getString(R.string.clip_number, clips.size + 1),
                     durationMs = capacity,
                     trimStartMs = 0L,
-                    trimEndMs = initialDuration,
-                    timelineStartMs = appendAt,
+                    trimEndMs = initialDuration.coerceAtMost(capacity),
+                    timelineStartMs = timelineTotalDuration(clips).coerceAtLeast(0L),
                     trackIndex = 0
                 )
-                appendAt += clipTimelineDuration(clip)
-                clip
+            }.getOrNull()
+
+            if (imported != null) {
+                commitClips(clips + imported)
+                current = imported
+                playheadMs = timelinePositionOf(clips + imported, imported)
+                status = if (language == AppLanguage.ARABIC) "تمت إضافة الوسائط" else "Media added"
+            } else {
+                status = if (language == AppLanguage.ARABIC) "تعذر قراءة الوسائط المحددة" else "Unable to read the selected media"
             }
-            commitClips(clips + added)
-            current = added.first()
         }
     }
     fun extractAudioFromCurrent() {
