@@ -50,10 +50,13 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
+import androidx.compose.ui.unit.IntOffset
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlin.math.max
@@ -281,19 +284,25 @@ fun Timeline(
             )
         }
 
-        Box(
-            Modifier
-                .fillMaxWidth()
-                .height(timelineBoxHeight)
-                .clip(RoundedCornerShape(12.dp))
-                .background(Color(0xFF07111F))
-                .border(1.dp, Color(0xFF172D48), RoundedCornerShape(12.dp))
-        ) {
-            val density = LocalDensity.current
-            val widthPx = with(density) { timelineWidth.toPx() }
-            val playheadX = with(density) { (safePlayhead.toFloat() / total.toFloat() * timelineWidth.toPx()).toDp() }
+        // The timeline is a chronological editing axis, not a translated UI row.
+        // Keep it physically left-to-right in both languages so the playhead, clip blocks,
+        // trim handles and time ruler always share the exact same coordinate system.
+        CompositionLocalProvider(LocalLayoutDirection provides androidx.compose.ui.unit.LayoutDirection.Ltr) {
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .height(timelineBoxHeight)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Color(0xFF07111F))
+                    .border(1.dp, Color(0xFF172D48), RoundedCornerShape(12.dp))
+            ) {
+                val density = LocalDensity.current
+                val widthPx = with(density) { timelineWidth.toPx() }
+                val playheadX = with(density) {
+                    ((safePlayhead.toFloat() / total.toFloat()).coerceIn(0f, 1f) * timelineWidth.toPx()).toDp()
+                }
 
-            Row(
+                Row(
                 Modifier
                     .fillMaxSize()
                     .horizontalScroll(scroll)
@@ -651,11 +660,14 @@ fun Timeline(
                     }
 
                     // The playhead is a real vertical editing cursor spanning every lane.
+                    // It is intentionally anchored to the LTR timeline coordinates above; this
+                    // prevents Arabic RTL from mirroring the cursor outside the media strip.
                     Box(
                         Modifier
                             .offset(x = playheadX)
                             .fillMaxHeight()
                             .width(1.dp)
+                            .zIndex(20f)
                             .background(Color.White.copy(alpha = 0.92f))
                     )
                     Box(
@@ -664,6 +676,7 @@ fun Timeline(
                             .width(10.dp)
                             .height(10.dp)
                             .clip(RoundedCornerShape(5.dp))
+                            .zIndex(21f)
                             .background(Color.White)
                     )
                 }
