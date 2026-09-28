@@ -2827,7 +2827,9 @@ private fun EditorScreen(
     var exportInProgress by remember { mutableStateOf(false) }
     var exportProgress by remember { mutableFloatStateOf(0f) }
     var exportElapsedSec by remember { mutableLongStateOf(0L) }
+    var exportEtaSec by remember { mutableLongStateOf(0L) }
     var exportInterstitial by remember { mutableStateOf<InterstitialAd?>(null) }
+    var exportJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
     val exportScope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) {
@@ -2844,10 +2846,21 @@ private fun EditorScreen(
     }
 
     LaunchedEffect(exportInProgress) {
+        if (!exportInProgress) {
+            exportElapsedSec = 0L
+            exportEtaSec = 0L
+            return@LaunchedEffect
+        }
         exportElapsedSec = 0L
-        while (exportInProgress) {
+        exportEtaSec = 0L
+        while (isActive && exportInProgress) {
             delay(1000L)
-            if (exportInProgress) exportElapsedSec += 1L
+            if (!isActive || !exportInProgress) break
+            exportElapsedSec += 1L
+            val fraction = exportProgress.coerceIn(0.01f, 0.999f)
+            if (fraction > 0.05f) {
+                exportEtaSec = ((exportElapsedSec.toDouble() * (1.0 - fraction) / fraction).toLong()).coerceAtLeast(0L)
+            }
         }
     }
 
@@ -2887,10 +2900,13 @@ private fun EditorScreen(
     }
     val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("video/mp4")) { uri ->
         if (uri != null && clips.isNotEmpty()) {
+            exportJob?.cancel()
             exportInProgress = true
             exportProgress = 0f
+            exportElapsedSec = 0L
+            exportEtaSec = 0L
             status = if (language == AppLanguage.ARABIC) "جاري التصدير…" else "Exporting…"
-            exportScope.launch {
+            exportJob = exportScope.launch {
                 val result = runCatching {
                     ExportEngine(context, context.contentResolver).export(
                         clips = clips, settings = exportSettings, editor = settings, output = uri,
@@ -2898,11 +2914,16 @@ private fun EditorScreen(
                         textTimings = textTimings,
                         onProgress = { progress ->
                             exportProgress = progress.fraction.coerceIn(0f, 1f)
+                            if (exportProgress > 0.05f && exportElapsedSec > 0L) {
+                                exportEtaSec = ((exportElapsedSec.toDouble() * (1.0 - exportProgress) / exportProgress).toLong()).coerceAtLeast(0L)
+                            }
                             status = progress.message
                         }
                     )
                 }.getOrElse { Result.failure(it) }
                 exportInProgress = false
+                exportJob = null
+                exportEtaSec = 0L
                 status = if (result.isSuccess) {
                     exportProgress = 1f
                     lastExportUri = uri
@@ -3702,6 +3723,15 @@ private fun EditorScreen(
             language = language,
             progress = exportProgress,
             elapsedSec = exportElapsedSec,
+            etaSec = exportEtaSec,
+            onCancel = {
+                exportJob?.cancel()
+                exportJob = null
+                exportInProgress = false
+                exportProgress = 0f
+                exportEtaSec = 0L
+                status = if (language == AppLanguage.ARABIC) "تم إلغاء التصدير" else "Export cancelled"
+            },
             onDismiss = { }
         )
     }
