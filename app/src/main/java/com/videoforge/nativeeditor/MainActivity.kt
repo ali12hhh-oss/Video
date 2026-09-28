@@ -31,6 +31,15 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.TextFieldValue
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardActions
+import androidx.compose.ui.text.input.KeyboardOptions
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -2418,10 +2427,7 @@ private fun EditorFeaturePanel(
             }
 
             }
-            if(activeTool=="text") {
-                EditorTextPanel(settings=settings,language=language,onChange=onSettingsLiveChange,onAnimation=onTextAnimation,onLayers=onLayersDialog)
-            }
-
+            // Text editing is rendered directly on the media preview.
             if(activeTool=="audio"){
                 Surface(Modifier.fillMaxWidth().padding(horizontal=8.dp,vertical=5.dp),color=Color(0xFF0D1828),shape=RoundedCornerShape(12.dp)){
                     Column(Modifier.padding(8.dp)){
@@ -3481,7 +3487,24 @@ private fun EditorScreen(
                                         } else if (id == "text") {
                                             if (showTextInput) {
                                                 showTextInput = false
+                                                activeEditorTool = null
                                             } else {
+                                                if (settings.textLayers.none { it.visible }) {
+                                                    val newLayer = TextLayer(
+                                                        name = if (language == AppLanguage.ARABIC) "نص 1" else "Text 1",
+                                                        text = "",
+                                                        visible = true,
+                                                        y = 0f
+                                                    )
+                                                    updateSettings(settings.copy(
+                                                        textLayers = listOf(newLayer),
+                                                        text = "",
+                                                        textVisible = true
+                                                    ))
+                                                } else {
+                                                    val next = settings.copy(textVisible = true)
+                                                    if (next != settings) updateSettings(next)
+                                                }
                                                 activeEditorTool = null
                                                 showTextInput = true
                                             }
@@ -3519,6 +3542,14 @@ private fun EditorScreen(
                     settings = next
                     EditorSettingsRepository.save(context, projectId, next)
                 },
+                onTextEditingChange = { next ->
+                    val oldIds = settings.textLayers.map { it.id }
+                    val newIds = next.textLayers.map { it.id }
+                    settings = next
+                    if (oldIds != newIds) syncTextTimings(next)
+                },
+                textEditingEnabled = showTextInput,
+                onTextEditingFinished = { showTextInput = false },
                 onPlaybackPosition = { position ->
                     playheadMs = position.coerceIn(0L, timelineTotalDuration(clips))
                     timelineClipAt(clips, playheadMs)?.let { (clipAtPlayhead, _) ->
@@ -3726,18 +3757,7 @@ private fun EditorScreen(
         }
     }
 
-    if (showTextInput) {
-        TextInputDialog(
-            settings = settings,
-            language = language,
-            onChange = {
-                updateSettings(it)
-                activeEditorTool = "text"
-            },
-            onDismiss = { showTextInput = false }
-        )
-    }
-
+    // Direct text editing lives inside EditorPreview; no text dialog is opened.
     if (showKeyframes) {
         KeyframeDialog(settings, clips, current, playheadMs, language, { updateSettings(it) }, { showKeyframes = false })
     }
@@ -3971,6 +3991,9 @@ private fun EditorPreview(
     textTimings: Map<String, TextTimelineTiming> = emptyMap(),
     showWatermark: Boolean = true,
     onSettingsChange: (EditorSettings) -> Unit,
+    onTextEditingChange: (EditorSettings) -> Unit = onSettingsChange,
+    textEditingEnabled: Boolean = false,
+    onTextEditingFinished: () -> Unit = {},
     onPlaybackPosition: (Long) -> Unit = {},
     onPlaybackStateChanged: (Boolean) -> Unit = {},
     onPlaybackEnded: () -> Unit = {},
@@ -4431,72 +4454,343 @@ private fun EditorPreview(
                     )
                 }
             }
-            val previewLayers = settings.textLayers.ifEmpty { if (settings.textVisible && settings.text.isNotBlank()) listOf(TextLayer(text=settings.text, size=settings.textSize, color=settings.textColor, font=settings.textFont)) else emptyList() }
+            val previewLayers = settings.textLayers.ifEmpty {
+                if (settings.textVisible && settings.text.isNotBlank()) {
+                    listOf(TextLayer(text = settings.text, size = settings.textSize, color = settings.textColor, font = settings.textFont))
+                } else emptyList()
+            }
             var selectedLayerId by remember { mutableStateOf(previewLayers.firstOrNull()?.id) }
-            LaunchedEffect(previewLayers) {
+            LaunchedEffect(previewLayers.map { it.id }, textEditingEnabled) {
                 if (selectedLayerId == null || previewLayers.none { it.id == selectedLayerId }) {
                     selectedLayerId = previewLayers.firstOrNull()?.id
                 }
             }
+
+            val selectedTextLayer = previewLayers.firstOrNull { it.id == selectedLayerId }
+            val textFocusRequester = remember { FocusRequester() }
+            val keyboardController = LocalSoftwareKeyboardController.current
+            var textFieldValue by remember(selectedTextLayer?.id) {
+                mutableStateOf(TextFieldValue(selectedTextLayer?.text.orEmpty()))
+            }
+
+            LaunchedEffect(selectedTextLayer?.id, selectedTextLayer?.text) {
+                val modelText = selectedTextLayer?.text.orEmpty()
+                if (modelText != textFieldValue.text) {
+                    textFieldValue = TextFieldValue(modelText)
+                }
+            }
+            LaunchedEffect(textEditingEnabled, selectedTextLayer?.id) {
+                if (textEditingEnabled && selectedTextLayer != null) {
+                    kotlinx.coroutines.delay(120L)
+                    runCatching { textFocusRequester.requestFocus() }
+                    runCatching { keyboardController?.show() }
+                }
+            }
+
+            fun changeSelectedLayer(transform: (TextLayer) -> TextLayer) {
+                val id = selectedLayerId ?: return
+                val nextLayers = settings.textLayers.map { layer ->
+                    if (layer.id == id) transform(layer) else layer
+                }
+                onTextEditingChange(settings.copy(
+                    textLayers = nextLayers,
+                    text = nextLayers.firstOrNull()?.text.orEmpty(),
+                    textSize = nextLayers.firstOrNull()?.size ?: settings.textSize,
+                    textColor = nextLayers.firstOrNull()?.color ?: settings.textColor,
+                    textFont = nextLayers.firstOrNull()?.font ?: settings.textFont,
+                    textVisible = nextLayers.any { it.visible && it.text.isNotBlank() }
+                ))
+            }
+
             previewLayers.filter { it.visible }.forEachIndexed { layerIndex, layer ->
                 val selected = selectedLayerId == layer.id
                 val textTiming = textTimings[layer.id]
                     ?: textTimings["text-$layerIndex"]
                     ?: TextTimelineTiming(0L, Long.MAX_VALUE)
-                // Text visibility is controlled by its own timeline range.
                 val textVisibleNow = playheadMs in textTiming.startMs..textTiming.endMs
                 if (!textVisibleNow) return@forEachIndexed
+
                 val localTextTime = (playheadMs - clipOffsetMs).coerceAtLeast(0L)
-                val textAnimProgress = (localTextTime / 650f).coerceIn(0f,1f)
-                val textEase = 1f - (1f-textAnimProgress)*(1f-textAnimProgress)
-                val animAlpha = when(layer.animation){"fade"->textEase;"typewriter"->textEase;else->1f}
-                val animScale = when(layer.animation){"pop"->0.55f+0.45f*textEase;"zoom"->0.25f+0.75f*textEase;else->1f}
-                val animX = if(layer.animation=="slide") -0.35f*(1f-textEase) else 0f
+                val textAnimProgress = (localTextTime / 650f).coerceIn(0f, 1f)
+                val textEase = 1f - (1f - textAnimProgress) * (1f - textAnimProgress)
+                val animAlpha = when (layer.animation) { "fade", "typewriter" -> textEase; else -> 1f }
+                val animScale = when (layer.animation) {
+                    "pop" -> 0.55f + 0.45f * textEase
+                    "zoom" -> 0.25f + 0.75f * textEase
+                    else -> 1f
+                }
+                val animX = if (layer.animation == "slide") -0.35f * (1f - textEase) else 0f
+                val isDirectEditor = textEditingEnabled && selected
+
                 Box(
                     Modifier
                         .align(Alignment.Center)
-                        .offset(x=((layer.x+animX)*120).dp, y=(layer.y*90).dp)
+                        .offset(x = ((layer.x + animX) * 120).dp, y = (layer.y * 90).dp)
                         .rotate(layer.rotation)
-                        .scale(layer.scale*animScale)
-                        .clickable{selectedLayerId=layer.id}
-                        .pointerInput(layer.id, selected) {
-                            detectTransformGestures { _, pan, zoom, rotation ->
-                                selectedLayerId = layer.id
-                                val next = settings.textLayers.map { item ->
-                                    if (item.id != layer.id) item else item.copy(
-                                        x = (item.x + pan.x / 120f).coerceIn(-1.2f, 1.2f),
-                                        y = (item.y + pan.y / 90f).coerceIn(-1.2f, 1.2f),
-                                        scale = (item.scale * zoom).coerceIn(0.15f, 6f),
-                                        rotation = item.rotation + rotation
-                                    )
+                        .scale(layer.scale * animScale)
+                        .then(
+                            if (isDirectEditor) {
+                                Modifier.pointerInput(layer.id, selected, textEditingEnabled) {
+                                    detectTransformGestures { _, pan, zoom, rotation ->
+                                        selectedLayerId = layer.id
+                                        changeSelectedLayer { item ->
+                                            item.copy(
+                                                x = (item.x + pan.x / 120f).coerceIn(-1.2f, 1.2f),
+                                                y = (item.y + pan.y / 90f).coerceIn(-1.2f, 1.2f),
+                                                scale = (item.scale * zoom).coerceIn(0.15f, 6f),
+                                                rotation = item.rotation + rotation
+                                            )
+                                        }
+                                    }
                                 }
-                                if (settings.textLayers.isNotEmpty()) onSettingsChange(settings.copy(textLayers = next))
+                            } else {
+                                Modifier
+                                    .clickable { selectedLayerId = layer.id }
+                                    .pointerInput(layer.id, selected) {
+                                        detectTransformGestures { _, pan, zoom, rotation ->
+                                            selectedLayerId = layer.id
+                                            changeSelectedLayer { item ->
+                                                item.copy(
+                                                    x = (item.x + pan.x / 120f).coerceIn(-1.2f, 1.2f),
+                                                    y = (item.y + pan.y / 90f).coerceIn(-1.2f, 1.2f),
+                                                    scale = (item.scale * zoom).coerceIn(0.15f, 6f),
+                                                    rotation = item.rotation + rotation
+                                                )
+                                            }
+                                        }
+                                    }
                             }
-                        }
+                        )
                         .clip(RoundedCornerShape(6.dp))
-                        .then(if (layer.backgroundAlpha > 0f) Modifier.background(Color(layer.backgroundColor).copy(alpha=layer.backgroundAlpha.coerceIn(0f,1f)), RoundedCornerShape(6.dp)) else Modifier)
+                        .then(
+                            if (layer.backgroundAlpha > 0f)
+                                Modifier.background(Color(layer.backgroundColor).copy(alpha = layer.backgroundAlpha.coerceIn(0f, 1f)), RoundedCornerShape(6.dp))
+                            else Modifier
+                        )
                         .then(if (selected) Modifier.border(1.dp, Color(0xFFB88CFF), RoundedCornerShape(6.dp)) else Modifier)
-                        .padding(horizontal=layer.backgroundPadding.dp, vertical=(layer.backgroundPadding * 0.55f).dp),
+                        .padding(horizontal = layer.backgroundPadding.dp, vertical = (layer.backgroundPadding * 0.55f).dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    val displayText = if(layer.animation=="typewriter") layer.text.take((layer.text.length*textAnimProgress).toInt().coerceIn(0,layer.text.length)) else layer.text
+                    val displayText = if (layer.animation == "typewriter") {
+                        layer.text.take((layer.text.length * textAnimProgress).toInt().coerceIn(0, layer.text.length))
+                    } else layer.text
                     val commonSize = layer.size.sp
-                    val commonWeight = if(layer.bold) FontWeight.Bold else FontWeight.Normal
+                    val commonWeight = if (layer.bold) FontWeight.Bold else FontWeight.Normal
                     val commonFont = fontFamilyFor(layer.font, layer.bold)
-                    if (layer.strokeEnabled && layer.strokeWidth > 0f) {
-                        Text(displayText, color=Color(layer.strokeColor).copy(alpha=layer.alpha*animAlpha), fontSize=commonSize, fontWeight=commonWeight, fontFamily=commonFont, textAlign=when(layer.textAlign){"start"->TextAlign.Start;"end"->TextAlign.End;else->TextAlign.Center}, lineHeight=(layer.size*layer.lineHeightMultiplier).sp, letterSpacing=layer.letterSpacing.sp, style=androidx.compose.ui.text.TextStyle(drawStyle=androidx.compose.ui.graphics.drawscope.Stroke(width=layer.strokeWidth)))
+                    if (isDirectEditor) {
+                        BasicTextField(
+                            value = if (selectedTextLayer?.id == layer.id) textFieldValue else TextFieldValue(layer.text),
+                            onValueChange = { value ->
+                                if (selectedTextLayer?.id == layer.id) {
+                                    textFieldValue = value
+                                    changeSelectedLayer { it.copy(text = value.text, visible = value.text.isNotBlank()) }
+                                }
+                            },
+                            modifier = Modifier
+                                .widthIn(min = 70.dp, max = (maxWidth - 24.dp).coerceAtLeast(90.dp))
+                                .focusRequester(textFocusRequester),
+                            textStyle = TextStyle(
+                                color = Color(layer.color).copy(alpha = layer.alpha * animAlpha),
+                                fontSize = commonSize,
+                                fontWeight = commonWeight,
+                                fontFamily = commonFont,
+                                textAlign = when (layer.textAlign) {
+                                    "start" -> TextAlign.Start
+                                    "end" -> TextAlign.End
+                                    else -> TextAlign.Center
+                                },
+                                lineHeight = (layer.size * layer.lineHeightMultiplier).sp,
+                                letterSpacing = layer.letterSpacing.sp,
+                                shadow = if (layer.glowEnabled) {
+                                    androidx.compose.ui.graphics.Shadow(Color(layer.glowColor), Offset.Zero, layer.glowRadius)
+                                } else if (layer.shadowEnabled) {
+                                    androidx.compose.ui.graphics.Shadow(Color(layer.shadowColor), Offset(layer.shadowDx, layer.shadowDy), layer.shadowRadius)
+                                } else null
+                            ),
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                            keyboardActions = KeyboardActions(onDone = { keyboardController?.hide() }),
+                            minLines = 1,
+                            maxLines = 5,
+                            cursorBrush = androidx.compose.ui.graphics.SolidColor(Color(0xFFB88CFF))
+                        )
+                    } else {
+                        if (layer.strokeEnabled && layer.strokeWidth > 0f) {
+                            Text(
+                                displayText,
+                                color = Color(layer.strokeColor).copy(alpha = layer.alpha * animAlpha),
+                                fontSize = commonSize,
+                                fontWeight = commonWeight,
+                                fontFamily = commonFont,
+                                textAlign = when (layer.textAlign) { "start" -> TextAlign.Start; "end" -> TextAlign.End; else -> TextAlign.Center },
+                                lineHeight = (layer.size * layer.lineHeightMultiplier).sp,
+                                letterSpacing = layer.letterSpacing.sp,
+                                style = TextStyle(drawStyle = androidx.compose.ui.graphics.drawscope.Stroke(width = layer.strokeWidth))
+                            )
+                        }
+                        Text(
+                            displayText,
+                            color = Color(layer.color).copy(alpha = layer.alpha * animAlpha),
+                            fontSize = commonSize,
+                            fontWeight = commonWeight,
+                            fontFamily = commonFont,
+                            textAlign = TextAlign.Center,
+                            style = TextStyle(
+                                lineHeight = (layer.size * layer.lineHeightMultiplier).sp,
+                                letterSpacing = layer.letterSpacing.sp,
+                                textAlign = when (layer.textAlign) { "start" -> TextAlign.Start; "end" -> TextAlign.End; else -> TextAlign.Center },
+                                shadow = if (layer.glowEnabled) {
+                                    androidx.compose.ui.graphics.Shadow(Color(layer.glowColor), Offset.Zero, layer.glowRadius)
+                                } else if (layer.shadowEnabled) {
+                                    androidx.compose.ui.graphics.Shadow(Color(layer.shadowColor), Offset(layer.shadowDx, layer.shadowDy), layer.shadowRadius)
+                                } else null
+                            )
+                        )
                     }
-                    Text(displayText, color=Color(layer.color).copy(alpha=layer.alpha*animAlpha), fontSize=commonSize, fontWeight=commonWeight, fontFamily=commonFont, textAlign=TextAlign.Center, style=androidx.compose.ui.text.TextStyle(lineHeight=(layer.size*layer.lineHeightMultiplier).sp, letterSpacing=layer.letterSpacing.sp, textAlign=when(layer.textAlign){"start"->TextAlign.Start;"end"->TextAlign.End;else->TextAlign.Center}, shadow=if(layer.glowEnabled) androidx.compose.ui.graphics.Shadow(Color(layer.glowColor), Offset.Zero, layer.glowRadius) else if(layer.shadowEnabled) androidx.compose.ui.graphics.Shadow(Color(layer.shadowColor), Offset(layer.shadowDx, layer.shadowDy), layer.shadowRadius) else null))
-                    if(selected){IconButton(onClick={val next=settings.textLayers.filterNot{it.id==layer.id};onSettingsChange(settings.copy(textLayers=next,text=next.firstOrNull()?.text.orEmpty(),textVisible=next.any{it.visible&&it.text.isNotBlank()}));selectedLayerId=next.firstOrNull()?.id},modifier=Modifier.align(Alignment.TopEnd).size(26.dp)){Icon(Icons.Default.Close,null,tint=Color.White,modifier=Modifier.size(15.dp))}}
+
+                    if (selected && !textEditingEnabled) {
+                        IconButton(
+                            onClick = {
+                                val next = settings.textLayers.filterNot { it.id == layer.id }
+                                onSettingsChange(settings.copy(
+                                    textLayers = next,
+                                    text = next.firstOrNull()?.text.orEmpty(),
+                                    textVisible = next.any { it.visible && it.text.isNotBlank() }
+                                ))
+                                selectedLayerId = next.firstOrNull()?.id
+                            },
+                            modifier = Modifier.align(Alignment.TopEnd).size(26.dp)
+                        ) {
+                            Icon(Icons.Default.Close, null, tint = Color.White, modifier = Modifier.size(15.dp))
+                        }
+                    }
                 }
             }
-            if (previewLayers.isNotEmpty()) {
+
+            if (textEditingEnabled && selectedTextLayer != null) {
+                val palette = listOf(
+                    0xFFFFFFFFL to "White",
+                    0xFFFFD54FL to "Gold",
+                    0xFF80D8FFL to "Cyan",
+                    0xFFFF80ABL to "Pink",
+                    0xFFB39DDBL to "Purple",
+                    0xFF7CFF8AL to "Green"
+                )
+                val fonts = fontOptions().take(12)
+                Surface(
+                    Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .padding(7.dp),
+                    color = Color(0xE6091321),
+                    shape = RoundedCornerShape(13.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF355B8B))
+                ) {
+                    Column(Modifier.padding(horizontal = 7.dp, vertical = 5.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                if (LocalLayoutDirection.current == LayoutDirection.Rtl) "تحرير النص مباشرة" else "Direct text editing",
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 10.sp,
+                                modifier = Modifier.weight(1f)
+                            )
+                            IconButton(
+                                onClick = {
+                                    keyboardController?.hide()
+                                    onTextEditingFinished()
+                                },
+                                modifier = Modifier.size(28.dp)
+                            ) {
+                                Icon(Icons.Default.Check, null, tint = Color(0xFF72E6A2), modifier = Modifier.size(17.dp))
+                            }
+                            IconButton(
+                                onClick = {
+                                    val next = settings.textLayers.filterNot { it.id == selectedTextLayer.id }
+                                    onTextEditingChange(settings.copy(
+                                        textLayers = next,
+                                        text = next.firstOrNull()?.text.orEmpty(),
+                                        textVisible = next.any { it.visible && it.text.isNotBlank() }
+                                    ))
+                                    selectedLayerId = next.firstOrNull()?.id
+                                    keyboardController?.hide()
+                                },
+                                modifier = Modifier.size(28.dp)
+                            ) {
+                                Icon(Icons.Default.Delete, null, tint = Color(0xFFFF7D91), modifier = Modifier.size(17.dp))
+                            }
+                        }
+                        Row(
+                            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(5.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(if (LocalLayoutDirection.current == LayoutDirection.Rtl) "الخط" else "Font", color = Color(0xFF91A2BA), fontSize = 8.sp)
+                            fonts.forEach { font ->
+                                FilterChip(
+                                    selected = selectedTextLayer.font == font.key,
+                                    onClick = { changeSelectedLayer { it.copy(font = font.key) } },
+                                    label = {
+                                        Text(
+                                            if (LocalLayoutDirection.current == LayoutDirection.Rtl) font.ar else font.en,
+                                            fontSize = 8.sp,
+                                            fontFamily = fontFamilyFor(font.key)
+                                        )
+                                    }
+                                )
+                            }
+                        }
+                        Row(
+                            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(if (LocalLayoutDirection.current == LayoutDirection.Rtl) "اللون" else "Color", color = Color(0xFF91A2BA), fontSize = 8.sp)
+                            palette.forEach { (value, label) ->
+                                Box(
+                                    Modifier
+                                        .size(25.dp)
+                                        .clip(androidx.compose.foundation.shape.CircleShape)
+                                        .background(Color(value))
+                                        .border(
+                                            if (selectedTextLayer.color == value) 2.dp else 1.dp,
+                                            if (selectedTextLayer.color == value) Color.White else Color(0xFF47698D),
+                                            androidx.compose.foundation.shape.CircleShape
+                                        )
+                                        .clickable { changeSelectedLayer { it.copy(color = value) } }
+                                )
+                            }
+                            Spacer(Modifier.width(4.dp))
+                            IconButton(
+                                onClick = { changeSelectedLayer { it.copy(size = (it.size - 2f).coerceAtLeast(12f)) } },
+                                modifier = Modifier.size(28.dp)
+                            ) { Icon(Icons.Default.TextDecrease, null, tint = Color.White, modifier = Modifier.size(17.dp)) }
+                            Text("${selectedTextLayer.size.toInt()}", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                            IconButton(
+                                onClick = { changeSelectedLayer { it.copy(size = (it.size + 2f).coerceAtMost(120f)) } },
+                                modifier = Modifier.size(28.dp)
+                            ) { Icon(Icons.Default.TextIncrease, null, tint = Color.White, modifier = Modifier.size(17.dp)) }
+                            IconButton(
+                                onClick = { changeSelectedLayer { it.copy(rotation = it.rotation - 15f) } },
+                                modifier = Modifier.size(28.dp)
+                            ) { Icon(Icons.AutoMirrored.Filled.RotateRight, null, tint = Color.White, modifier = Modifier.size(17.dp)) }
+                            IconButton(
+                                onClick = { changeSelectedLayer { it.copy(rotation = it.rotation + 15f) } },
+                                modifier = Modifier.size(28.dp)
+                            ) { Icon(Icons.Default.RotateRight, null, tint = Color.White, modifier = Modifier.size(17.dp)) }
+                        }
+                    }
+                }
+            }
+
+            if (previewLayers.isNotEmpty() && !textEditingEnabled) {
                 Text(
                     if (LocalLayoutDirection.current == LayoutDirection.Rtl) "اسحب النص • قرص للتكبير/الدوران" else "Drag text • pinch to scale/rotate",
-                    color = Color.White.copy(alpha=.65f), fontSize = 8.sp,
-                    modifier = Modifier.align(Alignment.BottomCenter).padding(bottom=7.dp)
+                    color = Color.White.copy(alpha = .65f),
+                    fontSize = 8.sp,
+                    modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 7.dp)
                 )
             }
+
             if (settings.sticker.isNotBlank()) {
                 Text(
                     settings.sticker,
@@ -4898,12 +5192,15 @@ private fun fontOptions(): List<FontOption> = listOf(
 )
 
 private fun fontFamilyFor(key: String, bold: Boolean = false): FontFamily {
-    // The editor must remain stable on every supported Android device. Some bundled
-    // font-family resources can fail during Compose's asynchronous Typeface resolution,
-    // which is a runtime crash rather than a compile error. Keep the chosen font key
-    // in the project model, but render the live editor with the platform-safe family.
-    // Font previews still expose the complete selectable font catalog.
-    return FontFamily.SansSerif
+    // Keep live editing on platform-safe system families. The selected key remains
+    // persisted, while previewing it never depends on asynchronous resource typefaces.
+    return when (key) {
+        "noto_naskh_arabic", "amiri", "lateef", "harmattan", "scheherazade_new",
+        "markazi_text", "aref_ruqaa", "katibeh" -> FontFamily.Serif
+        "jomhuria", "lalezar", "changa", "lemonada" -> FontFamily.Cursive
+        "readex_pro", "rubik", "lato", "inter", "cabin", "dejavu_sans" -> FontFamily.Monospace
+        else -> FontFamily.SansSerif
+    }
 }
 
 @Composable private fun TextDialog(s: EditorSettings, language: AppLanguage, onChange: (EditorSettings) -> Unit, onDismiss: () -> Unit) {
