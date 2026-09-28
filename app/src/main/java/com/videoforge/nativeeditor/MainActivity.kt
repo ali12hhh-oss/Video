@@ -3410,6 +3410,7 @@ private fun EditorPreview(
                 val animAlpha = when(layer.animation){"fade"->textEase;"typewriter"->textEase;else->1f}
                 val animScale = when(layer.animation){"pop"->0.55f+0.45f*textEase;"zoom"->0.25f+0.75f*textEase;else->1f}
                 val animX = if(layer.animation=="slide") -0.35f*(1f-textEase) else 0f
+                if (localTextTime in layer.startMs.coerceAtLeast(0L) until layer.endMs.coerceAtLeast(layer.startMs + 1L)) {
                 Box(
                     Modifier
                         .align(Alignment.Center)
@@ -3444,6 +3445,7 @@ private fun EditorPreview(
                         Text(displayText, color=Color(layer.strokeColor).copy(alpha=layer.alpha*animAlpha), fontSize=commonSize, fontWeight=commonWeight, fontFamily=commonFont, textAlign=when(layer.textAlign){"start"->TextAlign.Start;"end"->TextAlign.End;else->TextAlign.Center}, lineHeight=(layer.size*layer.lineHeightMultiplier).sp, letterSpacing=layer.letterSpacing.sp, style=androidx.compose.ui.text.TextStyle(drawStyle=androidx.compose.ui.graphics.drawscope.Stroke(width=layer.strokeWidth)))
                     }
                     Text(displayText, color=Color(layer.color).copy(alpha=layer.alpha*animAlpha), fontSize=commonSize, fontWeight=commonWeight, fontFamily=commonFont, textAlign=TextAlign.Center, style=androidx.compose.ui.text.TextStyle(lineHeight=(layer.size*layer.lineHeightMultiplier).sp, letterSpacing=layer.letterSpacing.sp, textAlign=when(layer.textAlign){"start"->TextAlign.Start;"end"->TextAlign.End;else->TextAlign.Center}, shadow=if(layer.glowEnabled) androidx.compose.ui.graphics.Shadow(Color(layer.glowColor), Offset.Zero, layer.glowRadius) else if(layer.shadowEnabled) androidx.compose.ui.graphics.Shadow(Color(layer.shadowColor), Offset(layer.shadowDx, layer.shadowDy), layer.shadowRadius) else null))
+                }
                 }
             }
             if (previewLayers.isNotEmpty()) {
