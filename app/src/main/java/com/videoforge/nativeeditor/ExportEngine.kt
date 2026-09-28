@@ -685,7 +685,7 @@ class ExportEngine(private val context: Context, private val resolver: ContentRe
                 span.setSpan(ShadowSpan(sh, layer.shadowRadius.coerceIn(0f, 24f), layer.shadowDx.coerceIn(-20f,20f), layer.shadowDy.coerceIn(-20f,20f)), 0, span.length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
             }
             val baseScale = (layer.size / 100f).coerceIn(0.12f, 1.5f)
-            val timing = textTimings["text-$layerIndex"]
+            val timing = textTimings[layer.id] ?: textTimings["text-$layerIndex"]
             val timedOverlay = if (timing != null) {
                 TimedTextOverlay(
                     baseText = span,
