@@ -45,7 +45,7 @@ dependencies {
     implementation("androidx.media3:media3-transformer:1.11.1")
     implementation("androidx.media3:media3-effect:1.11.1")
     implementation("com.google.android.gms:play-services-mlkit-subject-segmentation:16.0.0-beta1")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.11.1")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.9.0")
 
     // Existing AdMob dependency is intentionally retained; ad activation remains deferred.
     implementation("com.google.android.gms:play-services-ads:23.6.0")

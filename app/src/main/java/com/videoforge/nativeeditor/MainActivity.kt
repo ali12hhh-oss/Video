@@ -4467,6 +4467,7 @@ private fun EditorPreview(
             }
 
             val selectedTextLayer = previewLayers.firstOrNull { it.id == selectedLayerId }
+            val latestSettings by rememberUpdatedState(settings)
             val textFocusRequester = remember { FocusRequester() }
             val keyboardController = LocalSoftwareKeyboardController.current
             var textFieldValue by remember(selectedTextLayer?.id) {
@@ -4489,15 +4490,16 @@ private fun EditorPreview(
 
             fun changeSelectedLayer(transform: (TextLayer) -> TextLayer) {
                 val id = selectedLayerId ?: return
-                val nextLayers = settings.textLayers.map { layer ->
+                val baseSettings = latestSettings
+                val nextLayers = baseSettings.textLayers.map { layer ->
                     if (layer.id == id) transform(layer) else layer
                 }
-                onTextEditingChange(settings.copy(
+                onTextEditingChange(baseSettings.copy(
                     textLayers = nextLayers,
                     text = nextLayers.firstOrNull()?.text.orEmpty(),
-                    textSize = nextLayers.firstOrNull()?.size ?: settings.textSize,
-                    textColor = nextLayers.firstOrNull()?.color ?: settings.textColor,
-                    textFont = nextLayers.firstOrNull()?.font ?: settings.textFont,
+                    textSize = nextLayers.firstOrNull()?.size ?: baseSettings.textSize,
+                    textColor = nextLayers.firstOrNull()?.color ?: baseSettings.textColor,
+                    textFont = nextLayers.firstOrNull()?.font ?: baseSettings.textFont,
                     textVisible = nextLayers.any { it.visible && it.text.isNotBlank() }
                 ))
             }
