@@ -84,6 +84,9 @@ private val TextLayerColors = listOf(Color(0xFF6C4CD9), Color(0xFFD98A34), Color
 // few seconds, matching how CapCut/VN-style trim handles feel.
 private const val MS_PER_DP = 60L
 private const val MIN_CLIP_DURATION_MS = 300L
+private const val MIN_TEXT_DURATION_MS = 300L
+
+data class TextTimelineTiming(val startMs: Long, val endMs: Long)
 
 private fun timelineClipDurationForUi(clip: Clip): Long {
     val end = if (clip.trimEndMs == Long.MAX_VALUE) clip.durationMs else clip.trimEndMs
@@ -211,6 +214,8 @@ fun Timeline(
     onVideoKeyframeMove: (Long, Long) -> Unit,
     onAddMedia: () -> Unit = {},
     textLayerNames: List<String> = emptyList(),
+    textTimings: Map<String, TextTimelineTiming> = emptyMap(),
+    onTextTimingChange: (String, Long, Long) -> Unit = { _, _, _ -> },
     pipLayerCount: Int = 0,
     filterName: String = "none",
     language: AppLanguage = AppLanguage.ENGLISH
@@ -466,10 +471,11 @@ fun Timeline(
                             }
                         }
 
-                        // Text gets a real timeline lane only after the user adds text.
+                        // Text has a real temporal lane. Every layer gets a resizable block
+                        // whose start/end are independent from the video clip boundaries.
                         if (textLayerNames.isNotEmpty()) {
                             Box(
-                                Modifier.fillMaxWidth().height(42.dp)
+                                Modifier.fillMaxWidth().height(48.dp)
                                     .clip(RoundedCornerShape(7.dp))
                                     .background(Color(0xFF111126))
                             ) {
@@ -480,15 +486,21 @@ fun Timeline(
                                     modifier = Modifier.align(Alignment.CenterStart).padding(start = 6.dp).size(15.dp)
                                 )
                                 textLayerNames.forEachIndexed { i, name ->
-                                    val left = if (textLayerNames.size == 1) 0.12f else i.toFloat() / textLayerNames.size
-                                    val width = (0.32f).coerceAtMost(0.85f)
+                                    val id = "text-$i"
+                                    val timing = textTimings[id] ?: TextTimelineTiming(0L, total)
+                                    val start = timing.startMs.coerceIn(0L, (total - MIN_TEXT_DURATION_MS).coerceAtLeast(0L))
+                                    val end = timing.endMs.coerceIn(start + MIN_TEXT_DURATION_MS, total)
+                                    val leftFraction = start.toFloat() / total.toFloat()
+                                    val widthFraction = ((end - start).toFloat() / total.toFloat()).coerceIn(0.01f, 1f)
+                                    val barWidthDp = with(density) { (widthFraction * widthPx).toDp() }
                                     Box(
-                                        Modifier.fillMaxHeight().fillMaxWidth(width)
-                                            .offset(x = with(density) { (left * widthPx).toDp() })
+                                        Modifier.fillMaxHeight()
+                                            .fillMaxWidth(widthFraction)
+                                            .offset(x = with(density) { (leftFraction * widthPx).toDp() })
                                             .padding(vertical = 4.dp, horizontal = 2.dp)
                                             .clip(RoundedCornerShape(5.dp))
                                             .background(TextLayerColors[i % TextLayerColors.size])
-                                            .clickable { onKeyframeSeek(safePlayhead) },
+                                            .clickable { onKeyframeSeek(start) },
                                         contentAlignment = Alignment.CenterStart
                                     ) {
                                         Text(
@@ -496,7 +508,34 @@ fun Timeline(
                                             color = Color.White,
                                             fontSize = 8.sp,
                                             maxLines = 1,
-                                            modifier = Modifier.padding(horizontal = 8.dp)
+                                            modifier = Modifier.padding(horizontal = 9.dp)
+                                        )
+                                        // Left and right handles change only the timing range.
+                                        Box(
+                                            Modifier.fillMaxHeight().width(8.dp)
+                                                .align(Alignment.CenterStart)
+                                                .background(Color.White.copy(alpha = .8f))
+                                                .pointerInput(id, start, end, total) {
+                                                    detectDragGestures { change, drag ->
+                                                        change.consume()
+                                                        val delta = (drag.x / widthPx * total).toLong()
+                                                        val nextStart = (start + delta).coerceIn(0L, end - MIN_TEXT_DURATION_MS)
+                                                        onTextTimingChange(id, nextStart, end)
+                                                    }
+                                                }
+                                        )
+                                        Box(
+                                            Modifier.fillMaxHeight().width(8.dp)
+                                                .align(Alignment.CenterEnd)
+                                                .background(Color.White.copy(alpha = .8f))
+                                                .pointerInput(id, start, end, total) {
+                                                    detectDragGestures { change, drag ->
+                                                        change.consume()
+                                                        val delta = (drag.x / widthPx * total).toLong()
+                                                        val nextEnd = (end + delta).coerceIn(start + MIN_TEXT_DURATION_MS, total)
+                                                        onTextTimingChange(id, start, nextEnd)
+                                                    }
+                                                }
                                         )
                                     }
                                 }
