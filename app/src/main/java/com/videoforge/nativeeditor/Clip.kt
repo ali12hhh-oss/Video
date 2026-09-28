@@ -18,6 +18,8 @@ data class Clip(
     val audioFadeIn: Float = 0f,
     val audioFadeOut: Float = 0f,
     val audioKeyframes: List<ClipAudioKeyframe> = emptyList(),
+    val videoKeyframes: List<VideoKeyframe> = emptyList(),
+    val speedKeyframes: List<SpeedKeyframe> = emptyList(),
     val isFreezeFrame: Boolean = false,
     val freezeDurationMs: Long = 1000L
 )
