@@ -2841,6 +2841,10 @@ private fun EditorScreen(
                 musicTimelineStartMs = settings.musicTimelineStartMs,
                 musicTrackIndex = settings.musicTrackIndex,
                 audioTracks = settings.audioTracks,
+                extraTimelineEndMs = maxOf(
+                    if (settings.musicUri.isNotBlank()) settings.musicTimelineStartMs + settings.musicDurationMs else 0L,
+                    settings.audioTracks.maxOfOrNull { it.timelineStartMs + it.durationMs } ?: 0L
+                ),
                 musicSourceDurationMs = musicSourceDurationMs,
                 musicVolume = settings.musicVolume,
                 musicFadeIn = settings.musicFadeIn,
