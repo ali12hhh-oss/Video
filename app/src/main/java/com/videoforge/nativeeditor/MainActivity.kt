@@ -2284,7 +2284,7 @@ private fun EditorFeaturePanel(
                                     "extract" -> onExtractAudio()
                                 }
                                 "text" -> when(id) {
-                                    "text" -> onOpenAdvancedTool("text")
+                                    "text" -> onTextDialog()
                                     "position" -> {
                                         val first = settings.textLayers.firstOrNull()
                                         if (first != null) onSettingsLiveChange(settings.copy(textLayers = settings.textLayers.map { if (it.id == first.id) it.copy(x = 0f, y = 0f) else it }))
@@ -3183,7 +3183,7 @@ private fun EditorScreen(
                                     onAudioKeyframes = { showAudioKeyframes=true },
                                     onMusicKeyframes = { showMusicKeyframes=true },
                                     onPickMusic = { musicImportLauncher.launch(arrayOf("audio/*")) },
-                                    onTextDialog = { activeEditorTool = "text"; showTextInput = true },
+                                    onTextDialog = { tool = null; activeEditorTool = "text"; showTextInput = true },
                                     onTextAnimation = { activeEditorTool = "textAnimation" },
                                     onSubtitles = { activeEditorTool = "subtitles" },
                                     onLayersDialog = { showLayers=true },
@@ -3232,7 +3232,16 @@ private fun EditorScreen(
                                             if(clip!=null && clips.size>1){
                                                 val next=clips.filterNot{it==clip}; commitClips(next); current=next.firstOrNull()
                                             }
+                                        } else if (id == "text") {
+                                            if (activeEditorTool == id) {
+                                                activeEditorTool = null
+                                                showTextInput = false
+                                            } else {
+                                                activeEditorTool = "text"
+                                                showTextInput = true
+                                            }
                                         } else {
+                                            showTextInput = false
                                             activeEditorTool = if (activeEditorTool == id) null else id
                                         }
                                     },
@@ -3811,12 +3820,54 @@ private fun EditorPreview(
                 if (settings.contrast != 1f) effects += Contrast(((settings.contrast - 1f) * 0.5f).coerceIn(-1f, 1f))
                 if (settings.saturation != 1f || settings.hue != 0f || settings.temperature != 0f || settings.tint != 0f) effects += HslAdjustment.Builder().adjustSaturation(((settings.saturation - 1f) * 100f + settings.temperature * 0.10f).coerceIn(-100f, 100f)).adjustHue((settings.hue + settings.temperature * 0.12f + settings.tint * 0.08f).coerceIn(-180f, 180f)).build()
                 when (settings.filter) {
-                    "mono" -> effects += RgbFilter.createGrayscaleFilter()
+                    "mono" -> {
+                        effects += RgbFilter.createGrayscaleFilter()
+                        effects += Contrast(0.10f)
+                    }
+                    "noir" -> {
+                        effects += RgbFilter.createGrayscaleFilter()
+                        effects += Contrast(0.30f)
+                        effects += Brightness(-0.06f)
+                    }
                     "invert" -> effects += RgbFilter.createInvertedFilter()
                     "sepia" -> effects += HslAdjustment.Builder().adjustHue(28f).adjustSaturation(-18f).build()
                     "warm" -> effects += HslAdjustment.Builder().adjustHue(18f).adjustSaturation(10f).build()
                     "cool" -> effects += HslAdjustment.Builder().adjustHue(-18f).adjustSaturation(6f).build()
                     "vivid" -> effects += HslAdjustment.Builder().adjustSaturation(28f).build()
+                    "dream" -> {
+                        effects += HslAdjustment.Builder().adjustSaturation(12f).adjustHue(8f).build()
+                        effects += Brightness(0.08f)
+                    }
+                    "faded" -> {
+                        effects += HslAdjustment.Builder().adjustSaturation(-28f).build()
+                        effects += Brightness(0.08f)
+                    }
+                    "tealOrange" -> {
+                        effects += HslAdjustment.Builder().adjustHue(8f).adjustSaturation(18f).build()
+                        effects += Contrast(0.08f)
+                    }
+                    "vintage" -> {
+                        effects += HslAdjustment.Builder().adjustHue(32f).adjustSaturation(-22f).build()
+                        effects += Brightness(-0.02f)
+                    }
+                    "sunset" -> {
+                        effects += HslAdjustment.Builder().adjustHue(22f).adjustSaturation(22f).build()
+                        effects += Brightness(0.03f)
+                    }
+                    "ice" -> {
+                        effects += HslAdjustment.Builder().adjustHue(-28f).adjustSaturation(8f).build()
+                        effects += Brightness(0.04f)
+                    }
+                    "dramatic" -> {
+                        effects += Contrast(0.28f)
+                        effects += HslAdjustment.Builder().adjustSaturation(12f).build()
+                        effects += Brightness(-0.04f)
+                    }
+                    "soft" -> {
+                        effects += Contrast(-0.12f)
+                        effects += HslAdjustment.Builder().adjustSaturation(-6f).build()
+                        effects += Brightness(0.06f)
+                    }
                 }
                 if (settings.rotation % 360 != 0 || kotlin.math.abs(settings.cropZoom - 1f) > 0.001f) effects += ScaleAndRotateTransformation.Builder().setScale(settings.cropZoom.coerceIn(1f, 6f), settings.cropZoom.coerceIn(1f, 6f)).setRotationDegrees(((settings.rotation % 360) + 360) % 360f).build()
                 if (settings.flipHorizontal || settings.flipVertical) effects += MatrixTransformation { android.graphics.Matrix().apply { postScale(if (settings.flipHorizontal) -1f else 1f, if (settings.flipVertical) -1f else 1f) } }
