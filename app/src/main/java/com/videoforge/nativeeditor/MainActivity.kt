@@ -2867,6 +2867,7 @@ private fun EditorScreen(
                     ExportEngine(context, context.contentResolver).export(
                         clips = clips, settings = exportSettings, editor = settings, output = uri,
                         includeWatermark = !watermarkRemovedForExport,
+                        textTimings = textTimings,
                         onProgress = { progress ->
                             exportProgress = progress.fraction.coerceIn(0f, 1f)
                             status = progress.message
