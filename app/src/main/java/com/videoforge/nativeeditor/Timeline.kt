@@ -452,11 +452,11 @@ fun Timeline(
                                     }
                                 }
                             }
-                        }
-
                             IconButton(onClick = onAddText, modifier = Modifier.align(Alignment.CenterEnd).size(36.dp)) {
                                 Icon(Icons.Default.Add, contentDescription = "Add text", tint = Color.White)
                             }
+                        }
+
                         // Music lane with a visible range and draggable start/end handles.
                         Box(
                             Modifier.fillMaxWidth().height(48.dp)
