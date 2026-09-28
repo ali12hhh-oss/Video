@@ -3173,7 +3173,7 @@ private fun EditorPreview(
                 }
                 return v.coerceIn(0f, 1f)
             }
-            LaunchedEffect(settings.speed, settings.speedKeyframes, settings.volume, settings.muted, clip.audioVolume, clip.audioMuted, clip.audioFadeIn, clip.audioFadeOut, clip.audioKeyframes, settings.fadeIn, settings.fadeOut, settings.musicUri, settings.musicVolume, settings.musicStartMs, settings.musicDurationMs, settings.musicFadeIn, settings.musicFadeOut, settings.musicDucking, settings.musicDuckVolume, settings.musicDuckAttack, settings.musicDuckRelease, settings.musicKeyframes, playheadMs) {
+            LaunchedEffect(settings.speed, settings.speedKeyframes, clip.speedKeyframes, settings.volume, settings.muted, clip.audioVolume, clip.audioMuted, clip.audioFadeIn, clip.audioFadeOut, clip.audioKeyframes, settings.fadeIn, settings.fadeOut, settings.musicUri, settings.musicVolume, settings.musicStartMs, settings.musicDurationMs, settings.musicFadeIn, settings.musicFadeOut, settings.musicDucking, settings.musicDuckVolume, settings.musicDuckAttack, settings.musicDuckRelease, settings.musicKeyframes, playheadMs) {
                 val local = (playheadMs - clipOffsetMs).coerceAtLeast(0L)
                 val speedNow = run {
                     val ks = clip.speedKeyframes.ifEmpty { settings.speedKeyframes }.sortedBy { it.timeMs }
@@ -3253,7 +3253,7 @@ private fun EditorPreview(
                     musicPlayer.volume = musicPreviewVolume(playheadMs)
                 }
             }
-            LaunchedEffect(player, musicPlayer, settings.speed, settings.speedKeyframes, settings.musicUri, settings.musicStartMs, settings.musicDurationMs, settings.musicVolume, settings.musicFadeIn, settings.musicFadeOut, settings.musicKeyframes, clip.audioVolume, clip.audioMuted, clip.audioFadeIn, clip.audioFadeOut, clip.audioKeyframes, settings.volume, settings.muted, settings.fadeIn, settings.fadeOut) {
+            LaunchedEffect(player, musicPlayer, settings.speed, settings.speedKeyframes, clip.speedKeyframes, settings.musicUri, settings.musicStartMs, settings.musicDurationMs, settings.musicVolume, settings.musicFadeIn, settings.musicFadeOut, settings.musicKeyframes, clip.audioVolume, clip.audioMuted, clip.audioFadeIn, clip.audioFadeOut, clip.audioKeyframes, settings.volume, settings.muted, settings.fadeIn, settings.fadeOut) {
                 while (isActive) {
                     val localNow = (player.currentPosition - clip.trimStartMs).coerceAtLeast(0L)
                     val globalNow = (clipOffsetMs + localNow).coerceAtLeast(0L)
