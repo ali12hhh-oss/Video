@@ -317,7 +317,7 @@ fun ExportDialog(
                     Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Box(Modifier.size(32.dp).clip(RoundedCornerShape(9.dp)).background(Brush.linearGradient(listOf(Color(0xFF6B3CFF), Color(0xFF2585FF)))), contentAlignment = Alignment.Center) {
-                                Icon(Icons.Default.HighQuality, null, tint = Color.White, modifier = Modifier.size(18.dp))
+                                Icon(androidx.compose.material.icons.Icons.Default.HighQuality, null, tint = Color.White, modifier = Modifier.size(18.dp))
                             }
                             Spacer(Modifier.width(8.dp))
                             Column(Modifier.weight(1f)) {
@@ -388,7 +388,7 @@ fun ExportDialog(
                         }, fontSize = 9.sp, color = Color(0xFF8396B1))
                         if (!watermarkRemoved) {
                             Button(onClick = onWatchAdToRemoveWatermark, modifier = Modifier.fillMaxWidth()) {
-                                Icon(Icons.Default.OndemandVideo, null, Modifier.size(17.dp))
+                                Icon(androidx.compose.material.icons.Icons.Default.OndemandVideo, null, Modifier.size(17.dp))
                                 Spacer(Modifier.width(6.dp))
                                 Text(if (ar) "مشاهدة إعلان وإزالة العلامة" else "Watch ad & remove watermark")
                             }
@@ -401,7 +401,7 @@ fun ExportDialog(
         },
         confirmButton = {
             Button(onClick = { onExport(settings) }) {
-                Icon(Icons.Default.FileUpload, null, Modifier.size(17.dp))
+                Icon(androidx.compose.material.icons.Icons.Default.FileUpload, null, Modifier.size(17.dp))
                 Spacer(Modifier.width(5.dp))
                 Text(if (ar) "تصدير الفيديو" else "Export video")
             }
