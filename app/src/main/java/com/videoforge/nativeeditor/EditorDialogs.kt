@@ -11,7 +11,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
-import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -317,7 +316,7 @@ fun ExportDialog(
                     Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Box(Modifier.size(32.dp).clip(RoundedCornerShape(9.dp)).background(Brush.linearGradient(listOf(Color(0xFF6B3CFF), Color(0xFF2585FF)))), contentAlignment = Alignment.Center) {
-                                Icon(androidx.compose.material.icons.Icons.Default.HighQuality, null, tint = Color.White, modifier = Modifier.size(18.dp))
+                                Text("HD", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold)
                             }
                             Spacer(Modifier.width(8.dp))
                             Column(Modifier.weight(1f)) {
@@ -366,7 +365,7 @@ fun ExportDialog(
                             Text("HEVC", fontSize = 9.sp, fontWeight = FontWeight.Bold)
                         }
                         Text(if (ar) "معدل صوت AAC" else "AAC audio bitrate", fontWeight = FontWeight.Bold, fontSize = 10.sp)
-                        val audioRates = listOf(96000 to "96 kbps", 128000 to "128 kbps", 192000 to "192 kbps", 256000 to "256 kbps", 320000 to "320 kbps")
+                        val audioRates = AUDIO_BITRATES
                         LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             items(audioRates) { (rate, label) ->
                                 FilterChip(
@@ -388,7 +387,7 @@ fun ExportDialog(
                         }, fontSize = 9.sp, color = Color(0xFF8396B1))
                         if (!watermarkRemoved) {
                             Button(onClick = onWatchAdToRemoveWatermark, modifier = Modifier.fillMaxWidth()) {
-                                Icon(androidx.compose.material.icons.Icons.Default.OndemandVideo, null, Modifier.size(17.dp))
+                                Text("▶", color = Color.White, fontSize = 12.sp)
                                 Spacer(Modifier.width(6.dp))
                                 Text(if (ar) "مشاهدة إعلان وإزالة العلامة" else "Watch ad & remove watermark")
                             }
@@ -401,7 +400,7 @@ fun ExportDialog(
         },
         confirmButton = {
             Button(onClick = { onExport(settings) }) {
-                Icon(androidx.compose.material.icons.Icons.Default.FileUpload, null, Modifier.size(17.dp))
+                Text("↑", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.width(5.dp))
                 Text(if (ar) "تصدير الفيديو" else "Export video")
             }
