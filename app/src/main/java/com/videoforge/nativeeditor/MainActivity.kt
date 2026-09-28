@@ -2701,10 +2701,10 @@ private fun EditorScreen(
                 onAudioTrackClick = { activeEditorTool = "audio" },
                 onMusicTrim = { start, duration ->
                     val safeSource = musicSourceDurationMs
-                    val safeStart = if (safeSource > 0L) start.coerceIn(0L, (safeSource - 300L).coerceAtLeast(0L)) else start.coerceAtLeast(0L)
-                    val maxDuration = if (safeSource > 0L) (safeSource - safeStart).coerceAtLeast(300L) else Long.MAX_VALUE
-                    val safeDuration = duration.coerceIn(1L, maxDuration)
-                    updateSettings(settings.copy(musicStartMs = safeStart, musicDurationMs = safeDuration))
+                    val sourceStart = settings.musicStartMs.coerceAtLeast(0L)
+                    val maxDuration = if (safeSource > 0L) (safeSource - sourceStart).coerceAtLeast(300L) else Long.MAX_VALUE
+                    val safeDuration = duration.coerceIn(300L, maxDuration)
+                    updateSettings(settings.copy(musicDurationMs = safeDuration))
                 },
                 onSelect = { clip -> current = clip; playheadMs = timelinePositionOf(clips, clip) },
                 onPlayheadChange = { position ->
@@ -3111,7 +3111,7 @@ private fun EditorPreview(
             }
             fun musicPreviewVolume(globalMs: Long): Float {
                 if (settings.musicUri.isBlank()) return 0f
-                val local = globalMs - settings.musicStartMs
+                val local = globalMs.coerceAtLeast(0L)
                 if (local < 0L) return 0f
                 if (settings.musicDurationMs > 0L && local >= settings.musicDurationMs) return 0f
                 val keys = settings.musicKeyframes.sortedBy { it.timeMs }
@@ -3216,7 +3216,7 @@ private fun EditorPreview(
                 val sourcePosition = (clip.trimStartMs + local).coerceIn(clip.trimStartMs, (if (clip.trimEndMs == Long.MAX_VALUE) clip.durationMs else clip.trimEndMs).coerceAtLeast(clip.trimStartMs))
                 if (kotlin.math.abs(player.currentPosition - sourcePosition) > 250L) player.seekTo(sourcePosition)
                 if (settings.musicUri.isNotBlank()) {
-                    val musicLocal = (playheadMs - settings.musicStartMs).coerceAtLeast(0L)
+                    val musicLocal = playheadMs.coerceAtLeast(0L)
                     val targetOffset = if (settings.musicDurationMs > 0L) musicLocal % settings.musicDurationMs else musicLocal
                     val target = (settings.musicStartMs + targetOffset).coerceAtLeast(0L)
                     if (musicLocal >= 0L && kotlin.math.abs(musicPlayer.currentPosition - target) > 350L) musicPlayer.seekTo(target)
@@ -3241,7 +3241,7 @@ private fun EditorPreview(
                     if (settings.musicUri.isBlank()) {
                         musicPlayer.pause()
                     } else {
-                        val musicLocal = globalNow - settings.musicStartMs
+                        val musicLocal = globalNow
                         val active = player.isPlaying && musicLocal >= 0L && (settings.musicDurationMs <= 0L || musicLocal < settings.musicDurationMs)
                         musicPlayer.playWhenReady = active
                         musicPlayer.volume = musicPreviewVolume(globalNow)
