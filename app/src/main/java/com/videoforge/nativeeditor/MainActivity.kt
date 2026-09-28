@@ -3017,13 +3017,12 @@ private fun EditorScreen(
 
     fun syncTextTimings(next: EditorSettings) {
         val total = timelineTotalDuration(clips).coerceAtLeast(1L)
-        val validIds = next.textLayers.mapIndexed { i, _ -> "text-$i" }.toSet()
-        val synced = validIds.associateWith { id ->
-            val old = textTimings[id]
+        val synced = next.textLayers.mapIndexed { index, layer ->
+            val old = textTimings[layer.id] ?: textTimings["text-$index"]
             val start = old?.startMs?.coerceIn(0L, (total - 300L).coerceAtLeast(0L)) ?: 0L
             val end = old?.endMs?.coerceIn(start + 300L, total) ?: total
-            TextTimelineTiming(start, end)
-        }
+            layer.id to TextTimelineTiming(start, end)
+        }.toMap()
         textTimings = synced
         saveTextTimings(context, projectId, synced)
     }
@@ -3628,6 +3627,7 @@ private fun EditorScreen(
                 },
                 onAddMedia = { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)) },
                 textLayerNames = settings.textLayers.mapIndexed { i, layer -> layer.name.ifBlank { (if (language == AppLanguage.ARABIC) "نص " else "Text ") + (i + 1) } },
+                textLayerIds = settings.textLayers.map { it.id },
                 textTimings = textTimings,
                 onTextTimingChange = ::updateTextTiming,
                 pipLayerCount = settings.pipLayers.count { it.visible },
@@ -4341,7 +4341,9 @@ private fun EditorPreview(
             }
             previewLayers.filter { it.visible }.forEachIndexed { layerIndex, layer ->
                 val selected = selectedLayerId == layer.id
-                val textTiming = textTimings["text-$layerIndex"] ?: TextTimelineTiming(0L, Long.MAX_VALUE)
+                val textTiming = textTimings[layer.id]
+                    ?: textTimings["text-$layerIndex"]
+                    ?: TextTimelineTiming(0L, Long.MAX_VALUE)
                 // Text visibility is controlled by its own timeline range.
                 val textVisibleNow = playheadMs in textTiming.startMs..textTiming.endMs
                 if (!textVisibleNow) return@forEachIndexed
