@@ -188,10 +188,11 @@ class ExportEngine(private val context: Context, private val resolver: ContentRe
                     .apply {
                         if (clip.trimEndMs != Long.MAX_VALUE && clip.trimEndMs > clip.trimStartMs) setEndPositionMs(clip.trimEndMs)
                     }.build()
-                val mediaItem = if (clip.isFreezeFrame) {
+                val isStillImage = runCatching { context.contentResolver.getType(clip.uri)?.startsWith("image/") == true }.getOrDefault(false) || clip.uri.lastPathSegment?.lowercase()?.let { it.endsWith(".jpg") || it.endsWith(".jpeg") || it.endsWith(".png") || it.endsWith(".webp") || it.endsWith(".heic") || it.endsWith(".heif") || it.endsWith(".gif") } == true
+                val mediaItem = if (clip.isFreezeFrame || isStillImage) {
                     MediaItem.Builder()
                         .setUri(clip.uri)
-                        .setImageDurationMs(clip.freezeDurationMs.coerceAtLeast(1L))
+                        .setImageDurationMs((if (clip.isFreezeFrame) clip.freezeDurationMs else clipDurationMs(clip)).coerceAtLeast(1L))
                         .build()
                 } else {
                     MediaItem.Builder().setUri(clip.uri).setClippingConfiguration(clipping).build()
