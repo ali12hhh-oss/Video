@@ -350,11 +350,13 @@ fun Timeline(
                                             .background(Color(0xFF14243A))
                                             .clickable{onSelect(clip);onPlayheadChange(start)}
                                             .pointerInput(clip,total,trackIndex){
-                                                detectDragGestures(onDragStart={onSelect(clip);onPlayheadChange(start)}){change,dragAmount->
+                                                var movedMs=0L
+                                                var movedTrack=0
+                                                detectDragGestures(onDragStart={movedMs=0L;movedTrack=0;onSelect(clip);onPlayheadChange(start)}){change,dragAmount->
                                                     change.consume()
-                                                    val deltaMs=(dragAmount.x/contentWidthPx*total.toFloat()).toLong()
-                                                    val deltaTrack=(dragAmount.y/with(density){(laneHeight+5.dp).toPx()}).toInt()
-                                                    onMoveClip(clip,(start+deltaMs).coerceAtLeast(0L),(trackIndex+deltaTrack).coerceAtLeast(0))
+                                                    movedMs += (dragAmount.x/contentWidthPx*total.toFloat()).toLong()
+                                                    movedTrack += (dragAmount.y/with(density){(laneHeight+5.dp).toPx()}).toInt()
+                                                    onMoveClip(clip,(start+movedMs).coerceAtLeast(0L),(trackIndex+movedTrack).coerceAtLeast(0))
                                                 }
                                             }
                                     ){
@@ -474,11 +476,13 @@ fun Timeline(
                                     Box(Modifier.fillMaxHeight().fillMaxWidth(width).offset(x=with(density){(start.toFloat()/total.toFloat()*contentWidthPx).toDp()}).padding(vertical=4.dp).clip(RoundedCornerShape(6.dp)).background(Color(0xFF6740B8))
                                         .clickable{onPlayheadChange(start)}
                                         .pointerInput(track,total){
-                                            detectDragGestures(onDragStart={onPlayheadChange(start)}){change,drag->
+                                            var movedMs=0L
+                                            var movedTrack=0
+                                            detectDragGestures(onDragStart={movedMs=0L;movedTrack=0;onPlayheadChange(start)}){change,drag->
                                                 change.consume()
-                                                val delta=(drag.x/contentWidthPx*total.toFloat()).toLong()
-                                                val dTrack=(drag.y/with(density){(laneHeight+5.dp).toPx()}).toInt()
-                                                onMoveAudioTrack(track,(start+delta).coerceAtLeast(0L),(track.trackIndex+dTrack).coerceAtLeast(0))
+                                                movedMs += (drag.x/contentWidthPx*total.toFloat()).toLong()
+                                                movedTrack += (drag.y/with(density){(laneHeight+5.dp).toPx()}).toInt()
+                                                onMoveAudioTrack(track,(start+movedMs).coerceAtLeast(0L),(track.trackIndex+movedTrack).coerceAtLeast(0))
                                             }
                                         }){
                                         Canvas(Modifier.fillMaxSize().padding(horizontal=8.dp,vertical=5.dp)){val bars=42;val bw=size.width/bars;for(i in 0 until bars){val h=(.2f+.7f*((kotlin.math.sin((track.id.hashCode()*.0002f+i*.91f))+1f)/2f));drawRoundRect(Color(0xFFD3B8FF),Offset(i*bw+bw*.2f,(size.height*(1f-h))/2f),androidx.compose.ui.geometry.Size(bw*.55f,size.height*h),cornerRadius=androidx.compose.ui.geometry.CornerRadius(2f,2f))}}
