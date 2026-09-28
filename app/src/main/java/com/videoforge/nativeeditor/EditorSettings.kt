@@ -33,6 +33,20 @@ data class MusicKeyframe(
     val volume: Float = 1f
 )
 
+data class AudioTrack(
+    val id: String = System.nanoTime().toString(),
+    val uri: String = "",
+    val name: String = "Audio",
+    val timelineStartMs: Long = 0L,
+    val sourceStartMs: Long = 0L,
+    val durationMs: Long = 1000L,
+    val volume: Float = 1f,
+    val muted: Boolean = false,
+    val fadeIn: Float = 0f,
+    val fadeOut: Float = 0f,
+    val trackIndex: Int = 0
+)
+
 data class TimelineMarker(
     val id: String = System.nanoTime().toString(),
     val timeMs: Long = 0L,
@@ -157,6 +171,7 @@ data class EditorSettings(
     val musicDuckAttack: Float = 0.12f,
     val musicDuckRelease: Float = 0.22f,
     val musicKeyframes: List<MusicKeyframe> = emptyList(),
+    val audioTracks: List<AudioTrack> = emptyList(),
     val markers: List<TimelineMarker> = emptyList(),
     val audioKeyframes: List<AudioKeyframe> = emptyList(),
     val filter: String = "none",
@@ -323,6 +338,27 @@ object EditorSettingsRepository {
                         add(MusicKeyframe(q.optLong("timeMs", 0L), q.optDouble("volume", 1.0).toFloat()))
                     }
                 }.sortedBy { it.timeMs },
+                audioTracks = buildList {
+                    val a = j.optJSONArray("audioTracks") ?: JSONArray()
+                    for (n in 0 until a.length()) {
+                        val q = a.optJSONObject(n) ?: continue
+                        val uri = q.optString("uri", "")
+                        if (uri.isBlank()) continue
+                        add(AudioTrack(
+                            id=q.optString("id", System.nanoTime().toString()),
+                            uri=uri,
+                            name=q.optString("name","Audio"),
+                            timelineStartMs=q.optLong("timelineStartMs",0L),
+                            sourceStartMs=q.optLong("sourceStartMs",0L),
+                            durationMs=q.optLong("durationMs",1000L).coerceAtLeast(300L),
+                            volume=q.optDouble("volume",1.0).toFloat(),
+                            muted=q.optBoolean("muted",false),
+                            fadeIn=q.optDouble("fadeIn",0.0).toFloat(),
+                            fadeOut=q.optDouble("fadeOut",0.0).toFloat(),
+                            trackIndex=q.optInt("trackIndex",0).coerceAtLeast(0)
+                        ))
+                    }
+                },
                 audioKeyframes = buildList {
                     val k = j.optJSONArray("audioKeyframes") ?: JSONArray()
                     for (n in 0 until k.length()) {
@@ -441,6 +477,7 @@ object EditorSettingsRepository {
             .put("musicDuckAttack", s.musicDuckAttack)
             .put("musicDuckRelease", s.musicDuckRelease)
             .put("musicKeyframes", JSONArray().apply { s.musicKeyframes.sortedBy { it.timeMs }.forEach { k -> put(JSONObject().put("timeMs", k.timeMs).put("volume", k.volume)) } })
+            .put("audioTracks", JSONArray().apply { s.audioTracks.forEach { t -> put(JSONObject().put("id",t.id).put("uri",t.uri).put("name",t.name).put("timelineStartMs",t.timelineStartMs).put("sourceStartMs",t.sourceStartMs).put("durationMs",t.durationMs).put("volume",t.volume).put("muted",t.muted).put("fadeIn",t.fadeIn).put("fadeOut",t.fadeOut).put("trackIndex",t.trackIndex)) } })
             .put("audioKeyframes", JSONArray().apply { s.audioKeyframes.sortedBy { it.timeMs }.forEach { k -> put(JSONObject().put("timeMs", k.timeMs).put("volume", k.volume)) } })
             .put("filter", s.filter).put("brightness", s.brightness).put("contrast", s.contrast)
             .put("saturation", s.saturation).put("hue", s.hue).put("temperature", s.temperature).put("tint", s.tint).put("blurRadius", s.blurRadius)
