@@ -39,6 +39,7 @@ data class AudioTrack(
     val name: String = "Audio",
     val timelineStartMs: Long = 0L,
     val sourceStartMs: Long = 0L,
+    val sourceDurationMs: Long = 0L,
     val durationMs: Long = 1000L,
     val volume: Float = 1f,
     val muted: Boolean = false,
@@ -352,6 +353,7 @@ object EditorSettingsRepository {
                             name=q.optString("name","Audio"),
                             timelineStartMs=q.optLong("timelineStartMs",0L),
                             sourceStartMs=q.optLong("sourceStartMs",0L),
+                            sourceDurationMs=q.optLong("sourceDurationMs",0L),
                             durationMs=q.optLong("durationMs",1000L).coerceAtLeast(300L),
                             volume=q.optDouble("volume",1.0).toFloat(),
                             muted=q.optBoolean("muted",false),
@@ -480,7 +482,7 @@ object EditorSettingsRepository {
             .put("musicDuckAttack", s.musicDuckAttack)
             .put("musicDuckRelease", s.musicDuckRelease)
             .put("musicKeyframes", JSONArray().apply { s.musicKeyframes.sortedBy { it.timeMs }.forEach { k -> put(JSONObject().put("timeMs", k.timeMs).put("volume", k.volume)) } })
-            .put("audioTracks", JSONArray().apply { s.audioTracks.forEach { t -> put(JSONObject().put("id",t.id).put("uri",t.uri).put("name",t.name).put("timelineStartMs",t.timelineStartMs).put("sourceStartMs",t.sourceStartMs).put("durationMs",t.durationMs).put("volume",t.volume).put("muted",t.muted).put("fadeIn",t.fadeIn).put("fadeOut",t.fadeOut).put("trackIndex",t.trackIndex)) } })
+            .put("audioTracks", JSONArray().apply { s.audioTracks.forEach { t -> put(JSONObject().put("id",t.id).put("uri",t.uri).put("name",t.name).put("timelineStartMs",t.timelineStartMs).put("sourceStartMs",t.sourceStartMs).put("sourceDurationMs",t.sourceDurationMs).put("durationMs",t.durationMs).put("volume",t.volume).put("muted",t.muted).put("fadeIn",t.fadeIn).put("fadeOut",t.fadeOut).put("trackIndex",t.trackIndex)) } })
             .put("audioKeyframes", JSONArray().apply { s.audioKeyframes.sortedBy { it.timeMs }.forEach { k -> put(JSONObject().put("timeMs", k.timeMs).put("volume", k.volume)) } })
             .put("filter", s.filter).put("brightness", s.brightness).put("contrast", s.contrast)
             .put("saturation", s.saturation).put("hue", s.hue).put("temperature", s.temperature).put("tint", s.tint).put("blurRadius", s.blurRadius)
