@@ -1483,7 +1483,7 @@ private fun timelineClipAt(clips: List<Clip>, positionMs: Long): Pair<Clip, Long
     val p = positionMs.coerceAtLeast(0L)
     for (clip in clips) {
         val d = clipTimelineDuration(clip)
-        if (p <= offset + d || clip == clips.last()) {
+        if (p < offset + d || clip == clips.last()) {
             return clip to (p - offset).coerceIn(0L, d)
         }
         offset += d
@@ -2608,7 +2608,10 @@ private fun EditorScreen(
                 onPlaybackPosition = { position ->
                     playheadMs = position.coerceIn(0L, timelineTotalDuration(clips))
                     timelineClipAt(clips, playheadMs)?.let { (clipAtPlayhead, _) ->
-                        if (clipAtPlayhead != current) current = clipAtPlayhead
+                        if (clipAtPlayhead != current) {
+                            current = clipAtPlayhead
+                            if (previewPlaying) previewToggleToken += 1
+                        }
                     }
                 },
                 onPlaybackStateChanged = { previewPlaying = it },
