@@ -1,5 +1,4 @@
 @file:OptIn(
-    androidx.media3.common.util.UnstableApi::class,
     androidx.compose.material3.ExperimentalMaterial3Api::class
 )
 @file:androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])
