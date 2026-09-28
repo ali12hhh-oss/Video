@@ -1702,7 +1702,7 @@ private fun EditorFeaturePanel(
             if (activeTool == "filters") {
                 val filterValues = listOf("none","warm","cool","mono","vivid","sepia","invert","dream","noir","faded","tealOrange","vintage","sunset","ice","dramatic","soft")
                 val filterLabels = if (language == AppLanguage.ARABIC)
-                    listOf("بدون","دافئ","بارد","أبيض وأسود","فنتج","درامي","ناعم")
+                    listOf("بدون","دافئ","بارد","أبيض وأسود","حيوي","سيبيا","معكوس","حالم","نوير","باهت","Teal + Orange","فنتج","غروب","جليدي","درامي","ناعم")
                 else listOf("None","Warm","Cool","Mono","Vivid","Sepia","Invert","Dream","Noir","Faded","Teal + Orange","Vintage","Sunset","Ice","Dramatic","Soft")
                 val context = LocalContext.current
                 var filterPreview by remember(current?.uri) { mutableStateOf<android.graphics.Bitmap?>(null) }
@@ -1737,20 +1737,8 @@ private fun EditorFeaturePanel(
                                         bitmap = filterPreview!!.asImageBitmap(),
                                         contentDescription = null,
                                         contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                                        colorFilter = filterPreviewColorFilter(id),
                                         modifier = Modifier.fillMaxSize()
-                                    )
-                                    Box(
-                                        Modifier.fillMaxSize().background(
-                                            when (id) {
-                                                "warm" -> Color(0x55FF8A45)
-                                                "cool" -> Color(0x553C8DFF)
-                                                "mono" -> Color(0x66777777)
-                                                "vintage" -> Color(0x554B2A18)
-                                                "dramatic" -> Color(0x55402058)
-                                                "soft" -> Color(0x443B5C9A)
-                                                else -> Color.Transparent
-                                            }
-                                        )
                                     )
                                 } else {
                                     Icon(Icons.Default.FilterAlt, null, tint = Color(0xFF9B7BFF))
