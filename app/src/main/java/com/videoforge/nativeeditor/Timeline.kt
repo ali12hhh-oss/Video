@@ -212,8 +212,6 @@ fun Timeline(
     textLayers: List<TextLayer> = emptyList(),
     filterName: String = "none"
 ) {
-    val total = maxOf(clips.maxOfOrNull { clipStartMs(it) + timelineClipDurationForUi(it) } ?: 0L, extraTimelineEndMs).coerceAtLeast(1L)
-    val safePlayhead = playheadMs.coerceIn(0L, total)
     val scroll = rememberScrollState()
     val timelineWidth = 760.dp
     val laneHeight = 56.dp
@@ -236,6 +234,8 @@ fun Timeline(
         return 0L
     }
     val visualTracks = clips.groupBy { if (legacySequential) 0 else it.trackIndex.coerceAtLeast(0) }.toSortedMap()
+    val total = maxOf(clips.maxOfOrNull { clipStartMs(it) + timelineClipDurationForUi(it) } ?: 0L, extraTimelineEndMs).coerceAtLeast(1L)
+    val safePlayhead = playheadMs.coerceIn(0L, total)
     fun trackTint(index: Int): Color = when (index % 4) {
         0 -> Color(0xFF55A8FF)
         1 -> Color(0xFF9B6BFF)
