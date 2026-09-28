@@ -13,6 +13,8 @@ import android.content.pm.ActivityInfo
 import android.provider.MediaStore
 import android.media.MediaMetadataRetriever
 import android.media.MediaPlayer
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.os.Build
 import android.util.Size
 import androidx.activity.ComponentActivity
@@ -174,6 +176,32 @@ private fun persistUriAccess(context: android.content.Context, uri: Uri) {
     }
 }
 
+private suspend fun copyMediaUriToAppStorage(context: android.content.Context, uri: Uri, index: Int = 0): Uri? {
+    if (uri.scheme == "file") return uri
+    return runCatching {
+        val resolver = context.contentResolver
+        val mime = resolver.getType(uri).orEmpty()
+        val extension = when {
+            mime.equals("video/mp4", true) -> ".mp4"
+            mime.equals("video/quicktime", true) -> ".mov"
+            mime.equals("video/webm", true) -> ".webm"
+            mime.equals("image/png", true) -> ".png"
+            mime.equals("image/webp", true) -> ".webp"
+            mime.equals("image/heic", true) || mime.equals("image/heif", true) -> ".heic"
+            mime.startsWith("image/") -> ".jpg"
+            else -> if (isImageUri(context, uri)) ".jpg" else ".mp4"
+        }
+        val dir = java.io.File(context.filesDir, "imported_media").apply { mkdirs() }
+        val file = java.io.File(dir, "media_" + System.currentTimeMillis() + "_" + index + extension)
+        resolver.openInputStream(uri)?.use { input ->
+            file.outputStream().use { output -> input.copyTo(output, 1024 * 1024) }
+        } ?: return@runCatching null
+        Uri.fromFile(file)
+    }.getOrNull()
+}
+
+private fun safeMediaDurationMs(context: android.content.Context, uri: Uri): Long =
+    runCatching { defaultClipDurationMs(context, uri) }.getOrDefault(FALLBACK_VIDEO_CLIP_DURATION_MS)
 private fun hasVideoPermission(context: android.content.Context): Boolean {
     val permission = if (Build.VERSION.SDK_INT >= 33) {
         android.Manifest.permission.READ_MEDIA_VIDEO
@@ -344,42 +372,53 @@ private fun VideoForgeApp() {
 
     // Use the system document picker with explicit image + video MIME types so the
     // bottom + button consistently offers both media categories instead of image-only mode.
+    val importScope = rememberCoroutineScope()
     val picker = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
             val data = result.data
-            val uris = buildList {
+            val sourceUris = buildList {
                 data?.data?.let(::add)
                 data?.clipData?.let { clipData ->
                     for (i in 0 until clipData.itemCount) add(clipData.getItemAt(i).uri)
                 }
-            }.distinct()
-            if (uris.isNotEmpty()) {
-                projectId = ProjectRepository.newId()
-                var startMs = 0L
-                clips = uris.take(20).mapIndexed { i, uri ->
-                    persistUriAccess(context, uri)
-                    val duration = defaultClipDurationMs(context, uri)
-                    val clip = Clip(
-                        uri = uri,
-                        name = context.getString(R.string.clip_number, i + 1),
-                        durationMs = duration,
-                        trimStartMs = 0L,
-                        trimEndMs = if (isImageUri(context, uri)) DEFAULT_IMAGE_CLIP_DURATION_MS else duration,
-                        timelineStartMs = startMs,
-                        trackIndex = 0
-                    )
-                    startMs += clipTimelineDuration(clip)
-                    clip
+            }.distinct().take(20)
+            if (sourceUris.isNotEmpty()) {
+                importScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                    val importedClips = mutableListOf<Clip>()
+                    var startMs = 0L
+                    sourceUris.forEachIndexed { i, sourceUri ->
+                        val safeUri = copyMediaUriToAppStorage(context, sourceUri, i)
+                        if (safeUri != null) {
+                            val image = isImageUri(context, safeUri)
+                            val duration = safeMediaDurationMs(context, safeUri)
+                            val clip = Clip(
+                                uri = safeUri,
+                                name = context.getString(R.string.clip_number, i + 1),
+                                durationMs = duration,
+                                trimStartMs = 0L,
+                                trimEndMs = if (image) DEFAULT_IMAGE_CLIP_DURATION_MS else duration,
+                                timelineStartMs = startMs,
+                                trackIndex = 0
+                            )
+                            startMs += clipTimelineDuration(clip)
+                            importedClips += clip
+                        }
+                    }
+                    if (importedClips.isNotEmpty()) {
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                            projectId = ProjectRepository.newId()
+                            clips = importedClips
+                            projectName = importedClips.first().name
+                            ProjectRepository.save(context, projectId, importedClips, projectName)
+                            showEditor = true
+                        }
+                    }
                 }
-                projectName = clips.firstOrNull()?.name ?: context.getString(R.string.new_project)
-                ProjectRepository.save(context, projectId, clips, projectName)
-                showEditor = true
             }
         }
     }
-
     fun launchMediaPicker() {
         picker.launch(
             Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
@@ -443,11 +482,22 @@ private fun VideoForgeApp() {
                         language = language,
                         onBackHome = { selected = 0 },
                         onOpenProject = { project ->
-                            projectId = project.id
-                            projectName = project.name
-                            clips = project.clips
-                            selected = 0
-                            showEditor = true
+                            importScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                                val migrated = project.clips.mapIndexedNotNull { i, clip ->
+                                    val safeUri = copyMediaUriToAppStorage(context, clip.uri, i) ?: return@mapIndexedNotNull null
+                                    clip.copy(uri = safeUri)
+                                }
+                                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                    if (migrated.isNotEmpty()) {
+                                        projectId = project.id
+                                        projectName = project.name
+                                        clips = migrated
+                                        ProjectRepository.save(context, project.id, migrated, project.name)
+                                        selected = 0
+                                        showEditor = true
+                                    }
+                                }
+                            }
                         },
                         onNewProject = { launchMediaPicker() }
                     )
