@@ -21,5 +21,9 @@ data class Clip(
     val videoKeyframes: List<VideoKeyframe> = emptyList(),
     val speedKeyframes: List<SpeedKeyframe> = emptyList(),
     val isFreezeFrame: Boolean = false,
-    val freezeDurationMs: Long = 1000L
+    val freezeDurationMs: Long = 1000L,
+    /** Absolute project position of the clip, independent of its source trim. */
+    val timelineStartMs: Long = 0L,
+    /** Visual track/layer. 0 is the primary track; higher tracks render above it. */
+    val trackIndex: Int = 0
 )
