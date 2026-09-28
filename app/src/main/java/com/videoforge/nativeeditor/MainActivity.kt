@@ -888,7 +888,7 @@ private fun HomeScreen(
                         )
                         HomeSecondaryCard(
                             Modifier.weight(1f),
-                            icon = Icons.Default.HelpOutline,
+                            icon = Icons.AutoMirrored.Filled.HelpOutline,
                             title = if (arabic) "التعليمات" else "Help",
                             subtitle = if (arabic) "دليل الاستخدام" else "How to use",
                             onClick = onOpenHelp
@@ -1657,19 +1657,19 @@ private fun EditorFeaturePanel(
     val featureItems = when (activeTool) {
         "edit" -> listOf(
             Triple("trim", Icons.Default.ContentCut, if(language==AppLanguage.ARABIC)"قص" else "Trim"),
-            Triple("split", Icons.Default.CallSplit, if(language==AppLanguage.ARABIC)"تقسيم" else "Split"),
+            Triple("split", Icons.AutoMirrored.Filled.CallSplit, if(language==AppLanguage.ARABIC)"تقسيم" else "Split"),
             Triple("duplicate", Icons.Default.ContentCopy, if(language==AppLanguage.ARABIC)"تكرار" else "Duplicate"),
             Triple("replace", Icons.Default.SwapHoriz, if(language==AppLanguage.ARABIC)"استبدال" else "Replace"),
             Triple("freeze", Icons.Default.AcUnit, if(language==AppLanguage.ARABIC)"تجميد" else "Freeze"),
-            Triple("left", Icons.Default.KeyboardArrowLeft, if(language==AppLanguage.ARABIC)"تحريك يسار" else "Move left"),
-            Triple("right", Icons.Default.KeyboardArrowRight, if(language==AppLanguage.ARABIC)"تحريك يمين" else "Move right"),
+            Triple("left", Icons.AutoMirrored.Filled.KeyboardArrowLeft, if(language==AppLanguage.ARABIC)"تحريك يسار" else "Move left"),
+            Triple("right", Icons.AutoMirrored.Filled.KeyboardArrowRight, if(language==AppLanguage.ARABIC)"تحريك يمين" else "Move right"),
             Triple("delete", Icons.Default.Delete, if(language==AppLanguage.ARABIC)"حذف" else "Delete")
         )
         "audio" -> listOf(
-            Triple("volume", Icons.Default.VolumeUp, if(language==AppLanguage.ARABIC)"مستوى الصوت" else "Volume"),
-            Triple("mute", Icons.Default.VolumeOff, if(language==AppLanguage.ARABIC)"كتم" else "Mute"),
-            Triple("fadeIn", Icons.Default.TrendingUp, if(language==AppLanguage.ARABIC)"تلاشي دخول" else "Fade in"),
-            Triple("fadeOut", Icons.Default.TrendingDown, if(language==AppLanguage.ARABIC)"تلاشي خروج" else "Fade out"),
+            Triple("volume", Icons.AutoMirrored.Filled.VolumeUp, if(language==AppLanguage.ARABIC)"مستوى الصوت" else "Volume"),
+            Triple("mute", Icons.AutoMirrored.Filled.VolumeOff, if(language==AppLanguage.ARABIC)"كتم" else "Mute"),
+            Triple("fadeIn", Icons.AutoMirrored.Filled.TrendingUp, if(language==AppLanguage.ARABIC)"تلاشي دخول" else "Fade in"),
+            Triple("fadeOut", Icons.AutoMirrored.Filled.TrendingDown, if(language==AppLanguage.ARABIC)"تلاشي خروج" else "Fade out"),
             Triple("keys", Icons.Default.Timeline, if(language==AppLanguage.ARABIC)"مفاتيح الصوت" else "Keyframes"),
             Triple("music", Icons.Default.MusicNote, if(language==AppLanguage.ARABIC)"إضافة صوت" else "Add audio"),
             Triple("extract", Icons.Default.AudioFile, if(language==AppLanguage.ARABIC)"استخراج الصوت" else "Extract")
@@ -1677,7 +1677,7 @@ private fun EditorFeaturePanel(
         "text" -> listOf(
             Triple("text", Icons.Default.TextFields, if(language==AppLanguage.ARABIC)"معاينة وتعديل" else "Edit"),
             Triple("position", Icons.Default.OpenWith, if(language==AppLanguage.ARABIC)"الموقع" else "Position"),
-            Triple("rotate", Icons.Default.RotateRight, if(language==AppLanguage.ARABIC)"دوران" else "Rotate"),
+            Triple("rotate", Icons.AutoMirrored.Filled.RotateRight, if(language==AppLanguage.ARABIC)"دوران" else "Rotate"),
             Triple("color", Icons.Default.Palette, if(language==AppLanguage.ARABIC)"اللون" else "Color"),
             Triple("deleteText", Icons.Default.DeleteOutline, if(language==AppLanguage.ARABIC)"حذف" else "Delete"),
             Triple("animation", Icons.Default.Animation, if(language==AppLanguage.ARABIC)"الحركة" else "Animation"),
@@ -1800,7 +1800,7 @@ private fun EditorFeaturePanel(
                         modifier = Modifier.weight(1f),
                         contentPadding = PaddingValues(horizontal = 6.dp, vertical = 5.dp)
                     ) {
-                        Icon(Icons.Default.CallSplit, null, Modifier.size(15.dp))
+                        Icon(Icons.AutoMirrored.Filled.CallSplit, null, Modifier.size(15.dp))
                         Spacer(Modifier.width(4.dp))
                         Text(if(language==AppLanguage.ARABIC) "تقسيم هنا" else "Split here", fontSize = 9.sp)
                     }
