@@ -2862,6 +2862,15 @@ private fun EditorScreen(
                     val next = settings.audioTracks.map { if (it.id == track.id) it.copy(timelineStartMs = newStart.coerceAtLeast(0L), trackIndex = newTrack.coerceAtLeast(0)) else it }
                     updateSettings(settings.copy(audioTracks = next))
                 },
+                onTrimAudioTrack = { track, sourceStart, duration ->
+                    val next = settings.audioTracks.map {
+                        if (it.id == track.id) it.copy(
+                            sourceStartMs = sourceStart.coerceAtLeast(0L),
+                            durationMs = duration.coerceAtLeast(300L)
+                        ) else it
+                    }
+                    updateSettings(settings.copy(audioTracks = next))
+                },
                 onSelect = { clip -> current = clip; playheadMs = timelinePositionOf(clips, clip) },
                 onPlayheadChange = { position ->
                     playheadMs = position.coerceIn(0L, timelineTotalDuration(clips))
@@ -3014,6 +3023,7 @@ private fun EditorScreen(
                     name = uri.lastPathSegment?.substringAfterLast('/')?.ifBlank { "Audio" } ?: "Audio",
                     timelineStartMs = playheadMs.coerceAtLeast(0L),
                     sourceStartMs = start,
+                    sourceDurationMs = mediaDurationMs(context, uri).coerceAtLeast(end),
                     durationMs = duration,
                     trackIndex = nextIndex
                 )
