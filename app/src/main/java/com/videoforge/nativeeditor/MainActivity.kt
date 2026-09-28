@@ -2251,7 +2251,6 @@ private fun EditorScreen(
     var showSubtitles by remember { mutableStateOf(false) }
     var showLayers by remember { mutableStateOf(false) }
     var showMarkers by remember { mutableStateOf(false) }
-    var showMoreTools by remember { mutableStateOf(false) }
     var playheadMs by remember { mutableLongStateOf(0L) }
     var previewPlaying by remember { mutableStateOf(false) }
     var previewError by remember { mutableStateOf<String?>(null) }
@@ -2595,9 +2594,6 @@ private fun EditorScreen(
                                 .padding(horizontal = 15.dp, vertical = 9.dp)
                         ) {
                             Text(if (language == AppLanguage.ARABIC) "حفظ" else "Save", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                        }
-                        IconButton(onClick = { showMoreTools = true }) {
-                            Icon(Icons.Default.MoreVert, null, tint = Color(0xFFB9C3D6))
                         }
                     }
                 }
@@ -2979,42 +2975,6 @@ private fun EditorScreen(
     if (showMarkers) {
         MarkerDialog(settings, playheadMs, language, { updateSettings(it) }, { ms -> playheadMs = ms }, { showMarkers = false })
     }
-    if (showMoreTools) {
-        ModalBottomSheet(onDismissRequest = { showMoreTools = false }, containerColor = Color(0xFF07111F)) {
-            CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
-                Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal=16.dp,vertical=10.dp)) {
-                    Text(if(language==AppLanguage.ARABIC)"الأدوات" else "Tools",color=Color.White,fontSize=19.sp,fontWeight=FontWeight.Bold)
-                    Spacer(Modifier.height(8.dp))
-                    val extraTools=listOf(
-                        "speed" to if(language==AppLanguage.ARABIC)"السرعة" else "Speed",
-                        "adjust" to if(language==AppLanguage.ARABIC)"ضبط" else "Adjust",
-                        "canvas" to if(language==AppLanguage.ARABIC)"اللوحة" else "Canvas",
-                        "effects" to if(language==AppLanguage.ARABIC)"المؤثرات" else "Effects",
-                        "transition" to if(language==AppLanguage.ARABIC)"الانتقالات" else "Transitions",
-                        "subtitles" to if(language==AppLanguage.ARABIC)"الترجمة" else "Subtitles",
-                        "layers" to if(language==AppLanguage.ARABIC)"الطبقات" else "Layers",
-                        "videoKeyframes" to if(language==AppLanguage.ARABIC)"الحركة" else "Motion",
-                        "sticker" to if(language==AppLanguage.ARABIC)"الملصقات" else "Stickers",
-                        "overlay" to if(language==AppLanguage.ARABIC)"الصورة داخل الصورة" else "PIP",
-                        "markers" to if(language==AppLanguage.ARABIC)"العلامات" else "Markers"
-                    )
-                    extraTools.forEach { (id,label) ->
-                        Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).clickable{activeEditorTool=id;showMoreTools=false}.padding(horizontal=12.dp,vertical=11.dp),verticalAlignment=Alignment.CenterVertically){
-                            Text(label,color=Color.White,fontSize=12.sp,modifier=Modifier.weight(1f))
-                            Icon(Icons.Default.ChevronLeft,null,tint=Color(0xFF8190A8),modifier=Modifier.size(18.dp))
-                        }
-                    }
-                    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).clickable{
-                        picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo));showMoreTools=false
-                    }.padding(horizontal=12.dp,vertical=11.dp),verticalAlignment=Alignment.CenterVertically){
-                        Text(if(language==AppLanguage.ARABIC)"إضافة فيديو أو صورة" else "Add video or image",color=Color.White,fontSize=12.sp,modifier=Modifier.weight(1f))
-                        Icon(Icons.Default.AddPhotoAlternate,null,tint=Color(0xFF7C5CFF),modifier=Modifier.size(19.dp))
-                    }
-                }
-            }
-        }
-    }
-
     if (showTrim && current != null) TrimDialog(clip = current!!, onDismiss = { showTrim = false }, onApply = { start, end ->
         val old = current!!; val updated = old.copy(trimStartMs = start, trimEndMs = end)
         commitClips(clips.map { if (it == old) updated else it }); current = updated; showTrim = false
