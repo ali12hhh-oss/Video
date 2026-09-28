@@ -3170,7 +3170,7 @@ private fun EditorPreview(
             LaunchedEffect(settings.speed, settings.speedKeyframes, settings.volume, settings.muted, clip.audioVolume, clip.audioMuted, clip.audioFadeIn, clip.audioFadeOut, clip.audioKeyframes, settings.fadeIn, settings.fadeOut, settings.musicUri, settings.musicVolume, settings.musicStartMs, settings.musicDurationMs, settings.musicFadeIn, settings.musicFadeOut, settings.musicDucking, settings.musicDuckVolume, settings.musicDuckAttack, settings.musicDuckRelease, settings.musicKeyframes, playheadMs) {
                 val local = (playheadMs - clipOffsetMs).coerceAtLeast(0L)
                 val speedNow = run {
-                    val ks = settings.speedKeyframes.sortedBy { it.timeMs }
+                    val ks = clip.speedKeyframes.ifEmpty { settings.speedKeyframes }.sortedBy { it.timeMs }
                     if (ks.isEmpty()) settings.speed.coerceIn(0.25f, 4f) else {
                         val a = ks.lastOrNull { it.timeMs <= local } ?: ks.first()
                         val b = ks.firstOrNull { it.timeMs >= local } ?: ks.last()
@@ -3218,7 +3218,7 @@ private fun EditorPreview(
                 if (settings.flipHorizontal || settings.flipVertical) effects += MatrixTransformation { android.graphics.Matrix().apply { postScale(if (settings.flipHorizontal) -1f else 1f, if (settings.flipVertical) -1f else 1f) } }
                 if (kotlin.math.abs(settings.cropX) > 0.001f || kotlin.math.abs(settings.cropY) > 0.001f) effects += MatrixTransformation { android.graphics.Matrix().apply { postTranslate(settings.cropX.coerceIn(-1f, 1f) * 500f, settings.cropY.coerceIn(-1f, 1f) * 500f) } }
                 if (settings.videoKeyframes.isNotEmpty()) {
-                    val ks = settings.videoKeyframes.sortedBy { it.timeMs }
+                    val ks = clip.videoKeyframes.ifEmpty { settings.videoKeyframes }.sortedBy { it.timeMs }
                     effects += MatrixTransformation { timeUs ->
                         val t = timeUs / 1000L
                         val a = ks.lastOrNull { it.timeMs <= t } ?: ks.first()
@@ -3251,7 +3251,7 @@ private fun EditorPreview(
                 while (isActive) {
                     val localNow = (player.currentPosition - clip.trimStartMs).coerceAtLeast(0L)
                     val globalNow = (clipOffsetMs + localNow).coerceAtLeast(0L)
-                    val ks = settings.speedKeyframes.sortedBy { it.timeMs }
+                    val ks = clip.speedKeyframes.ifEmpty { settings.speedKeyframes }.sortedBy { it.timeMs }
                     val speedNow = if (ks.isEmpty()) settings.speed.coerceIn(0.25f, 4f) else {
                         val a = ks.lastOrNull { it.timeMs <= localNow } ?: ks.first()
                         val b = ks.firstOrNull { it.timeMs >= localNow } ?: ks.last()
