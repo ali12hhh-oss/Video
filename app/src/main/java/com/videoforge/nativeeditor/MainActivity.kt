@@ -366,7 +366,7 @@ private fun VideoForgeApp() {
                         name = context.getString(R.string.clip_number, i + 1),
                         durationMs = duration,
                         trimStartMs = 0L,
-                        trimEndMs = duration
+                        trimEndMs = if (isImageUri(context, uri)) DEFAULT_IMAGE_CLIP_DURATION_MS else duration
                     )
                 }
                 }
@@ -2403,7 +2403,7 @@ private fun EditorScreen(
             persistUriAccess(context, uri)
             val capacity = defaultClipDurationMs(context, uri)
             val duration = if (isImageUri(context, uri)) DEFAULT_IMAGE_CLIP_DURATION_MS else capacity
-            val updated = selected.copy(uri = uri, name = uri.lastPathSegment?.substringAfterLast('/')?.ifBlank { selected.name } ?: selected.name, durationMs = capacity, trimStartMs = 0L, trimEndMs = duration)
+            val updated = selected.copy(uri = uri, name = uri.lastPathSegment?.substringAfterLast('/')?.ifBlank { selected.name } ?: selected.name, durationMs = capacity, trimStartMs = 0L, trimEndMs = if (isImageUri(context, uri)) DEFAULT_IMAGE_CLIP_DURATION_MS else duration)
             commitClips(clips.map { if (it == selected) updated else it })
             current = updated
             playheadMs = timelinePositionOf(clips.map { if (it == selected) updated else it }, updated)
