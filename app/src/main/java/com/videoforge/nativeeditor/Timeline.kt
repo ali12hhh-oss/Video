@@ -591,6 +591,7 @@ fun Timeline(
                                 Icon(Icons.Default.Add, contentDescription = "Add audio", tint = Color.White)
                             }
                         }
+                    }
 
                     // The playhead is a real vertical editing cursor spanning every lane.
                     Box(
