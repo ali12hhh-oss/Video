@@ -664,7 +664,6 @@ fun Timeline(
                             .height(10.dp)
                             .clip(RoundedCornerShape(5.dp))
                             .background(Color.White)
-                            .align(Alignment.TopStart)
                     )
                 }
             }
