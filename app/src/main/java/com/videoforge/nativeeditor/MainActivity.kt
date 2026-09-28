@@ -421,7 +421,7 @@ private fun VideoForgeApp() {
         )
     }
 
-    fun openPendingMedia(templateId:String){val uris=pendingMediaUris;if(uris.isEmpty())return;projectId=ProjectRepository.newId();clips=uris.mapIndexed{i,uri->persistUriAccess(context,uri);val d=defaultClipDurationMs(context,uri);Clip(uri=uri,name=context.getString(R.string.clip_number,i+1),durationMs=d,trimStartMs=0L,trimEndMs=d)};projectName=clips.firstOrNull()?.name ?: context.getString(R.string.new_project);ProjectRepository.save(context,projectId,clips,projectName);pendingMediaUris=emptyList();pendingTemplateId=templateId;showTemplatePicker=false;showEditor=true}
+    fun openPendingMedia(templateId:String){val uris=pendingMediaUris;if(uris.isEmpty())return;projectId=ProjectRepository.newId();clips=uris.mapIndexed{i,uri->persistUriAccess(context,uri);val d=defaultClipDurationMs(context,uri);Clip(uri=uri,name=context.getString(R.string.clip_number).replace("%1$d",(i+1).toString()),durationMs=d,trimStartMs=0L,trimEndMs=d)};projectName=clips.firstOrNull()?.name ?: context.getString(R.string.new_project);ProjectRepository.save(context,projectId,clips,projectName);pendingMediaUris=emptyList();pendingTemplateId=templateId;showTemplatePicker=false;showEditor=true}
 
     val direction = if (language == AppLanguage.ARABIC) LayoutDirection.Rtl else LayoutDirection.Ltr
     val configuration = LocalConfiguration.current
