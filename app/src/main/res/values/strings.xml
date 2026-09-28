@@ -42,7 +42,7 @@
     <string name="arabic">العربية</string>
     <string name="english">English</string>
     <string name="language_changed">Language changed</string>
-    <string name="clip_number">Clip %1$d</string>
+    <string name="clip_number">Clip %1$s</string>
     <string name="export_ready">Export prepared: %1$s / %2$d FPS / %3$s</string>
     <string name="trim_applied">Trim applied to %1$s</string>
 
