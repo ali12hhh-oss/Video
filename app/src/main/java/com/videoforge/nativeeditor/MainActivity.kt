@@ -4724,7 +4724,9 @@ private fun fontOptions(): List<FontOption> = listOf(
 
 private fun fontFamilyFor(key: String, bold: Boolean = false): FontFamily {
     val f = fontOptions().firstOrNull { it.key == key } ?: fontOptions().first()
-    return FontFamily(if (bold) Font(f.bold) else Font(f.regular))
+    return runCatching {
+        FontFamily(if (bold) Font(f.bold) else Font(f.regular))
+    }.getOrElse { FontFamily.SansSerif }
 }
 
 @Composable private fun TextDialog(s: EditorSettings, language: AppLanguage, onChange: (EditorSettings) -> Unit, onDismiss: () -> Unit) {
