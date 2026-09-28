@@ -1960,7 +1960,7 @@ private fun EditorFeaturePanel(
                             }
                             Text(label, fontSize=7.5.sp, maxLines=1, color=Color.White, modifier=Modifier.padding(top=4.dp))
                         }
-                    )
+                    }
                 }
             }
 
