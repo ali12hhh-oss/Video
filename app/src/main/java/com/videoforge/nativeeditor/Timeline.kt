@@ -387,19 +387,29 @@ fun Timeline(
                             }
                         }
 
-                        TrackLane(
-                            label = "Video",
-                            labelIcon = Icons.Default.Videocam,
-                            tint = Color(0xFF55A8FF),
-                            laneClips = videoClips
-                        )
+                        Box(Modifier.fillMaxWidth()) {
+                            TrackLane(
+                                label = "Video",
+                                labelIcon = Icons.Default.Videocam,
+                                tint = Color(0xFF55A8FF),
+                                laneClips = videoClips
+                            )
+                            IconButton(onClick = onAddMedia, modifier = Modifier.align(Alignment.CenterEnd).size(36.dp)) {
+                                Icon(Icons.Default.Add, contentDescription = "Add video or image", tint = Color.White)
+                            }
+                        }
 
-                        TrackLane(
-                            label = "Images",
-                            labelIcon = Icons.Default.Photo,
-                            tint = Color(0xFF33D6B2),
-                            laneClips = imageClips
-                        )
+                        Box(Modifier.fillMaxWidth()) {
+                            TrackLane(
+                                label = "Images",
+                                labelIcon = Icons.Default.Photo,
+                                tint = Color(0xFF33D6B2),
+                                laneClips = imageClips
+                            )
+                            IconButton(onClick = onAddMedia, modifier = Modifier.align(Alignment.CenterEnd).size(36.dp)) {
+                                Icon(Icons.Default.Add, contentDescription = "Add image or video", tint = Color.White)
+                            }
+                        }
 
                         // Text lane: real selectable text segments rather than detached chips.
                         Box(
@@ -432,6 +442,14 @@ fun Timeline(
                                         maxLines = 1,
                                         modifier = Modifier.padding(horizontal = 8.dp)
                                     )
+                                    TrimHandle(Alignment.CenterStart) { deltaMs ->
+                                        val nextStart = (layer.startMs + deltaMs).coerceIn(0L, layer.endMs - 300L)
+                                        onTextTrim(layer, nextStart, layer.endMs)
+                                    }
+                                    TrimHandle(Alignment.CenterEnd) { deltaMs ->
+                                        val nextEnd = (layer.endMs + deltaMs).coerceIn(layer.startMs + 300L, total)
+                                        onTextTrim(layer, layer.startMs, nextEnd)
+                                    }
                                 }
                             }
                         }
