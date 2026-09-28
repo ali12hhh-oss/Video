@@ -2755,6 +2755,9 @@ private fun EditorScreen(
     var showLayers by remember { mutableStateOf(false) }
     var showMarkers by remember { mutableStateOf(false) }
     var playheadMs by remember { mutableLongStateOf(0L) }
+    // Text timing is maintained per text layer so every caption/title has a real
+    // start/end range on the master timeline. New text defaults to the full project.
+    var textTimings by remember(projectId) { mutableStateOf<Map<String, TextTimelineTiming>>(emptyMap()) }
     var previewPlaying by remember { mutableStateOf(false) }
     var previewError by remember { mutableStateOf<String?>(null) }
     var previewToggleToken by remember { mutableIntStateOf(0) }
@@ -2872,7 +2875,20 @@ private fun EditorScreen(
 
     fun updateSettingsLive(next: EditorSettings) {
         settings = next
+        // Keep timing entries aligned with the current layer list. Timing is deliberately
+        // separate from text styling so dragging a timeline edge never mutates typography.
+        val total = timelineTotalDuration(clips).coerceAtLeast(1L)
+        val validIds = next.textLayers.mapIndexed { i, _ -> "text-$i" }.toSet()
+        textTimings = textTimings.filterKeys { it in validIds }
         EditorSettingsRepository.save(context, projectId, next)
+    }
+
+    fun updateTextTiming(id: String, startMs: Long, endMs: Long) {
+        val total = timelineTotalDuration(clips).coerceAtLeast(1L)
+        val safeStart = startMs.coerceIn(0L, (total - 300L).coerceAtLeast(0L))
+        val safeEnd = endMs.coerceIn(safeStart + 300L, total)
+        textTimings = textTimings + (id to TextTimelineTiming(safeStart, safeEnd))
+        playheadMs = safeStart
     }
 
 
@@ -3268,6 +3284,7 @@ private fun EditorScreen(
                 settings = settings,
                 playheadMs = playheadMs,
                 clipOffsetMs = current?.let { timelinePositionOf(clips, it) } ?: 0L,
+                textTimings = textTimings,
                 showWatermark = !watermarkRemovedForExport,
                 onSettingsChange = { next ->
                     settings = next
@@ -3437,6 +3454,8 @@ private fun EditorScreen(
                 },
                 onAddMedia = { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)) },
                 textLayerNames = settings.textLayers.mapIndexed { i, layer -> layer.name.ifBlank { (if (language == AppLanguage.ARABIC) "نص " else "Text ") + (i + 1) } },
+                textTimings = textTimings,
+                onTextTimingChange = ::updateTextTiming,
                 pipLayerCount = settings.pipLayers.count { it.visible },
                 filterName = settings.filter
             )
@@ -3623,6 +3642,7 @@ private fun EditorPreview(
     settings: EditorSettings,
     playheadMs: Long,
     clipOffsetMs: Long = 0L,
+    textTimings: Map<String, TextTimelineTiming> = emptyMap(),
     showWatermark: Boolean = true,
     onSettingsChange: (EditorSettings) -> Unit,
     onPlaybackPosition: (Long) -> Unit = {},
@@ -4061,8 +4081,12 @@ private fun EditorPreview(
                     selectedLayerId = previewLayers.firstOrNull()?.id
                 }
             }
-            previewLayers.filter { it.visible }.forEach { layer ->
+            previewLayers.filter { it.visible }.forEachIndexed { layerIndex, layer ->
                 val selected = selectedLayerId == layer.id
+                val textTiming = textTimings["text-$layerIndex"] ?: TextTimelineTiming(0L, timelineTotalDuration(listOf(clip)).coerceAtLeast(1L))
+                // Text visibility is controlled by its own timeline range.
+                val textVisibleNow = playheadMs in textTiming.startMs..textTiming.endMs
+                if (!textVisibleNow) return@forEachIndexed
                 val localTextTime = (playheadMs - clipOffsetMs).coerceAtLeast(0L)
                 val textAnimProgress = (localTextTime / 650f).coerceIn(0f,1f)
                 val textEase = 1f - (1f-textAnimProgress)*(1f-textAnimProgress)
