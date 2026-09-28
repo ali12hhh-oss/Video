@@ -475,7 +475,7 @@ private fun VideoForgeApp() {
                     },
                     selected = selected,
                     onSelected = { selected = it },
-                    onNewProject = { projectId = ProjectRepository.newId(); projectName = context.getString(R.string.new_project); clips = emptyList(); showEditor = true },
+                    onNewProject = { projectId = ProjectRepository.newId(); projectName = context.getString(R.string.new_project); clips = emptyList(); editorInitialTool = null; launchMediaPicker() },
                     onImport = {
                         launchMediaPicker()
                     },
