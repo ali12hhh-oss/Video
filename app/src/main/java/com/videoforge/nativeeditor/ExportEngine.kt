@@ -511,7 +511,7 @@ class ExportEngine(private val context: Context, private val resolver: ContentRe
             file.outputStream().use { bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
             bitmap.recycle()
         }
-        return file.toUri()
+        return Uri.fromFile(file)
     }
 
     private fun createSilenceWav(durationMs: Long): File {
