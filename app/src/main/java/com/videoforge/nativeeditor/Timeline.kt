@@ -259,7 +259,9 @@ fun Timeline(
         ) {
             val density = LocalDensity.current
             val widthPx = with(density) { timelineWidth.toPx() }
-            val playheadX = with(density) { (safePlayhead.toFloat() / total.toFloat() * timelineWidth.toPx()).toDp() }
+            val addRail = 40.dp
+            val contentWidthPx = widthPx - with(density) { addRail.toPx() }
+            val playheadX = with(density) { (safePlayhead.toFloat() / total.toFloat() * contentWidthPx).toDp() }
 
             Row(
                 Modifier
@@ -273,7 +275,7 @@ fun Timeline(
                 ) {
                     // Fine reference-style ruler.
                     Row(
-                        Modifier.fillMaxWidth().height(24.dp).padding(horizontal = 8.dp),
+                        Modifier.fillMaxWidth().height(24.dp).padding(start = 8.dp, end = 48.dp),
                         verticalAlignment = Alignment.Bottom
                     ) {
                         val marks = 7
@@ -340,7 +342,7 @@ fun Timeline(
                                         Modifier
                                             .fillMaxHeight()
                                             .fillMaxWidth(widthFraction.coerceIn(0.01f, 1f))
-                                            .offset(x = with(density) { (leftFraction * widthPx).toDp() })
+                                            .offset(x = with(density) { (leftFraction * contentWidthPx).toDp() })
                                             .padding(vertical = 3.dp)
                                             .clip(RoundedCornerShape(6.dp))
                                             .border(
@@ -387,33 +389,38 @@ fun Timeline(
                             }
                         }
 
-                        Box(Modifier.fillMaxWidth()) {
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            Box(Modifier.weight(1f)) {
                             TrackLane(
                                 label = "Video",
                                 labelIcon = Icons.Default.Videocam,
                                 tint = Color(0xFF55A8FF),
                                 laneClips = videoClips
                             )
-                            IconButton(onClick = onAddMedia, modifier = Modifier.align(Alignment.CenterEnd).size(36.dp)) {
+                            }
+                            IconButton(onClick = onAddMedia, modifier = Modifier.size(36.dp)) {
                                 Icon(Icons.Default.Add, contentDescription = "Add video or image", tint = Color.White)
                             }
                         }
 
-                        Box(Modifier.fillMaxWidth()) {
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            Box(Modifier.weight(1f)) {
                             TrackLane(
                                 label = "Images",
                                 labelIcon = Icons.Default.Photo,
                                 tint = Color(0xFF33D6B2),
                                 laneClips = imageClips
                             )
-                            IconButton(onClick = onAddMedia, modifier = Modifier.align(Alignment.CenterEnd).size(36.dp)) {
+                            }
+                            IconButton(onClick = onAddMedia, modifier = Modifier.size(36.dp)) {
                                 Icon(Icons.Default.Add, contentDescription = "Add image or video", tint = Color.White)
                             }
                         }
 
                         // Text lane: real selectable text segments rather than detached chips.
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         Box(
-                            Modifier.fillMaxWidth().height(42.dp)
+                            Modifier.weight(1f).height(42.dp)
                                 .clip(RoundedCornerShape(7.dp))
                                 .background(Color(0xFF111126))
                         ) {
@@ -428,7 +435,7 @@ fun Timeline(
                                 val width = ((layer.endMs - layer.startMs).coerceAtLeast(300L).toFloat() / total.toFloat()).coerceIn(0.02f, 1f)
                                 Box(
                                     Modifier.fillMaxHeight().fillMaxWidth(width)
-                                        .offset(x = with(density) { (left * widthPx).toDp() })
+                                        .offset(x = with(density) { (left * contentWidthPx).toDp() })
                                         .padding(vertical = 4.dp, horizontal = 2.dp)
                                         .clip(RoundedCornerShape(5.dp))
                                         .background(TextLayerColors[i % TextLayerColors.size])
@@ -452,14 +459,16 @@ fun Timeline(
                                     }
                                 }
                             }
-                            IconButton(onClick = onAddText, modifier = Modifier.align(Alignment.CenterEnd).size(36.dp)) {
-                                Icon(Icons.Default.Add, contentDescription = "Add text", tint = Color.White)
-                            }
+                        }
+                        IconButton(onClick = onAddText, modifier = Modifier.size(36.dp)) {
+                            Icon(Icons.Default.Add, contentDescription = "Add text", tint = Color.White)
+                        }
                         }
 
                         // Music lane with a visible range and draggable start/end handles.
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         Box(
-                            Modifier.fillMaxWidth().height(48.dp)
+                            Modifier.weight(1f).height(48.dp)
                                 .clip(RoundedCornerShape(7.dp))
                                 .background(Color(0xFF101C2C))
                                 .clickable { onAudioTrackClick() }
@@ -477,7 +486,7 @@ fun Timeline(
                                 val widthFraction = ((end - start).toFloat() / total.toFloat()).coerceIn(0.01f, 1f)
                                 Box(
                                     Modifier.fillMaxHeight().fillMaxWidth(widthFraction)
-                                        .offset(x = with(density) { (leftFraction * widthPx).toDp() })
+                                        .offset(x = with(density) { (leftFraction * contentWidthPx).toDp() })
                                         .padding(vertical = 4.dp)
                                         .clip(RoundedCornerShape(6.dp))
                                         .background(Color(0xFF087CC1))
@@ -506,7 +515,7 @@ fun Timeline(
                                             .pointerInput(total, start, end) {
                                                 detectDragGestures { change, drag ->
                                                     change.consume()
-                                                    val delta = (drag.x / widthPx * total).toLong()
+                                                    val delta = (drag.x / contentWidthPx * total).toLong()
                                                     val nextDuration = (end - start - (delta)).coerceIn(300L, total)
                                                     onMusicTrim(start, nextDuration)
                                                 }
@@ -519,7 +528,7 @@ fun Timeline(
                                             .pointerInput(total, start, end) {
                                                 detectDragGestures { change, drag ->
                                                     change.consume()
-                                                    val nextEnd = (end + (drag.x / widthPx * total).toLong())
+                                                    val nextEnd = (end + (drag.x / contentWidthPx * total).toLong())
                                                         .coerceIn(start + 300L, total)
                                                     onMusicTrim(start, nextEnd - start)
                                                 }
@@ -534,9 +543,10 @@ fun Timeline(
                                     modifier = Modifier.align(Alignment.Center).padding(start = 16.dp)
                                 )
                             }
-                            IconButton(onClick = onAddAudio, modifier = Modifier.align(Alignment.CenterEnd).size(36.dp)) {
-                                Icon(Icons.Default.Add, contentDescription = "Add audio", tint = Color.White)
-                            }
+                        }
+                        IconButton(onClick = onAddAudio, modifier = Modifier.size(36.dp)) {
+                            Icon(Icons.Default.Add, contentDescription = "Add audio", tint = Color.White)
+                        }
                         }
                     }
 
