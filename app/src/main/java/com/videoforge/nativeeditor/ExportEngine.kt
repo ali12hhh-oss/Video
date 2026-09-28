@@ -72,9 +72,13 @@ private class AnimatedTextOverlay(
     private val rotation0: Float, private val alpha0: Float,
     private val animation: String,
     private val durationUs: Long,
+    private val startMs: Long = 0L,
+    private val endMs: Long = Long.MAX_VALUE,
     private val keyframes: List<TextKeyframe> = emptyList()
 ) : TextOverlay() {
     override fun getText(presentationTimeUs: Long): SpannableString {
+        val tMs = presentationTimeUs / 1000L
+        if (tMs !in startMs until endMs) return SpannableString("")
         if (animation != "typewriter" || baseText.isEmpty()) return baseText
         val progress = (presentationTimeUs.toFloat() / durationUs.coerceAtLeast(1L)).coerceIn(0f, 1f)
         val count = (baseText.length * progress).toInt().coerceIn(1, baseText.length)
@@ -82,7 +86,8 @@ private class AnimatedTextOverlay(
     }
 
     override fun getOverlaySettings(presentationTimeUs: Long): OverlaySettings {
-        val progress = (presentationTimeUs.toFloat() / durationUs.coerceAtLeast(1L)).coerceIn(0f, 1f)
+        val localUs = (presentationTimeUs - startMs * 1000L).coerceAtLeast(0L)
+        val progress = (localUs.toFloat() / durationUs.coerceAtLeast(1L)).coerceIn(0f, 1f)
         val eased = 1f - (1f - progress) * (1f - progress)
         var x = x0
         var y = y0
@@ -579,6 +584,8 @@ class ExportEngine(private val context: Context, private val resolver: ContentRe
                 alpha0 = layer.alpha.coerceIn(0f, 1f),
                 animation = if (layer.animation == "none") editor.textAnimation else layer.animation,
                 durationUs = 650_000L,
+                startMs = layer.startMs.coerceAtLeast(0L),
+                endMs = layer.endMs.coerceAtLeast(layer.startMs + 1L),
                 keyframes = layer.keyframes
             )
         }
