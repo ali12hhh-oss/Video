@@ -2621,6 +2621,7 @@ private fun EditorTextPanel(
     var layers by remember(settings.textLayers, settings.text) { mutableStateOf(initial) }
     var selected by remember { mutableIntStateOf(0) }
     val layer = layers.getOrNull(selected) ?: TextLayer()
+    var draftText by remember(layer.id, layer.text) { mutableStateOf(layer.text) }
     val presets = if (language == AppLanguage.ARABIC)
         listOf("عنوان الفيديو","رحلتي الجديدة","لحظة لا تُنسى","صباح الخير","مساء الخير","استكشف العالم","ذكريات جميلة","اشترك الآن")
     else
@@ -2682,7 +2683,24 @@ private fun EditorTextPanel(
             }
 
             Column(Modifier.fillMaxWidth().heightIn(max=310.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(9.dp)) {
-                OutlinedTextField(value=layer.text,onValueChange={edit(layer.copy(text=it))},modifier=Modifier.fillMaxWidth(),minLines=2,maxLines=4,label={Text(if(language==AppLanguage.ARABIC)"النص" else "Text")},placeholder={Text(if(language==AppLanguage.ARABIC)"اكتب النص هنا…" else "Type your text…")})
+                OutlinedTextField(
+                    value=draftText,
+                    onValueChange={draftText=it},
+                    modifier=Modifier.fillMaxWidth(),
+                    minLines=2,
+                    maxLines=4,
+                    label={Text(if(language==AppLanguage.ARABIC)"النص" else "Text")},
+                    placeholder={Text(if(language==AppLanguage.ARABIC)"اكتب النص هنا…" else "Type your text…")}
+                )
+                Button(
+                    onClick={edit(layer.copy(text=draftText, visible=draftText.isNotBlank())),
+                    enabled=draftText != layer.text,
+                    modifier=Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Default.Check, null, Modifier.size(16.dp))
+                    Spacer(Modifier.width(5.dp))
+                    Text(if(language==AppLanguage.ARABIC)"تطبيق النص" else "Apply text", fontSize=10.sp)
+                }
                 Text(if(language==AppLanguage.ARABIC)"قوالب سريعة" else "Quick templates",fontWeight=FontWeight.SemiBold,fontSize=10.sp)
                 LazyRow(horizontalArrangement=Arrangement.spacedBy(6.dp),contentPadding=PaddingValues(bottom=2.dp)){items(presets){preset->AssistChip(onClick={edit(layer.copy(text=preset))},label={Text(preset,fontSize=9.sp)})}}
                 Text(if(language==AppLanguage.ARABIC)"معاينة الخط" else "Font preview",fontWeight=FontWeight.SemiBold,fontSize=10.sp)
