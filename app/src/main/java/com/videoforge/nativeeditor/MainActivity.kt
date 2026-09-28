@@ -2531,7 +2531,8 @@ private fun EditorScreen(
                                     onLayersDialog = { showLayers=true },
                                     onVideoKeyframes = { showVideoKeyframes=true },
                                     onMarkers = { showMarkers=true },
-                                    onOpenAdvancedTool = { activeEditorTool = it }
+                                    onOpenAdvancedTool = { activeEditorTool = it },
+                                    onClose = { activeEditorTool = null }
                                 )
                             }
                         }
