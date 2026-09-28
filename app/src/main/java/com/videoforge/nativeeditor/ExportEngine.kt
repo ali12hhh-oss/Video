@@ -44,6 +44,7 @@ import androidx.media3.transformer.Composition
 import androidx.media3.transformer.Transformer
 import androidx.media3.transformer.DefaultEncoderFactory
 import androidx.media3.transformer.VideoEncoderSettings
+import androidx.media3.transformer.AudioEncoderSettings
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
@@ -390,9 +391,25 @@ class ExportEngine(private val context: Context, private val resolver: ContentRe
             tempFileToDelete = temp
             if (temp.exists()) temp.delete()
 
+            // Make the visible export controls real: resolution is applied by Presentation,
+            // frame rate is applied per clip, and quality/audio choices now configure the encoders.
+            val encoderFactory = DefaultEncoderFactory.Builder(context)
+                .setRequestedVideoEncoderSettings(
+                    VideoEncoderSettings.Builder()
+                        .setBitrate(targetVideoBitrate(settings))
+                        .build()
+                )
+                .setRequestedAudioEncoderSettings(
+                    AudioEncoderSettings.Builder()
+                        .setBitrate(settings.audioBitrate.coerceIn(64_000, 320_000))
+                        .build()
+                )
+                .build()
+
             val transformer = Transformer.Builder(context)
                 .setVideoMimeType(if (settings.hevc) MimeTypes.VIDEO_H265 else MimeTypes.VIDEO_H264)
                 .setAudioMimeType(MimeTypes.AUDIO_AAC)
+                .setEncoderFactory(encoderFactory)
                 .setPortraitEncodingEnabled(true)
                 .build()
 
@@ -438,6 +455,21 @@ class ExportEngine(private val context: Context, private val resolver: ContentRe
             runCatching { tempFileToDelete?.delete() }
             Result.failure(e)
         }
+    }
+
+    private fun targetVideoBitrate(settings: ExportSettings): Int {
+        val resolution = settings.resolution
+        val fps = settings.fps.value
+        val pixels = if (resolution.width > 0 && resolution.height > 0) {
+            resolution.width.toLong() * resolution.height.toLong()
+        } else {
+            1920L * 1080L
+        }
+        // Practical VBR target: roughly 0.075 bits/pixel/frame, then apply the user's
+        // quality preset. Keep the range device-friendly for mobile hardware.
+        val base = pixels.toDouble() * fps.toDouble() * 0.075
+        val adjusted = base * settings.quality.multiplier
+        return adjusted.toLong().coerceIn(1_200_000L, 40_000_000L).toInt()
     }
 
     private fun clipDurationMs(clip: Clip): Long {
