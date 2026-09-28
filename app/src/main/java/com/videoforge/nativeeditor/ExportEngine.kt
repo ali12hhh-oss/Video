@@ -832,6 +832,7 @@ class ExportEngine(private val context: Context, private val resolver: ContentRe
     }
 
     @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
+    @Suppress("OVERRIDE_DEPRECATION")
     private class VolumeAutomationProcessor(
         private val durationUs: Long,
         private val baseVolume: Float,
