@@ -87,6 +87,11 @@ import androidx.media3.effect.RgbFilter
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.segmentation.subject.SubjectSegmentation
 import com.google.mlkit.vision.segmentation.subject.SubjectSegmenterOptions
+import com.google.android.gms.ads.AdRequest
+import com.google.android.gms.ads.FullScreenContentCallback
+import com.google.android.gms.ads.LoadAdError
+import com.google.android.gms.ads.interstitial.InterstitialAd
+import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback
 import androidx.media3.effect.ScaleAndRotateTransformation
 import androidx.media3.effect.MatrixTransformation
 import androidx.media3.exoplayer.ExoPlayer
@@ -2791,7 +2796,32 @@ private fun EditorScreen(
     var status by remember { mutableStateOf("") }
     var lastExportUri by remember { mutableStateOf<Uri?>(null) }
     var watermarkRemovedForExport by rememberSaveable(projectId) { mutableStateOf(false) }
+    var exportInProgress by remember { mutableStateOf(false) }
+    var exportProgress by remember { mutableFloatStateOf(0f) }
+    var exportElapsedSec by remember { mutableLongStateOf(0L) }
+    var exportInterstitial by remember { mutableStateOf<InterstitialAd?>(null) }
     val exportScope = rememberCoroutineScope()
+
+    LaunchedEffect(Unit) {
+        com.google.android.gms.ads.MobileAds.initialize(context)
+        InterstitialAd.load(
+            context,
+            "ca-app-pub-3940256099942544/1033173712",
+            AdRequest.Builder().build(),
+            object : InterstitialAdLoadCallback() {
+                override fun onAdLoaded(ad: InterstitialAd) { exportInterstitial = ad }
+                override fun onAdFailedToLoad(error: LoadAdError) { exportInterstitial = null }
+            }
+        )
+    }
+
+    LaunchedEffect(exportInProgress) {
+        exportElapsedSec = 0L
+        while (exportInProgress) {
+            delay(1000L)
+            if (exportInProgress) exportElapsedSec += 1L
+        }
+    }
 
     LaunchedEffect(Unit) {
         WatermarkRewardManager.load(context)
@@ -2827,16 +2857,62 @@ private fun EditorScreen(
             }
         )
     }
+    fun startExportDocument() {
+        if (clips.isEmpty()) {
+            status = if (language == AppLanguage.ARABIC) "لا توجد وسائط للتصدير" else "There is no media to export"
+            return
+        }
+        exportLauncher.launch("${editingName.ifBlank { "VideoForge" }}.mp4")
+    }
+
+    fun showExportAdThenContinue() {
+        val activity = context as? Activity
+        val ad = exportInterstitial
+        if (activity == null || ad == null) {
+            exportInterstitial = null
+            startExportDocument()
+            return
+        }
+        exportInterstitial = null
+        ad.fullScreenContentCallback = object : FullScreenContentCallback() {
+            override fun onAdDismissedFullScreenContent() {
+                startExportDocument()
+                InterstitialAd.load(
+                    context,
+                    "ca-app-pub-3940256099942544/1033173712",
+                    AdRequest.Builder().build(),
+                    object : InterstitialAdLoadCallback() {
+                        override fun onAdLoaded(next: InterstitialAd) { exportInterstitial = next }
+                        override fun onAdFailedToLoad(error: LoadAdError) { exportInterstitial = null }
+                    }
+                )
+            }
+            override fun onAdFailedToShowFullScreenContent(adError: com.google.android.gms.ads.AdError) {
+                startExportDocument()
+            }
+        }
+        ad.show(activity)
+    }
+
     val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("video/mp4")) { uri ->
         if (uri != null && clips.isNotEmpty()) {
+            exportInProgress = true
+            exportProgress = 0f
             status = if (language == AppLanguage.ARABIC) "جاري التصدير…" else "Exporting…"
             exportScope.launch {
-                val result = ExportEngine(context, context.contentResolver).export(
-                    clips = clips, settings = exportSettings, editor = settings, output = uri,
-                    includeWatermark = !watermarkRemovedForExport,
-                    onProgress = { progress -> status = progress.message }
-                )
+                val result = runCatching {
+                    ExportEngine(context, context.contentResolver).export(
+                        clips = clips, settings = exportSettings, editor = settings, output = uri,
+                        includeWatermark = !watermarkRemovedForExport,
+                        onProgress = { progress ->
+                            exportProgress = progress.fraction.coerceIn(0f, 1f)
+                            status = progress.message
+                        }
+                    )
+                }.getOrElse { Result.failure(it) }
+                exportInProgress = false
                 status = if (result.isSuccess) {
+                    exportProgress = 1f
                     lastExportUri = uri
                     watermarkRemovedForExport = false
                     if (language == AppLanguage.ARABIC) "تم تصدير الفيديو بنجاح" else "Video exported successfully"
@@ -3557,8 +3633,16 @@ private fun EditorScreen(
             onExport = { selected ->
                 exportSettings = selected
                 showExport = false
-                exportLauncher.launch("${editingName.ifBlank { "VideoForge" }}.mp4")
+                showExportAdThenContinue()
             }
+        )
+    }
+    if (exportInProgress) {
+        ExportProgressDialog(
+            language = language,
+            progress = exportProgress,
+            elapsedSec = exportElapsedSec,
+            onDismiss = { }
         )
     }
     tool?.let { active ->
@@ -3663,6 +3747,46 @@ onDuplicate = {
             )
         }
     }
+}
+
+@Composable
+private fun ExportProgressDialog(
+    language: AppLanguage,
+    progress: Float,
+    elapsedSec: Long,
+    onDismiss: () -> Unit
+) {
+    val ar = language == AppLanguage.ARABIC
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(if (ar) "تصدير الفيديو" else "Exporting video", fontWeight = FontWeight.ExtraBold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(
+                    if (ar) "جاري معالجة الفيديو، لا تغلق التطبيق." else "Rendering your video. Keep the editor open.",
+                    color = Color(0xFF8FA1BB), fontSize = 11.sp
+                )
+                LinearProgressIndicator(
+                    progress = { progress.coerceIn(0f, 1f) },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text("${(progress * 100).toInt()}%", fontWeight = FontWeight.Bold)
+                    Text(
+                        if (ar) "الوقت: ${elapsedSec / 60}:${(elapsedSec % 60).toString().padStart(2, '0')}"
+                        else "Time: ${elapsedSec / 60}:${(elapsedSec % 60).toString().padStart(2, '0')}",
+                        color = Color(0xFF6FB9FF), fontSize = 11.sp
+                    )
+                }
+                Text(
+                    if (ar) "سيظهر الفيديو الناتج في مشاركة آخر فيديو بعد اكتمال التصدير."
+                    else "The finished video will be available from Share last export when rendering completes.",
+                    color = Color(0xFF7D8EA8), fontSize = 9.sp
+                )
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(if (ar) "إخفاء" else "Hide") } }
+    )
 }
 
 @Composable
