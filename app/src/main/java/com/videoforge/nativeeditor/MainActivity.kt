@@ -2871,6 +2871,22 @@ private fun EditorScreen(
                     current = updated
                     playheadMs = timelinePositionOf(clips, updated).coerceAtMost(timelineTotalDuration(clips))
                 },
+                onMoveClip = { clip, newStart, newTrack ->
+                    var cursor = 0L
+                    val normalized = if (timelineIsLegacySequential(clips)) {
+                        clips.map { item ->
+                            val normalizedItem = item.copy(timelineStartMs = cursor, trackIndex = 0)
+                            cursor += clipTimelineDuration(item)
+                            normalizedItem
+                        }
+                    } else clips
+                    val moved = normalized.firstOrNull { it == clip } ?: clip
+                    val nextStart = newStart.coerceAtLeast(0L)
+                    val updated = moved.copy(timelineStartMs = nextStart, trackIndex = newTrack.coerceAtLeast(0))
+                    commitClips(normalized.map { if (it == moved) updated else it })
+                    current = updated
+                    playheadMs = nextStart.coerceAtMost(timelineTotalDuration(normalized.map { if (it == moved) updated else it }))
+                },
                 onSplit = { clip ->
                     val clipOffset = timelinePositionOf(clips, clip)
                     val localPlayhead = (playheadMs - clipOffset).coerceIn(0L, clipTimelineDuration(clip))
