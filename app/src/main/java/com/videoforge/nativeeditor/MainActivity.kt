@@ -1785,7 +1785,8 @@ private fun EditorFeaturePanel(
     onExtractAudio: () -> Unit, onAudioKeyframes: () -> Unit, onMusicKeyframes: () -> Unit, onPickMusic: () -> Unit,
     onTextDialog: () -> Unit, onTextAnimation: () -> Unit, onSubtitles: () -> Unit,
     onLayersDialog: () -> Unit, onVideoKeyframes: () -> Unit, onMarkers: () -> Unit,
-    onOpenAdvancedTool: (String) -> Unit
+    onOpenAdvancedTool: (String) -> Unit,
+    onClosePanel: () -> Unit
 ) {
     if (activeTool == null) return
     var adjustFeature by remember(activeTool) { mutableStateOf("brightness") }
@@ -1989,17 +1990,12 @@ private fun EditorFeaturePanel(
                     Text(panelSubtitle, color = Color(0xFF8FA1BB), fontSize = 8.sp, maxLines = 1)
                     Text(clipSummary, color = Color(0xFF667A96), fontSize = 7.sp, maxLines = 1)
                 }
-                Surface(
-                    color = Color(0xFF101D30),
-                    shape = RoundedCornerShape(9.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF28476F))
-                ) {
-                    Text(
-                        if (language == AppLanguage.ARABIC) "أدوات" else "Tools",
-                        color = Color(0xFFB9C9DF),
-                        fontSize = 8.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp)
+                IconButton(onClick = onClosePanel, modifier = Modifier.size(34.dp)) {
+                    Icon(
+                        Icons.Default.Close,
+                        contentDescription = if (language == AppLanguage.ARABIC) "إغلاق الأدوات" else "Close tools",
+                        tint = Color(0xFFB9C9DF),
+                        modifier = Modifier.size(18.dp)
                     )
                 }
             }
@@ -2937,6 +2933,15 @@ private fun EditorScreen(
                         )
                         Box(
                             Modifier.clip(RoundedCornerShape(11.dp))
+                                .background(Color(0xFF101D30))
+                                .border(1.dp, Color(0xFF294568), RoundedCornerShape(11.dp))
+                                .clickable(enabled = clips.isNotEmpty()) { if (clips.isNotEmpty()) showExport = true }
+                                .padding(horizontal = 11.dp, vertical = 9.dp)
+                        ) {
+                            Text(if (language == AppLanguage.ARABIC) "تصدير" else "Export", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                        }
+                        Box(
+                            Modifier.clip(RoundedCornerShape(11.dp))
                                 .background(Brush.horizontalGradient(listOf(Color(0xFF6E39FF), Color(0xFF2F7BFF))))
                                 .clickable {
                                     if (clips.isNotEmpty()) {
@@ -3024,7 +3029,8 @@ private fun EditorScreen(
                                     onLayersDialog = { showLayers=true },
                                     onVideoKeyframes = { showVideoKeyframes=true },
                                     onMarkers = { showMarkers=true },
-                                    onOpenAdvancedTool = { activeEditorTool = it }
+                                    onOpenAdvancedTool = { activeEditorTool = it },
+                                    onClosePanel = { activeEditorTool = null }
                                 )
                             }
                         }
@@ -3063,7 +3069,9 @@ private fun EditorScreen(
                                             if(clip!=null && clips.size>1){
                                                 val next=clips.filterNot{it==clip}; commitClips(next); current=next.firstOrNull()
                                             }
-                                        } else activeEditorTool=id
+                                        } else {
+                                            activeEditorTool = if (activeEditorTool == id) null else id
+                                        }
                                     },
                                 horizontalAlignment=Alignment.CenterHorizontally,
                                 verticalArrangement=Arrangement.Center
@@ -3107,6 +3115,17 @@ private fun EditorScreen(
 
             Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())) {
 
+            if (status.isNotBlank()) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 2.dp),
+                    color = Color(0xFF0B1829),
+                    shape = RoundedCornerShape(10.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF24476E))
+                ) {
+                    Text(status, color = Color(0xFFB9C9DF), fontSize = 9.sp,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp), maxLines = 2)
+                }
+            }
 
             Row(
                 Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
@@ -3505,7 +3524,18 @@ private fun EditorPreview(
 
             LaunchedEffect(player, playbackToggleToken) {
                 if (playbackToggleToken != lastPlaybackToggleToken) {
-                    if (player.isPlaying) player.pause() else player.play()
+                    if (player.isPlaying) {
+                        player.pause()
+                    } else {
+                        if (player.playbackState == androidx.media3.common.Player.STATE_ENDED) {
+                            val restart = clip.trimStartMs.coerceAtLeast(0L)
+                            player.seekTo(restart)
+                            onPlaybackPosition(clipOffsetMs)
+                        } else if (player.playbackState == androidx.media3.common.Player.STATE_IDLE) {
+                            player.prepare()
+                        }
+                        player.play()
+                    }
                     lastPlaybackToggleToken = playbackToggleToken
                 }
             }
@@ -3640,7 +3670,12 @@ private fun EditorPreview(
                         android.graphics.Matrix().apply { postScale(scale, scale); postRotate(rotation); postTranslate(x * 500f, y * 500f) }
                     }
                 }
-                player.setVideoEffects(effects)
+                runCatching {
+                    player.setVideoEffects(effects)
+                }.onFailure { error ->
+                    onPlaybackError(error.message ?: "Video effect preview failed")
+                    runCatching { player.setVideoEffects(emptyList()) }
+                }
             }
             LaunchedEffect(playheadMs, clip.trimStartMs, clip.trimEndMs, settings.musicUri, settings.musicStartMs, settings.musicDurationMs) {
                 val local = (playheadMs - clipOffsetMs).coerceAtLeast(0L)
