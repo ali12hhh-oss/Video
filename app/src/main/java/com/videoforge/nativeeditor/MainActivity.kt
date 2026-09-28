@@ -2904,7 +2904,6 @@ private fun EditorScreen(
         // separate from text styling so dragging a timeline edge never mutates typography.
         val total = timelineTotalDuration(clips).coerceAtLeast(1L)
         val validIds = next.textLayers.mapIndexed { i, _ -> "text-$i" }.toSet()
-        val total = timelineTotalDuration(clips).coerceAtLeast(1L)
         textTimings = validIds.associateWith { id ->
             textTimings[id] ?: TextTimelineTiming(0L, total)
         }
