@@ -180,6 +180,7 @@ fun Timeline(
     musicTimelineStartMs: Long = 0L,
     musicTrackIndex: Int = 0,
     audioTracks: List<AudioTrack> = emptyList(),
+    extraTimelineEndMs: Long = 0L,
     musicSourceDurationMs: Long = 0L,
     musicVolume: Float,
     musicFadeIn: Float,
@@ -211,7 +212,7 @@ fun Timeline(
     textLayers: List<TextLayer> = emptyList(),
     filterName: String = "none"
 ) {
-    val total = clips.sumOf { timelineClipDurationForUi(it) }.coerceAtLeast(1L)
+    val total = maxOf(clips.maxOfOrNull { clipStartMs(it) + timelineClipDurationForUi(it) } ?: 0L, extraTimelineEndMs).coerceAtLeast(1L)
     val safePlayhead = playheadMs.coerceIn(0L, total)
     val scroll = rememberScrollState()
     val timelineWidth = 760.dp
