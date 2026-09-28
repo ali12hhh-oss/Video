@@ -516,8 +516,12 @@ fun Timeline(
                                                 detectDragGestures { change, drag ->
                                                     change.consume()
                                                     val delta = (drag.x / contentWidthPx * total).toLong()
-                                                    val nextDuration = (end - start - (delta)).coerceIn(300L, total)
-                                                    onMusicTrim(start, nextDuration)
+                                                    val sourceStart = musicStartMs.coerceAtLeast(0L)
+                                                    val sourceEnd = if (musicSourceDurationMs > 0L) musicSourceDurationMs else Long.MAX_VALUE
+                                                    val nextStart = (sourceStart + delta).coerceIn(0L, (sourceEnd - 300L).coerceAtLeast(0L))
+                                                    val maxDuration = if (sourceEnd == Long.MAX_VALUE) total else (sourceEnd - nextStart).coerceAtLeast(300L)
+                                                    val nextDuration = (musicDurationMs - delta).coerceIn(300L, maxDuration)
+                                                    onMusicTrim(nextStart, nextDuration)
                                                 }
                                             }
                                     )
