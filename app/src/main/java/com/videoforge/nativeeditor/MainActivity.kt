@@ -2709,7 +2709,7 @@ private fun EditorTextPanel(
                             Column(Modifier.padding(horizontal=10.dp, vertical=8.dp), horizontalAlignment=Alignment.CenterHorizontally) {
                                 Text(
                                     text = if (language == AppLanguage.ARABIC) "أبجد هوز" else "Aa Bb",
-                                    fontFamily = FontFamily(Font(font.regular)),
+                                    fontFamily = fontFamilyFor(font.key),
                                     fontSize = 20.sp,
                                     fontWeight = FontWeight.Normal,
                                     maxLines = 1
@@ -3331,7 +3331,11 @@ private fun EditorScreen(
                                     onAudioKeyframes = { showAudioKeyframes=true },
                                     onMusicKeyframes = { showMusicKeyframes=true },
                                     onPickMusic = { musicImportLauncher.launch(arrayOf("audio/*")) },
-                                    onTextDialog = { tool = null; activeEditorTool = "text"; showTextInput = true },
+                                    onTextDialog = {
+                                        tool = null
+                                        showTextInput = false
+                                        activeEditorTool = "text"
+                                    },
                                     onTextAnimation = { activeEditorTool = "textAnimation" },
                                     onSubtitles = { activeEditorTool = "subtitles" },
                                     onLayersDialog = { showLayers=true },
@@ -3385,8 +3389,8 @@ private fun EditorScreen(
                                                 activeEditorTool = null
                                                 showTextInput = false
                                             } else {
+                                                showTextInput = false
                                                 activeEditorTool = "text"
-                                                showTextInput = true
                                             }
                                         } else {
                                             showTextInput = false
