@@ -921,7 +921,7 @@ private fun HomeScreen(
         ) {
             Scaffold(
                 containerColor = Color(0xFF020914),
-                bottomBar = {
+                bottomBar = if (!isFullscreenPreview) {
                     HomeBottomBar(
                         language = language,
                         selected = selected,
@@ -2418,6 +2418,57 @@ private fun EditorFeaturePanel(
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 
 @Composable
+private fun TextInputDialog(
+    settings: EditorSettings,
+    language: AppLanguage,
+    onChange: (EditorSettings) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val existing = settings.textLayers.firstOrNull()
+    var text by remember(existing?.id, existing?.text, settings.text) {
+        mutableStateOf(existing?.text ?: settings.text)
+    }
+    var selectedId by remember(existing?.id) { mutableStateOf(existing?.id) }
+    fun applyText(value: String) {
+        val layers = if (settings.textLayers.isEmpty()) {
+            listOf(TextLayer(text = value, size = settings.textSize, color = settings.textColor, font = settings.textFont))
+        } else {
+            settings.textLayers.map { layer ->
+                if (layer.id == selectedId) layer.copy(text = value) else layer
+            }
+        }
+        onChange(settings.copy(
+            text = value,
+            textVisible = value.isNotBlank() || layers.any { it.visible && it.text.isNotBlank() },
+            textLayers = layers
+        ))
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(if (language == AppLanguage.ARABIC) "اكتب النص" else "Enter text", fontWeight = FontWeight.ExtraBold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(
+                    if (language == AppLanguage.ARABIC) "اكتب النص ثم اضغط تطبيق. يمكنك تحريك النص وتكبيره مباشرة داخل المعاينة."
+                    else "Type your text, then apply it. You can move and scale it directly in the preview.",
+                    color = Color(0xFF8FA1BB), fontSize = 11.sp
+                )
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = { text = it },
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 120.dp),
+                    minLines = 4, maxLines = 8, singleLine = false,
+                    label = { Text(if (language == AppLanguage.ARABIC) "النص" else "Text") },
+                    placeholder = { Text(if (language == AppLanguage.ARABIC) "اكتب هنا…" else "Type here…") }
+                )
+            }
+        },
+        confirmButton = { Button(onClick = { applyText(text); onDismiss() }) { Text(if (language == AppLanguage.ARABIC) "تطبيق" else "Apply") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(if (language == AppLanguage.ARABIC) "إلغاء" else "Cancel") } }
+    )
+}
+
+@Composable
 private fun EditorTextPanel(
     settings: EditorSettings,
     language: AppLanguage,
@@ -2595,6 +2646,8 @@ private fun EditorScreen(
     LaunchedEffect(projectId,initialTemplate){initialTemplate?.let{id->val next=applyEditorTemplate(settings,id);settings=next;EditorSettingsRepository.save(context,projectId,next)}}
     var showTrim by remember { mutableStateOf(false) }
     var showExport by remember { mutableStateOf(false) }
+    var showTextInput by remember { mutableStateOf(false) }
+    var isFullscreenPreview by remember { mutableStateOf(false) }
     var showKeyframes by remember { mutableStateOf(false) }
     var showVideoKeyframes by remember { mutableStateOf(false) }
     var showAudioKeyframes by remember { mutableStateOf(false) }
@@ -2926,11 +2979,20 @@ private fun EditorScreen(
                         IconButton(onClick = onBack) {
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = Color.White)
                         }
+                        IconButton(onClick = ::undo, enabled = undoStack.isNotEmpty()) {
+                            Icon(Icons.AutoMirrored.Filled.Undo, null, tint = if (undoStack.isNotEmpty()) Color.White else Color(0xFF53657D))
+                        }
+                        IconButton(onClick = ::redo, enabled = redoStack.isNotEmpty()) {
+                            Icon(Icons.AutoMirrored.Filled.Redo, null, tint = if (redoStack.isNotEmpty()) Color.White else Color(0xFF53657D))
+                        }
                         Text(
                             editingName.ifBlank { if (language == AppLanguage.ARABIC) "مشروع جديد" else "New Project" },
-                            color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold,
-                            modifier = Modifier.weight(1f), textAlign = TextAlign.Center
+                            color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold,
+                            modifier = Modifier.weight(1f), textAlign = TextAlign.Center, maxLines = 1
                         )
+                        IconButton(onClick = { isFullscreenPreview = !isFullscreenPreview }, enabled = clips.isNotEmpty()) {
+                            Icon(if (isFullscreenPreview) Icons.Default.FullscreenExit else Icons.Default.Fullscreen, null, tint = Color.White)
+                        }
                         Box(
                             Modifier.clip(RoundedCornerShape(11.dp))
                                 .background(Color(0xFF101D30))
@@ -3023,7 +3085,7 @@ private fun EditorScreen(
                                     onAudioKeyframes = { showAudioKeyframes=true },
                                     onMusicKeyframes = { showMusicKeyframes=true },
                                     onPickMusic = { musicImportLauncher.launch(arrayOf("audio/*")) },
-                                    onTextDialog = { activeEditorTool = "text" },
+                                    onTextDialog = { activeEditorTool = "text"; showTextInput = true },
                                     onTextAnimation = { activeEditorTool = "textAnimation" },
                                     onSubtitles = { activeEditorTool = "subtitles" },
                                     onLayersDialog = { showLayers=true },
@@ -3090,7 +3152,7 @@ private fun EditorScreen(
             // The preview gets a fixed, generous share of the actual screen height (not just
             // whatever its aspect ratio implies from width alone) so it reads as a real, large
             // preview like a professional editor instead of shrinking inside a scrolling column.
-            Box(Modifier.fillMaxWidth().height(245.dp)) {
+            Box(Modifier.fillMaxWidth().then(if (isFullscreenPreview) Modifier.fillMaxHeight() else Modifier.height(245.dp))) {
                 EditorPreview(
                 clip = current,
                 settings = settings,
@@ -3113,7 +3175,7 @@ private fun EditorScreen(
                 )
             }
 
-            Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())) {
+            if (!isFullscreenPreview) Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())) {
 
             if (status.isNotBlank()) {
                 Surface(
