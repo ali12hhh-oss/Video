@@ -142,7 +142,7 @@ private fun TimelineTrackLane(
     total: Long,
     current: Clip?,
     contentWidthPx: Float,
-    density: LocalDensity,
+    density: androidx.compose.ui.unit.Density,
     laneHeight: androidx.compose.ui.unit.Dp,
     clipStartMs: (Clip) -> Long,
     imageUri: (Uri) -> Boolean,
