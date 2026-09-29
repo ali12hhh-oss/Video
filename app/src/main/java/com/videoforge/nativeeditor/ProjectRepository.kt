@@ -19,12 +19,15 @@ data class SavedProject(
 object ProjectRepository {
     private const val PREFS = "videoforge_projects"
     private const val KEY_PROJECTS = "projects"
+    private const val KEY_PROJECTS_BACKUP = "projects_backup"
 
     fun newId(): String = UUID.randomUUID().toString()
 
     fun load(context: Context): List<SavedProject> {
-        val raw = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .getString(KEY_PROJECTS, null) ?: return emptyList()
+        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val primary = prefs.getString(KEY_PROJECTS, null)
+        val backup = prefs.getString(KEY_PROJECTS_BACKUP, null)
+        val raw = primary ?: backup ?: return emptyList()
         return try {
             val array = JSONArray(raw)
             buildList {
@@ -83,8 +86,74 @@ object ProjectRepository {
                 }
             }.sortedByDescending { it.updatedAtMs }
         } catch (_: Exception) {
+            if (raw == primary && !backup.isNullOrBlank()) {
+                return runCatching { parseProjects(backup) }.getOrDefault(emptyList())
+            }
             emptyList()
         }
+    }
+
+    private fun parseProjects(raw: String): List<SavedProject> {
+        val array = JSONArray(raw)
+        return buildList {
+            for (i in 0 until array.length()) {
+                val p = array.optJSONObject(i) ?: continue
+                val clipsArray = p.optJSONArray("clips") ?: JSONArray()
+                val clips = buildList {
+                    for (j in 0 until clipsArray.length()) {
+                        val c = clipsArray.optJSONObject(j) ?: continue
+                        val uriText = c.optString("uri", "")
+                        if (uriText.isBlank()) continue
+                        add(
+                            Clip(
+                                uri = Uri.parse(uriText),
+                                name = c.optString("name", "Video"),
+                                durationMs = c.optLong("durationMs", 0L),
+                                trimStartMs = c.optLong("trimStartMs", 0L),
+                                trimEndMs = c.optLong("trimEndMs", Long.MAX_VALUE),
+                                audioVolume = c.optDouble("audioVolume", 1.0).toFloat(),
+                                audioMuted = c.optBoolean("audioMuted", false),
+                                audioFadeIn = c.optDouble("audioFadeIn", 0.0).toFloat(),
+                                audioFadeOut = c.optDouble("audioFadeOut", 0.0).toFloat(),
+                                isFreezeFrame = c.optBoolean("isFreezeFrame", false),
+                                freezeDurationMs = c.optLong("freezeDurationMs", 1000L),
+                                timelineStartMs = c.optLong("timelineStartMs", 0L),
+                                trackIndex = c.optInt("trackIndex", 0).coerceAtLeast(0),
+                                videoKeyframes = buildList {
+                                    val k = c.optJSONArray("videoKeyframes") ?: JSONArray()
+                                    for (n in 0 until k.length()) {
+                                        val q = k.optJSONObject(n) ?: continue
+                                        add(VideoKeyframe(q.optLong("timeMs",0L), q.optDouble("x",0.0).toFloat(), q.optDouble("y",0.0).toFloat(), q.optDouble("scale",1.0).toFloat(), q.optDouble("rotation",0.0).toFloat(), q.optString("easing","easeInOut")))
+                                    }
+                                }.sortedBy { it.timeMs },
+                                speedKeyframes = buildList {
+                                    val k = c.optJSONArray("speedKeyframes") ?: JSONArray()
+                                    for (n in 0 until k.length()) {
+                                        val q = k.optJSONObject(n) ?: continue
+                                        add(SpeedKeyframe(q.optLong("timeMs",0L), q.optDouble("speed",1.0).toFloat(), q.optString("easing","easeInOut")))
+                                    }
+                                }.sortedBy { it.timeMs },
+                                audioKeyframes = buildList {
+                                    val k = c.optJSONArray("audioKeyframes") ?: JSONArray()
+                                    for (n in 0 until k.length()) {
+                                        val q = k.optJSONObject(n) ?: continue
+                                        add(ClipAudioKeyframe(q.optLong("timeMs", 0L), q.optDouble("volume", 1.0).toFloat()))
+                                    }
+                                }.sortedBy { it.timeMs }
+                            )
+                        )
+                    }
+                }
+                if (clips.isNotEmpty()) {
+                    add(SavedProject(
+                        id = p.optString("id", newId()),
+                        name = p.optString("name", clips.first().name),
+                        clips = clips,
+                        updatedAtMs = p.optLong("updatedAtMs", System.currentTimeMillis())
+                    ))
+                }
+            }
+        }.sortedByDescending { it.updatedAtMs }
     }
 
     fun save(context: Context, id: String, clips: List<Clip>, name: String? = null) {
@@ -160,7 +229,11 @@ object ProjectRepository {
             p.put("clips", clips)
             array.put(p)
         }
+        val serialized = array.toString()
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .edit().putString(KEY_PROJECTS, array.toString()).apply()
+            .edit()
+            .putString(KEY_PROJECTS_BACKUP, serialized)
+            .putString(KEY_PROJECTS, serialized)
+            .apply()
     }
 }
