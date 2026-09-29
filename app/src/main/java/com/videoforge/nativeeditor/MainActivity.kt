@@ -177,29 +177,8 @@ private fun persistUriAccess(context: android.content.Context, uri: Uri) {
     }
 }
 
-private suspend fun copyMediaUriToAppStorage(context: android.content.Context, uri: Uri, index: Int = 0): Uri? {
-    if (uri.scheme == "file") return uri
-    return runCatching {
-        val resolver = context.contentResolver
-        val mime = resolver.getType(uri).orEmpty()
-        val extension = when {
-            mime.equals("video/mp4", true) -> ".mp4"
-            mime.equals("video/quicktime", true) -> ".mov"
-            mime.equals("video/webm", true) -> ".webm"
-            mime.equals("image/png", true) -> ".png"
-            mime.equals("image/webp", true) -> ".webp"
-            mime.equals("image/heic", true) || mime.equals("image/heif", true) -> ".heic"
-            mime.startsWith("image/") -> ".jpg"
-            else -> if (isImageUri(context, uri)) ".jpg" else ".mp4"
-        }
-        val dir = java.io.File(context.filesDir, "imported_media").apply { mkdirs() }
-        val file = java.io.File(dir, "media_" + System.currentTimeMillis() + "_" + index + extension)
-        resolver.openInputStream(uri)?.use { input ->
-            file.outputStream().use { output -> input.copyTo(output, 1024 * 1024) }
-        } ?: return@runCatching null
-        Uri.fromFile(file)
-    }.getOrNull()
-}
+private suspend fun copyMediaUriToAppStorage(context: android.content.Context, uri: Uri, index: Int = 0): Uri? =
+    MediaStorage.copyToAppStorage(context, uri, index)
 
 private fun safeMediaDurationMs(context: android.content.Context, uri: Uri): Long =
     runCatching { defaultClipDurationMs(context, uri) }.getOrDefault(FALLBACK_VIDEO_CLIP_DURATION_MS)
@@ -2462,8 +2441,12 @@ private fun EditorScreen(
 
     val musicImportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
-            persistUriAccess(context, uri)
-            musicImportUri = uri
+            exportScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                val safeUri = MediaStorage.copyToAppStorage(context, uri, 0)
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    musicImportUri = safeUri
+                }
+            }
         }
     }
     var tool by remember { mutableStateOf<String?>(null) }
@@ -2669,43 +2652,68 @@ private fun EditorScreen(
     val replaceLauncher = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         val selected = current
         if (uri != null && selected != null) {
-            persistUriAccess(context, uri)
-            val capacity = defaultClipDurationMs(context, uri)
-            val duration = if (isImageUri(context, uri)) DEFAULT_IMAGE_CLIP_DURATION_MS else capacity
-            val updated = selected.copy(uri = uri, name = uri.lastPathSegment?.substringAfterLast('/')?.ifBlank { selected.name } ?: selected.name, durationMs = capacity, trimStartMs = 0L, trimEndMs = if (isImageUri(context, uri)) DEFAULT_IMAGE_CLIP_DURATION_MS else duration)
-            commitClips(clips.map { if (it == selected) updated else it })
-            current = updated
-            playheadMs = timelinePositionOf(clips.map { if (it == selected) updated else it }, updated)
-            status = if (language == AppLanguage.ARABIC) "تم استبدال الوسائط" else "Media replaced"
+            exportScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                val safeUri = MediaStorage.copyToAppStorage(context, uri, 0)
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    if (safeUri == null) {
+                        status = if (language == AppLanguage.ARABIC) "تعذر استيراد الوسائط" else "Unable to import media"
+                        return@withContext
+                    }
+                    val capacity = defaultClipDurationMs(context, safeUri)
+                    val image = isImageUri(context, safeUri)
+                    val duration = if (image) DEFAULT_IMAGE_CLIP_DURATION_MS else capacity
+                    val updated = selected.copy(uri = safeUri, name = safeUri.lastPathSegment?.substringAfterLast('/')?.ifBlank { selected.name } ?: selected.name, durationMs = capacity, trimStartMs = 0L, trimEndMs = if (image) DEFAULT_IMAGE_CLIP_DURATION_MS else duration)
+                    commitClips(clips.map { if (it == selected) updated else it })
+                    current = updated
+                    playheadMs = timelinePositionOf(clips.map { if (it == selected) updated else it }, updated)
+                    status = if (language == AppLanguage.ARABIC) "تم استبدال الوسائط" else "Media replaced"
+                }
+            }
         }
     }
 
     val overlayImageLauncher = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) {
-            persistUriAccess(context, uri)
-            val newLayer = PipLayer(uri = uri.toString())
-            val nextLayers = settings.pipLayers + newLayer
-            commitSettings(settings.copy(pipLayers = nextLayers, overlayImageUri = newLayer.uri,
-                overlayImageX = newLayer.x, overlayImageY = newLayer.y, overlayImageScale = newLayer.scale,
-                overlayImageRotation = newLayer.rotation, overlayImageAlpha = newLayer.alpha))
-            status = if (language == AppLanguage.ARABIC) "تمت إضافة طبقة PIP جديدة (" + nextLayers.size + ")" else "New PIP layer added (" + nextLayers.size + ")"
+            exportScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                val safeUri = MediaStorage.copyToAppStorage(context, uri, 0)
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    if (safeUri == null) {
+                        status = if (language == AppLanguage.ARABIC) "تعذر استيراد الصورة" else "Unable to import image"
+                        return@withContext
+                    }
+                    val newLayer = PipLayer(uri = safeUri.toString())
+                    val nextLayers = settings.pipLayers + newLayer
+                    commitSettings(settings.copy(pipLayers = nextLayers, overlayImageUri = newLayer.uri,
+                        overlayImageX = newLayer.x, overlayImageY = newLayer.y, overlayImageScale = newLayer.scale,
+                        overlayImageRotation = newLayer.rotation, overlayImageAlpha = newLayer.alpha))
+                    status = if (language == AppLanguage.ARABIC) "تمت إضافة طبقة PIP جديدة (" + nextLayers.size + ")" else "New PIP layer added (" + nextLayers.size + ")"
+                }
+            }
         }
     }
 
     val aiCutoutLauncher = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) {
-            persistUriAccess(context, uri)
-            exportScope.launch {
-                status = if (language == AppLanguage.ARABIC) "جاري قص العنصر بالذكاء الاصطناعي…" else "AI subject cutout in progress…"
-                val cut = aiCutoutImage(context, uri)
-                if (cut != null) {
-                    val newLayer = PipLayer(uri = cut.toString())
-                    val nextLayers = settings.pipLayers + newLayer
-                    commitSettings(settings.copy(pipLayers = nextLayers, overlayImageUri = newLayer.uri,
-                        overlayImageX = newLayer.x, overlayImageY = newLayer.y, overlayImageScale = newLayer.scale,
-                        overlayImageRotation = newLayer.rotation, overlayImageAlpha = newLayer.alpha))
-                    status = if (language == AppLanguage.ARABIC) "تم قص العنصر وإضافته كطبقة PIP (" + nextLayers.size + ")" else "Subject cutout added as PIP layer (" + nextLayers.size + ")"
-                } else status = if (language == AppLanguage.ARABIC) "تعذر قص الصورة — تحقق من توفر نموذج ML Kit" else "AI cutout failed — check ML Kit model availability"
+            exportScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                val safeUri = MediaStorage.copyToAppStorage(context, uri, 0)
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    if (safeUri == null) {
+                        status = if (language == AppLanguage.ARABIC) "تعذر استيراد الصورة" else "Unable to import image"
+                        return@withContext
+                    }
+                    status = if (language == AppLanguage.ARABIC) "جاري قص العنصر بالذكاء الاصطناعي…" else "AI subject cutout in progress…"
+                }
+                val cut = aiCutoutImage(context, safeUri)
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    if (cut != null) {
+                        val newLayer = PipLayer(uri = cut.toString())
+                        val nextLayers = settings.pipLayers + newLayer
+                        commitSettings(settings.copy(pipLayers = nextLayers, overlayImageUri = newLayer.uri,
+                            overlayImageX = newLayer.x, overlayImageY = newLayer.y, overlayImageScale = newLayer.scale,
+                            overlayImageRotation = newLayer.rotation, overlayImageAlpha = newLayer.alpha))
+                        status = if (language == AppLanguage.ARABIC) "تم قص العنصر وإضافته كطبقة PIP (" + nextLayers.size + ")" else "Subject cutout added as PIP layer (" + nextLayers.size + ")"
+                    } else status = if (language == AppLanguage.ARABIC) "تعذر قص الصورة — تحقق من توفر نموذج ML Kit" else "AI cutout failed — check ML Kit model availability"
+                }
             }
         }
     }
