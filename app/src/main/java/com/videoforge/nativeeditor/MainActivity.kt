@@ -2712,7 +2712,7 @@ private fun EditorScreen(
                     }
                     status = if (language == AppLanguage.ARABIC) "جاري قص العنصر بالذكاء الاصطناعي…" else "AI subject cutout in progress…"
                 }
-                val cut = aiCutoutImage(context, safeUri)
+                val cut = aiCutoutImage(context, safeUri!!)
                 kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
                     if (cut != null) {
                         val newLayer = PipLayer(uri = cut.toString())
