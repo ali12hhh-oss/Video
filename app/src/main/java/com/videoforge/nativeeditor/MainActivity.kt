@@ -641,6 +641,56 @@ private fun BrandSplashScreen() {
 }
 
 @Composable
+private fun LegacySafeEditorPreview(
+    clip: Clip?,
+    showWatermark: Boolean,
+    language: AppLanguage?
+) {
+    val context = LocalContext.current
+    BoxWithConstraints(
+        Modifier
+            .fillMaxSize()
+            .clip(RoundedCornerShape(14.dp))
+            .background(Color.Black)
+            .border(1.dp, Color(0xFF253044), RoundedCornerShape(18.dp)),
+        contentAlignment = Alignment.Center
+    ) {
+        if (clip == null) {
+            Icon(Icons.Default.VideoLibrary, null, tint = Color.Gray, modifier = Modifier.size(54.dp))
+        } else {
+            ProjectThumbnail(
+                uri = clip.uri,
+                modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(10.dp))
+            )
+            if (showWatermark) {
+                Image(
+                    painter = painterResource(R.drawable.videoforge_logo),
+                    contentDescription = "VideoForge watermark",
+                    contentScale = androidx.compose.ui.layout.ContentScale.Fit,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(top = 10.dp, end = 10.dp)
+                        .width(88.dp)
+                        .alpha(0.82f)
+                )
+            }
+            Surface(
+                modifier = Modifier.align(Alignment.BottomCenter).padding(10.dp),
+                color = Color(0xCC0B1019),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Text(
+                    if (language == AppLanguage.ARABIC) "المعاينة الآمنة مفعلة لهذا الجهاز" else "Safe preview mode is active on this device",
+                    color = Color.White,
+                    fontSize = 9.sp,
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun ProjectThumbnail(uri: Uri, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     var bitmap by remember(uri) { mutableStateOf<android.graphics.Bitmap?>(null) }
@@ -3282,6 +3332,18 @@ private fun EditorPreview(
     onClipChange: (Clip) -> Unit = {}
 ) {
     val context = LocalContext.current
+    // Android 8.x devices (especially legacy Huawei/HiSilicon builds) have documented
+    // MediaCodec/ExoPlayer crashes during decoder initialization. Keep the editor alive
+    // by using the non-decoding preview on those API levels; newer Android versions keep
+    // the full Media3 preview path below.
+    if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.O_MR1) {
+        LegacySafeEditorPreview(
+            clip = clip,
+            showWatermark = showWatermark,
+            language = null
+        )
+        return
+    }
     val ratio = when (settings.aspect) { "9:16" -> 9f/16f; "1:1" -> 1f; "4:5" -> 4f/5f; "2:3" -> 2f/3f; "3:4" -> 3f/4f; "3:2" -> 3f/2f; "21:9" -> 21f/9f; else -> 16f/9f }
     BoxWithConstraints(
         Modifier
