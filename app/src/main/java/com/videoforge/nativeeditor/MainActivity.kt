@@ -91,6 +91,7 @@ import com.google.mlkit.vision.segmentation.subject.SubjectSegmenterOptions
 import androidx.media3.effect.ScaleAndRotateTransformation
 import androidx.media3.effect.MatrixTransformation
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.ui.PlayerView
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
@@ -3312,7 +3313,10 @@ private fun EditorPreview(
             Column(horizontalAlignment = Alignment.CenterHorizontally) { Icon(Icons.Default.VideoLibrary, null, Modifier.size(54.dp), tint = Color.Gray); Text("Add media", color = Color.Gray, fontSize = 11.sp) }
         } else {
             val player = remember(clip.uri, clip.isFreezeFrame, clip.freezeDurationMs, clip.durationMs) {
-                ExoPlayer.Builder(context).build().apply {
+                ExoPlayer.Builder(
+                        context,
+                        DefaultRenderersFactory(context).setEnableDecoderFallback(true)
+                    ).build().apply {
                     val isStillImage = clip.isFreezeFrame || isImageUri(context, clip.uri)
                     val item = if (isStillImage) {
                         val stillDurationMs = if (clip.isFreezeFrame) {
@@ -3325,9 +3329,9 @@ private fun EditorPreview(
                         MediaItem.fromUri(clip.uri)
                     }
                     setMediaItem(item)
-                    // Initialize the Media3 effects pipeline before prepare so the preview
-                    // decoder can render reliably even when effects are changed later.
-                    setVideoEffects(emptyList())
+                    // Do not install an effects pipeline before the first prepare. On some
+                    // older Android devices this can initialize the decoder/effects stack too
+                    // early and terminate the process when the first media is opened.
                     prepare()
                     playWhenReady = false
                 }
