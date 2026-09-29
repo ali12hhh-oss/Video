@@ -421,9 +421,6 @@ fun Timeline(
                             )
                         }
 
-                            TrackLane(trackIndex,laneClips)
-                        }
-
                         // Text lane: real selectable text segments rather than detached chips.
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         Box(
