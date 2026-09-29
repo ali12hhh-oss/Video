@@ -285,6 +285,7 @@ private fun formatProjectDate(seconds: Long): String {
 }
 
 private fun loadVideoThumbnail(context: android.content.Context, uri: Uri): android.graphics.Bitmap? {
+    if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.O_MR1) return null
     return try {
         if (Build.VERSION.SDK_INT >= 29) {
             context.contentResolver.loadThumbnail(uri, Size(480, 270), null)
