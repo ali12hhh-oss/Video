@@ -194,6 +194,7 @@ private fun hasVideoPermission(context: android.content.Context): Boolean {
 }
 
 private fun mediaDurationMs(context: android.content.Context, uri: Uri): Long {
+    if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.O_MR1) return 0L
     return runCatching {
         val retriever = MediaMetadataRetriever()
         try {
@@ -369,10 +370,17 @@ private fun VideoForgeApp() {
                     val importedClips = mutableListOf<Clip>()
                     var startMs = 0L
                     sourceUris.forEachIndexed { i, sourceUri ->
+                        val sourceType = runCatching { context.contentResolver.getType(sourceUri) }.getOrNull()
+                        val image = sourceType?.startsWith("image/") == true || isImageUri(context, sourceUri)
                         val safeUri = copyMediaUriToAppStorage(context, sourceUri, i)
                         if (safeUri != null) {
-                            val image = isImageUri(context, safeUri)
-                            val duration = safeMediaDurationMs(context, safeUri)
+                            val duration = if (image) {
+                                DEFAULT_IMAGE_CLIP_DURATION_MS
+                            } else if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.O_MR1) {
+                                FALLBACK_VIDEO_CLIP_DURATION_MS
+                            } else {
+                                safeMediaDurationMs(context, safeUri)
+                            }
                             val clip = Clip(
                                 uri = safeUri,
                                 name = context.getString(R.string.clip_number, i + 1),
