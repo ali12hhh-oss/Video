@@ -646,8 +646,7 @@ private fun LegacySafeEditorPreview(
     showWatermark: Boolean,
     language: AppLanguage?
 ) {
-    val context = LocalContext.current
-    BoxWithConstraints(
+    Box(
         Modifier
             .fillMaxSize()
             .clip(RoundedCornerShape(14.dp))
