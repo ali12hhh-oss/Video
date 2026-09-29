@@ -325,6 +325,8 @@ private suspend fun aiCutoutImage(context: android.content.Context, uri: Uri): U
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        CrashDiagnostics.install(this)
+        CrashDiagnostics.mark(this, "MAIN_ON_CREATE")
         LanguageManager.setLanguage(this, LanguageManager.getLanguage(this))
         WatermarkRewardManager.initialize(this)
         InterstitialAdManager.initialize(this)
@@ -346,6 +348,8 @@ private fun VideoForgeApp() {
     var showHelp by remember { mutableStateOf(false) }
     var editorInitialTool by remember { mutableStateOf<String?>(null) }
     var showBrandSplash by rememberSaveable { mutableStateOf(true) }
+    val lastCrash = remember { CrashDiagnostics.last(context) }
+    var showCrashDialog by rememberSaveable { mutableStateOf(!lastCrash.isNullOrBlank()) }
 
     LaunchedEffect(Unit) {
         delay(1100L)
@@ -354,10 +358,12 @@ private fun VideoForgeApp() {
 
     // Use the system document picker with explicit image + video MIME types so the
     // bottom + button consistently offers both media categories instead of image-only mode.
+    CrashDiagnostics.mark(context, "VIDEOFORGE_APP_COMPOSED")
     val importScope = rememberCoroutineScope()
     val picker = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
+        CrashDiagnostics.mark(context, "PICKER_RESULT:" + result.resultCode)
         if (result.resultCode == Activity.RESULT_OK) {
             val data = result.data
             val sourceUris = buildList {
@@ -367,13 +373,16 @@ private fun VideoForgeApp() {
                 }
             }.distinct().take(20)
             if (sourceUris.isNotEmpty()) {
+                CrashDiagnostics.mark(context, "MEDIA_URI_RECEIVED:" + sourceUris.size)
                 importScope.launch(kotlinx.coroutines.Dispatchers.IO) {
                     val importedClips = mutableListOf<Clip>()
                     var startMs = 0L
                     sourceUris.forEachIndexed { i, sourceUri ->
                         val sourceType = runCatching { context.contentResolver.getType(sourceUri) }.getOrNull()
                         val image = sourceType?.startsWith("image/") == true || isImageUri(context, sourceUri)
+                        CrashDiagnostics.mark(context, "COPY_MEDIA_START:" + i)
                         val safeUri = copyMediaUriToAppStorage(context, sourceUri, i)
+                        CrashDiagnostics.mark(context, "COPY_MEDIA_DONE:" + i + ":" + (safeUri != null))
                         if (safeUri != null) {
                             val duration = if (image) {
                                 DEFAULT_IMAGE_CLIP_DURATION_MS
@@ -382,6 +391,7 @@ private fun VideoForgeApp() {
                             } else {
                                 safeMediaDurationMs(context, safeUri)
                             }
+                            CrashDiagnostics.mark(context, "MEDIA_READY:" + i + ":image=" + image + ":duration=" + duration)
                             val clip = Clip(
                                 uri = safeUri,
                                 name = context.getString(R.string.clip_number, i + 1),
@@ -400,8 +410,11 @@ private fun VideoForgeApp() {
                             projectId = ProjectRepository.newId()
                             clips = importedClips
                             projectName = importedClips.first().name
+                            CrashDiagnostics.mark(context, "PROJECT_SAVE_START")
                             ProjectRepository.save(context, projectId, importedClips, projectName)
+                            CrashDiagnostics.mark(context, "PROJECT_SAVED_BEFORE_EDITOR")
                             showEditor = true
+                            CrashDiagnostics.mark(context, "SHOW_EDITOR_SET_TRUE")
                         }
                     }
                 }
@@ -442,6 +455,22 @@ private fun VideoForgeApp() {
                 secondary = Color(0xFF00D9C6)
             )
         ) {
+            if (showCrashDialog && !lastCrash.isNullOrBlank()) {
+                AlertDialog(
+                    onDismissRequest = { showCrashDialog = false },
+                    title = { Text(if (language == AppLanguage.ARABIC) "تشخيص الإغلاق السابق" else "Previous crash diagnostic") },
+                    text = { Text(lastCrash, fontSize = 11.sp) },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            CrashDiagnostics.clear(context)
+                            showCrashDialog = false
+                        }) { Text(if (language == AppLanguage.ARABIC) "مسح" else "Clear") }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showCrashDialog = false }) { Text(if (language == AppLanguage.ARABIC) "إغلاق" else "Close") }
+                    }
+                )
+            }
             if (showBrandSplash) {
                 BrandSplashScreen()
             } else if (showEditor) {
@@ -2354,8 +2383,13 @@ private fun EditorScreen(
     onLanguageSelected: (AppLanguage) -> Unit
 ) {
     val context = LocalContext.current
+    CrashDiagnostics.mark(context, "EDITOR_SCREEN_ENTERED")
     var current by remember { mutableStateOf(clips.firstOrNull()) }
-    var settings by remember(projectId) { mutableStateOf(EditorSettingsRepository.load(context, projectId)) }
+    var settings by remember(projectId) {
+        CrashDiagnostics.mark(context, "EDITOR_SETTINGS_LOAD_START")
+        mutableStateOf(EditorSettingsRepository.load(context, projectId))
+    }
+    CrashDiagnostics.mark(context, "EDITOR_SETTINGS_LOADED")
     var showTrim by remember { mutableStateOf(false) }
     var showExport by remember { mutableStateOf(false) }
     var showKeyframes by remember { mutableStateOf(false) }
