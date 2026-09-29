@@ -91,6 +91,10 @@ private fun timelineClipDurationForUi(clip: Clip): Long {
 /** Small frame/cover thumbnail for a clip block. Kept local to this file since MainActivity's
  * loadVideoThumbnail is file-private in Kotlin (top-level `private` is per-file, not per-package). */
 private fun loadClipThumbnails(context: android.content.Context, uri: Uri, count: Int = 6): List<Bitmap> {
+    // Android 8.x Huawei/HiSilicon devices can terminate the process inside
+    // MediaMetadataRetriever. Never invoke the native decoder for timeline thumbnails
+    // on those devices; the editor remains usable with a clean placeholder.
+    if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.O_MR1) return emptyList()
     return try {
         val retriever = android.media.MediaMetadataRetriever()
         retriever.setDataSource(context, uri)
