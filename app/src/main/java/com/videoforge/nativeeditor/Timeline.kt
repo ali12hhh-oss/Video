@@ -135,6 +135,80 @@ private fun ClipFilmstrip(uri: Uri, modifier: Modifier = Modifier) {
     }
 }
 
+@Composable
+private fun TimelineTrackLane(
+    trackIndex: Int,
+    laneClips: List<Clip>,
+    total: Long,
+    current: Clip?,
+    contentWidthPx: Float,
+    density: LocalDensity,
+    laneHeight: androidx.compose.ui.unit.Dp,
+    clipStartMs: (Clip) -> Long,
+    imageUri: (Uri) -> Boolean,
+    onSelect: (Clip) -> Unit,
+    onPlayheadChange: (Long) -> Unit,
+    onMoveClip: (Clip, Long, Int) -> Unit,
+    onTrimEdges: (Clip, Long, Long) -> Unit
+) {
+    val tint = when (trackIndex % 4) {
+        0 -> Color(0xFF55A8FF)
+        1 -> Color(0xFF9B6BFF)
+        2 -> Color(0xFF33D6B2)
+        else -> Color(0xFFFF9B5C)
+    }
+    Box(Modifier.fillMaxWidth().height(laneHeight).clip(RoundedCornerShape(7.dp)).background(Color(0xFF0A1728))) {
+        Row(Modifier.align(Alignment.CenterStart).padding(start=6.dp), verticalAlignment=Alignment.CenterVertically) {
+            Icon(Icons.Default.Videocam, contentDescription=null, tint=tint, modifier=Modifier.size(15.dp))
+            Text(if(trackIndex==0) "V1" else "V" + (trackIndex+1), color=Color(0xFF9EB0CA), fontSize=7.sp, fontWeight=FontWeight.Bold, modifier=Modifier.padding(start=3.dp))
+        }
+        laneClips.sortedBy { clipStartMs(it) }.forEach { clip ->
+            val start = clipStartMs(clip)
+            val duration = timelineClipDurationForUi(clip).coerceAtLeast(MIN_CLIP_DURATION_MS)
+            val leftFraction=(start.toFloat()/total.toFloat()).coerceIn(0f,1f)
+            val widthFraction=(duration.toFloat()/total.toFloat()).coerceIn(0.008f,1f)
+            val selected=clip==current
+            val mediaIsImage=imageUri(clip.uri)||clip.isFreezeFrame
+            val blockTint=if(mediaIsImage) Color(0xFF33D6B2) else tint
+            Box(
+                Modifier.fillMaxHeight().fillMaxWidth(widthFraction)
+                    .offset(x=with(density){(leftFraction*contentWidthPx).toDp()})
+                    .padding(vertical=3.dp)
+                    .clip(RoundedCornerShape(6.dp))
+                    .border(if(selected)2.dp else 1.dp,if(selected)Color.White else blockTint.copy(alpha=.42f),RoundedCornerShape(6.dp))
+                    .background(Color(0xFF14243A))
+                    .clickable{onSelect(clip);onPlayheadChange(start)}
+                    .pointerInput(clip,total,trackIndex){
+                        var movedMs=0L
+                        var movedTrack=0
+                        detectDragGestures(onDragStart={movedMs=0L;movedTrack=0;onSelect(clip);onPlayheadChange(start)}){change,dragAmount->
+                            change.consume()
+                            movedMs += (dragAmount.x/contentWidthPx*total.toFloat()).toLong()
+                            movedTrack += (dragAmount.y/with(density){(laneHeight+5.dp).toPx()}).toInt()
+                            onMoveClip(clip,(start+movedMs).coerceAtLeast(0L),(trackIndex+movedTrack).coerceAtLeast(0))
+                        }
+                    }
+            ){
+                ClipFilmstrip(clip.uri,Modifier.fillMaxSize())
+                Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(listOf(Color.Black.copy(alpha=.08f),Color.Black.copy(alpha=.30f)))))
+                Box(Modifier.fillMaxSize().background(blockTint.copy(alpha=if(selected).18f else .04f)))
+                if(selected){
+                    Text(if(mediaIsImage)"صورة" else "فيديو",color=Color.White.copy(alpha=.9f),fontSize=7.sp,fontWeight=FontWeight.Bold,modifier=Modifier.align(Alignment.Center).background(Color.Black.copy(alpha=.35f),RoundedCornerShape(4.dp)).padding(horizontal=4.dp,vertical=2.dp))
+                    TrimHandle(Alignment.CenterStart){deltaMs->
+                        val oldStart=clip.trimStartMs
+                        val oldEnd=if(clip.trimEndMs==Long.MAX_VALUE)clip.durationMs else clip.trimEndMs
+                        onTrimEdges(clip,(oldStart+deltaMs).coerceIn(0L,oldEnd-MIN_CLIP_DURATION_MS),oldEnd)
+                    }
+                    TrimHandle(Alignment.CenterEnd){deltaMs->
+                        val oldStart=clip.trimStartMs
+                        val oldEnd=if(clip.trimEndMs==Long.MAX_VALUE)clip.durationMs else clip.trimEndMs
+                        onTrimEdges(clip,oldStart,(oldEnd+deltaMs).coerceIn(oldStart+MIN_CLIP_DURATION_MS,clip.durationMs))
+                    }
+                }
+            }
+        }
+    }
+}
 /** A draggable grip on one edge of the selected clip block. Dragging horizontally trims that
  * edge in place (like the trim handles in CapCut/VN/LumaFusion) instead of using separate
  * +/- buttons below the track. */
@@ -329,62 +403,24 @@ fun Timeline(
                         Modifier.fillMaxWidth().padding(top = 25.dp),
                         verticalArrangement = Arrangement.spacedBy(5.dp)
                     ) {
-                        @Composable
-                        fun TrackLane(trackIndex: Int, laneClips: List<Clip>, height: androidx.compose.ui.unit.Dp = laneHeight) {
-                            val tint = trackTint(trackIndex)
-                            Box(Modifier.fillMaxWidth().height(height).clip(RoundedCornerShape(7.dp)).background(Color(0xFF0A1728))) {
-                                Row(Modifier.align(Alignment.CenterStart).padding(start=6.dp), verticalAlignment=Alignment.CenterVertically) {
-                                    Icon(Icons.Default.Videocam, contentDescription=null, tint=tint, modifier=Modifier.size(15.dp))
-                                    Text(if(trackIndex==0) "V1" else "V${trackIndex+1}", color=Color(0xFF9EB0CA), fontSize=7.sp, fontWeight=FontWeight.Bold, modifier=Modifier.padding(start=3.dp))
-                                }
-                                laneClips.sortedBy { clipStartMs(it) }.forEach { clip ->
-                                    val start = clipStartMs(clip)
-                                    val duration = timelineClipDurationForUi(clip).coerceAtLeast(MIN_CLIP_DURATION_MS)
-                                    val leftFraction=(start.toFloat()/total.toFloat()).coerceIn(0f,1f)
-                                    val widthFraction=(duration.toFloat()/total.toFloat()).coerceIn(0.008f,1f)
-                                    val selected=clip==current
-                                    val mediaIsImage=imageUri(clip.uri)||clip.isFreezeFrame
-                                    val blockTint=if(mediaIsImage) Color(0xFF33D6B2) else tint
-                                    Box(
-                                        Modifier.fillMaxHeight().fillMaxWidth(widthFraction)
-                                            .offset(x=with(density){(leftFraction*contentWidthPx).toDp()})
-                                            .padding(vertical=3.dp)
-                                            .clip(RoundedCornerShape(6.dp))
-                                            .border(if(selected)2.dp else 1.dp,if(selected)Color.White else blockTint.copy(alpha=.42f),RoundedCornerShape(6.dp))
-                                            .background(Color(0xFF14243A))
-                                            .clickable{onSelect(clip);onPlayheadChange(start)}
-                                            .pointerInput(clip,total,trackIndex){
-                                                var movedMs=0L
-                                                var movedTrack=0
-                                                detectDragGestures(onDragStart={movedMs=0L;movedTrack=0;onSelect(clip);onPlayheadChange(start)}){change,dragAmount->
-                                                    change.consume()
-                                                    movedMs += (dragAmount.x/contentWidthPx*total.toFloat()).toLong()
-                                                    movedTrack += (dragAmount.y/with(density){(laneHeight+5.dp).toPx()}).toInt()
-                                                    onMoveClip(clip,(start+movedMs).coerceAtLeast(0L),(trackIndex+movedTrack).coerceAtLeast(0))
-                                                }
-                                            }
-                                    ){
-                                        ClipFilmstrip(clip.uri,Modifier.fillMaxSize())
-                                        Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(listOf(Color.Black.copy(alpha=.08f),Color.Black.copy(alpha=.30f)))))
-                                        Box(Modifier.fillMaxSize().background(blockTint.copy(alpha=if(selected).18f else .04f)))
-                                        if(selected){
-                                            Text(if(mediaIsImage)"صورة" else "فيديو",color=Color.White.copy(alpha=.9f),fontSize=7.sp,fontWeight=FontWeight.Bold,modifier=Modifier.align(Alignment.Center).background(Color.Black.copy(alpha=.35f),RoundedCornerShape(4.dp)).padding(horizontal=4.dp,vertical=2.dp))
-                                            TrimHandle(Alignment.CenterStart){deltaMs->
-                                                val oldStart=clip.trimStartMs
-                                                val oldEnd=if(clip.trimEndMs==Long.MAX_VALUE)clip.durationMs else clip.trimEndMs
-                                                onTrimEdges(clip,(oldStart+deltaMs).coerceIn(0L,oldEnd-MIN_CLIP_DURATION_MS),oldEnd)
-                                            }
-                                            TrimHandle(Alignment.CenterEnd){deltaMs->
-                                                val oldStart=clip.trimStartMs
-                                                val oldEnd=if(clip.trimEndMs==Long.MAX_VALUE)clip.durationMs else clip.trimEndMs
-                                                onTrimEdges(clip,oldStart,(oldEnd+deltaMs).coerceIn(oldStart+MIN_CLIP_DURATION_MS,clip.durationMs))
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
                         visualTracks.forEach { (trackIndex,laneClips) ->
+                            TimelineTrackLane(
+                                trackIndex = trackIndex,
+                                laneClips = laneClips,
+                                total = total,
+                                current = current,
+                                contentWidthPx = contentWidthPx,
+                                density = density,
+                                laneHeight = laneHeight,
+                                clipStartMs = ::clipStartMs,
+                                imageUri = ::imageUri,
+                                onSelect = onSelect,
+                                onPlayheadChange = onPlayheadChange,
+                                onMoveClip = onMoveClip,
+                                onTrimEdges = onTrimEdges
+                            )
+                        }
+
                             TrackLane(trackIndex,laneClips)
                         }
 
