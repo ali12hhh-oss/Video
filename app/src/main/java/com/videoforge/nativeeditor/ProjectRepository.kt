@@ -54,6 +54,8 @@ object ProjectRepository {
                                     freezeDurationMs = c.optLong("freezeDurationMs", 1000L),
                                     timelineStartMs = c.optLong("timelineStartMs", 0L),
                                     trackIndex = c.optInt("trackIndex", 0).coerceAtLeast(0),
+                                    transition = c.optString("transition", "none"),
+                                    transitionDurationMs = c.optLong("transitionDurationMs", 400L).coerceIn(200L, 1200L),
                                     videoKeyframes = buildList {
                                         val k = c.optJSONArray("videoKeyframes") ?: JSONArray()
                                         for (n in 0 until k.length()) { val q = k.optJSONObject(n) ?: continue; add(VideoKeyframe(q.optLong("timeMs",0L), q.optDouble("x",0.0).toFloat(), q.optDouble("y",0.0).toFloat(), q.optDouble("scale",1.0).toFloat(), q.optDouble("rotation",0.0).toFloat(), q.optString("easing","easeInOut"))) }
@@ -217,6 +219,8 @@ object ProjectRepository {
                         .put("freezeDurationMs", clip.freezeDurationMs)
                         .put("timelineStartMs", clip.timelineStartMs)
                         .put("trackIndex", clip.trackIndex)
+                        .put("transition", clip.transition)
+                        .put("transitionDurationMs", clip.transitionDurationMs)
                         .put("videoKeyframes", JSONArray().apply { clip.videoKeyframes.sortedBy { it.timeMs }.forEach { k -> put(JSONObject().put("timeMs",k.timeMs).put("x",k.x).put("y",k.y).put("scale",k.scale).put("rotation",k.rotation).put("easing",k.easing)) } })
                         .put("speedKeyframes", JSONArray().apply { clip.speedKeyframes.sortedBy { it.timeMs }.forEach { k -> put(JSONObject().put("timeMs",k.timeMs).put("speed",k.speed).put("easing",k.easing)) } })
                         .put("audioKeyframes", JSONArray().apply {
