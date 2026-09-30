@@ -4902,32 +4902,69 @@ private fun FilterDialog(
 }
 @Composable
 private fun EffectsDialog(s: EditorSettings, language: AppLanguage, onChange:(EditorSettings)->Unit,onDismiss:()->Unit){
-    var blur by remember(s.blurRadius){mutableFloatStateOf(s.blurRadius)}
-    var mosaicEnabled by remember(s.mosaicEnabled){mutableStateOf(s.mosaicEnabled)}
-    var blockSize by remember(s.mosaicBlockSize){mutableFloatStateOf(s.mosaicBlockSize)}
-    var mx by remember(s.mosaicX){mutableFloatStateOf(s.mosaicX)}; var my by remember(s.mosaicY){mutableFloatStateOf(s.mosaicY)}
-    var mw by remember(s.mosaicWidth){mutableFloatStateOf(s.mosaicWidth)}; var mh by remember(s.mosaicHeight){mutableFloatStateOf(s.mosaicHeight)}
-    AlertDialog(onDismissRequest=onDismiss,title={Text(if(language==AppLanguage.ARABIC)"المؤثرات" else "Effects")},text={
-        Column(Modifier.verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(7.dp)){
-            Text(if(language==AppLanguage.ARABIC)"المؤثرات والمعالجة" else "Effects & processing",fontWeight=FontWeight.Bold)
-            Text(if(language==AppLanguage.ARABIC)"ضبابية ${blur.toInt()}" else "Blur ${blur.toInt()}"); Slider(value=blur,onValueChange={blur=it},valueRange=0f..20f)
-            Button(onClick={onChange(s.copy(blurRadius=blur));onDismiss()},modifier=Modifier.fillMaxWidth()){Text(if(language==AppLanguage.ARABIC)"تطبيق الضبابية" else "Apply blur")}
-            HorizontalDivider()
-            Text(if(language==AppLanguage.ARABIC)"بكسلة منطقة (Mosaic)" else "Region Mosaic",fontWeight=FontWeight.Bold)
-            Row(verticalAlignment=Alignment.CenterVertically){Text(if(language==AppLanguage.ARABIC)"تفعيل البكسلة" else "Enable mosaic",Modifier.weight(1f));Switch(checked=mosaicEnabled,onCheckedChange={mosaicEnabled=it})}
-            Text("X ${(mx*100).toInt()}%");Slider(value=mx,onValueChange={mx=it},valueRange=0f..0.9f)
-            Text("Y ${(my*100).toInt()}%");Slider(value=my,onValueChange={my=it},valueRange=0f..0.9f)
-            Text(if(language==AppLanguage.ARABIC)"العرض ${(mw*100).toInt()}%" else "Width ${(mw*100).toInt()}%");Slider(value=mw,onValueChange={mw=it},valueRange=0.05f..1f)
-            Text(if(language==AppLanguage.ARABIC)"الارتفاع ${(mh*100).toInt()}%" else "Height ${(mh*100).toInt()}%");Slider(value=mh,onValueChange={mh=it},valueRange=0.05f..1f)
-            Text(if(language==AppLanguage.ARABIC)"حجم البكسل ${(blockSize*100).toInt()}%" else "Block size ${(blockSize*100).toInt()}%");Slider(value=blockSize,onValueChange={blockSize=it},valueRange=0.02f..0.20f)
-            Button(onClick={onChange(s.copy(blurRadius=blur,mosaicEnabled=mosaicEnabled,mosaicBlockSize=blockSize,mosaicX=mx,mosaicY=my,mosaicWidth=mw,mosaicHeight=mh));onDismiss()},modifier=Modifier.fillMaxWidth()){Text(if(language==AppLanguage.ARABIC)"تطبيق المؤثرات" else "Apply effects")}
-            OutlinedButton(onClick={onDismiss},modifier=Modifier.fillMaxWidth()){Text(if(language==AppLanguage.ARABIC)"إغلاق" else "Close")}
-        }
-    },confirmButton={})
+    val ar = language == AppLanguage.ARABIC
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(if (ar) "المؤثرات المباشرة" else "Live Effects") },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                Text(
+                    if (ar) "كل تغيير يطبق فورًا على المقطع ويظهر في المعاينة."
+                    else "Every change is applied immediately to the selected clip.",
+                    color = Color.Gray, fontSize = 10.sp
+                )
+                Text(if (ar) "ضبابية " + s.blurRadius.toInt() else "Blur " + s.blurRadius.toInt())
+                Slider(value = s.blurRadius, onValueChange = { onChange(s.copy(blurRadius = it)) }, valueRange = 0f..20f)
+                HorizontalDivider()
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(if (ar) "بكسلة المنطقة" else "Region Mosaic", Modifier.weight(1f))
+                    Switch(checked = s.mosaicEnabled, onCheckedChange = { onChange(s.copy(mosaicEnabled = it)) })
+                }
+                Text(if (ar) "X " + (s.mosaicX * 100).toInt() + "%" else "X " + (s.mosaicX * 100).toInt() + "%")
+                Slider(value = s.mosaicX, onValueChange = { onChange(s.copy(mosaicX = it)) }, valueRange = 0f..0.9f)
+                Text(if (ar) "Y " + (s.mosaicY * 100).toInt() + "%" else "Y " + (s.mosaicY * 100).toInt() + "%")
+                Slider(value = s.mosaicY, onValueChange = { onChange(s.copy(mosaicY = it)) }, valueRange = 0f..0.9f)
+                Text(if (ar) "العرض " + (s.mosaicWidth * 100).toInt() + "%" else "Width " + (s.mosaicWidth * 100).toInt() + "%")
+                Slider(value = s.mosaicWidth, onValueChange = { onChange(s.copy(mosaicWidth = it)) }, valueRange = 0.05f..1f)
+                Text(if (ar) "الارتفاع " + (s.mosaicHeight * 100).toInt() + "%" else "Height " + (s.mosaicHeight * 100).toInt() + "%")
+                Slider(value = s.mosaicHeight, onValueChange = { onChange(s.copy(mosaicHeight = it)) }, valueRange = 0.05f..1f)
+                Text(if (ar) "حجم البكسل " + (s.mosaicBlockSize * 100).toInt() + "%" else "Block size " + (s.mosaicBlockSize * 100).toInt() + "%")
+                Slider(value = s.mosaicBlockSize, onValueChange = { onChange(s.copy(mosaicBlockSize = it)) }, valueRange = 0.02f..0.20f)
+                OutlinedButton(
+                    onClick = { onChange(s.copy(blurRadius = 0f, mosaicEnabled = false)) },
+                    modifier = Modifier.fillMaxWidth()
+                ) { Text(if (ar) "إزالة المؤثرات" else "Remove effects") }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(if (ar) "تم" else "Done") } }
+    )
 }
+
 @Composable private fun AdjustDialog(s: EditorSettings, language: AppLanguage, onChange:(EditorSettings)->Unit,onDismiss:()->Unit){
-    var b by remember{mutableFloatStateOf(s.brightness)};var c by remember{mutableFloatStateOf(s.contrast)};var sat by remember{mutableFloatStateOf(s.saturation)};var hue by remember{mutableFloatStateOf(s.hue)};var temp by remember{mutableFloatStateOf(s.temperature)};var tintValue by remember{mutableFloatStateOf(s.tint)}
-    AlertDialog(onDismissRequest=onDismiss,title={Text(if(language==AppLanguage.ARABIC)"ضبط متقدم" else "Advanced Adjust")},text={Column{Text(if(language==AppLanguage.ARABIC)"السطوع ${(b*100).toInt()}" else "Brightness ${(b*100).toInt()}");Slider(value = b, onValueChange = { v -> b = v }, valueRange = -1f..1f);Text(if(language==AppLanguage.ARABIC)"التباين ${(c*100).toInt()}%" else "Contrast ${(c*100).toInt()}%");Slider(value = c, onValueChange = { v -> c = v }, valueRange = 0f..2f);Text(if(language==AppLanguage.ARABIC)"التشبع ${(sat*100).toInt()}%" else "Saturation ${(sat*100).toInt()}%");Slider(value = sat, onValueChange = { v -> sat = v }, valueRange = 0f..2f);Text(if(language==AppLanguage.ARABIC)"درجة اللون ${hue.toInt()}°" else "Hue ${hue.toInt()}°");Slider(value = hue, onValueChange = { v -> hue = v }, valueRange = -180f..180f);Text(if(language==AppLanguage.ARABIC)"حرارة اللون ${temp.toInt()}" else "Temperature ${temp.toInt()}");Slider(value = temp, onValueChange = { v -> temp = v }, valueRange = -100f..100f);Text(if(language==AppLanguage.ARABIC)"الصبغة ${tintValue.toInt()}" else "Tint ${tintValue.toInt()}");Slider(value = tintValue, onValueChange = { v -> tintValue = v }, valueRange = -100f..100f)}},confirmButton={TextButton(onClick={onChange(s.copy(brightness=b,contrast=c,saturation=sat,hue=hue,temperature=temp,tint=tintValue));onDismiss()}){Text(if(language==AppLanguage.ARABIC)"تطبيق" else "Apply")}},dismissButton={TextButton(onClick=onDismiss){Text(if(language==AppLanguage.ARABIC)"إلغاء" else "Cancel")}})
+    val ar = language == AppLanguage.ARABIC
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(if (ar) "ضبط مباشر" else "Live Adjust") },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                Text(if (ar) "كل تغيير يظهر فورًا في المعاينة" else "Every change is applied immediately to the preview", color = Color.Gray, fontSize = 10.sp)
+                Text(if (ar) "السطوع " + (s.brightness * 100).toInt() else "Brightness " + (s.brightness * 100).toInt())
+                Slider(value = s.brightness, onValueChange = { onChange(s.copy(brightness = it)) }, valueRange = -1f..1f)
+                Text(if (ar) "التباين " + (s.contrast * 100).toInt() + "%" else "Contrast " + (s.contrast * 100).toInt() + "%")
+                Slider(value = s.contrast, onValueChange = { onChange(s.copy(contrast = it)) }, valueRange = 0f..2f)
+                Text(if (ar) "التشبع " + (s.saturation * 100).toInt() + "%" else "Saturation " + (s.saturation * 100).toInt() + "%")
+                Slider(value = s.saturation, onValueChange = { onChange(s.copy(saturation = it)) }, valueRange = 0f..2f)
+                Text(if (ar) "درجة اللون " + s.hue.toInt() + "°" else "Hue " + s.hue.toInt() + "°")
+                Slider(value = s.hue, onValueChange = { onChange(s.copy(hue = it)) }, valueRange = -180f..180f)
+                Text(if (ar) "حرارة اللون " + s.temperature.toInt() else "Temperature " + s.temperature.toInt())
+                Slider(value = s.temperature, onValueChange = { onChange(s.copy(temperature = it)) }, valueRange = -100f..100f)
+                Text(if (ar) "الصبغة " + s.tint.toInt() else "Tint " + s.tint.toInt())
+                Slider(value = s.tint, onValueChange = { onChange(s.copy(tint = it)) }, valueRange = -100f..100f)
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(if (ar) "تم" else "Done") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(if (ar) "إغلاق" else "Close") } }
+    )
 }
 
 @Composable private fun CanvasDialog(s:EditorSettings,language:AppLanguage,onChange:(EditorSettings)->Unit,onDismiss:()->Unit){
@@ -4937,28 +4974,32 @@ private fun EffectsDialog(s: EditorSettings, language: AppLanguage, onChange:(Ed
 }
 
 @Composable private fun TransitionDialog(s:EditorSettings,language:AppLanguage,onChange:(EditorSettings)->Unit,onDismiss:()->Unit){
-    val vals=listOf("none","fade","slide","zoom","wipe","blur","flash","spin","push","pull","glitch","crossZoom","rotateZoom","lightLeak","filmBurn","radial","shutter","cube","elastic","digital","prism","swing","bounce");
-    val labels=if(language==AppLanguage.ARABIC) listOf("بدون","تلاشي","انزلاق","تكبير سينمائي","مسح","ضباب","فلاش","دوران","دفع","سحب","تشويش","زوم متقاطع","دوران + زوم","تسريب ضوء","احتراق فيلم","دائري","مصراع","مكعب","مرن","رقمي","منشور","تأرجح","ارتداد") else listOf("None","Fade","Slide","Cinematic Zoom","Wipe","Blur","Flash","Spin","Push","Pull","Glitch","Cross Zoom","Rotate Zoom","Light Leak","Film Burn","Radial","Shutter","Cube","Elastic","Digital","Prism","Swing","Bounce")
-    var selected=remember{mutableStateOf(s.transition)}
-    var duration by remember{mutableFloatStateOf(s.transitionDuration)}
-    var intensity by remember{mutableFloatStateOf(s.motionIntensity)}
-    AlertDialog(onDismissRequest=onDismiss,title={Text(if(language==AppLanguage.ARABIC)"انتقالات وتأثيرات الحركة"else"Transitions & Motion")},text={
-        Column(Modifier.verticalScroll(rememberScrollState())){
-            labels.forEachIndexed{i,label->FilterChip(selected=selected.value==vals[i],onClick={selected.value=vals[i]},label={Text(label)},modifier=Modifier.fillMaxWidth().padding(vertical=2.dp))}
-            Spacer(Modifier.height(8.dp))
-            Text(if(language==AppLanguage.ARABIC)"مدة الحركة ${(duration*1000).toInt()} مللي ثانية"else"Motion duration ${(duration*1000).toInt()} ms")
-            Slider(value = duration, onValueChange = { v -> duration = v }, valueRange = 0.2f..1.2f)
-            Text(if(language==AppLanguage.ARABIC)"شدة الحركة ${(intensity*100).toInt()}%"else"Motion intensity ${(intensity*100).toInt()}%")
-            Slider(value = intensity, onValueChange = { v -> intensity = v }, valueRange = 0.35f..1.8f)
-            Text(if(language==AppLanguage.ARABIC)"إعدادات سريعة" else "Quick presets", fontWeight=FontWeight.SemiBold, fontSize=12.sp)
-            LazyRow(horizontalArrangement=Arrangement.spacedBy(5.dp)){
-                item{AssistChip(onClick={selected.value="fade";duration=0.45f;intensity=0.85f},label={Text(if(language==AppLanguage.ARABIC)"سينمائي" else "Cinematic",fontSize=9.sp)})}
-                item{AssistChip(onClick={selected.value="zoom";duration=0.65f;intensity=1.05f},label={Text(if(language==AppLanguage.ARABIC)"زوم" else "Zoom",fontSize=9.sp)})}
-                item{AssistChip(onClick={selected.value="slide";duration=0.4f;intensity=0.9f},label={Text(if(language==AppLanguage.ARABIC)"سريع" else "Fast",fontSize=9.sp)})}
-                item{AssistChip(onClick={selected.value="none";duration=0.4f;intensity=1f},label={Text(if(language==AppLanguage.ARABIC)"بدون" else "None",fontSize=9.sp)})}
+    val ar = language == AppLanguage.ARABIC
+    val vals = listOf("none","fade","slide","zoom","wipe","blur","flash","spin","push","pull","glitch","crossZoom","rotateZoom","lightLeak","filmBurn","radial","shutter","cube","elastic","digital","prism","swing","bounce")
+    val labels = if (ar) listOf("بدون","تلاشي","انزلاق","تكبير","مسح","ضباب","فلاش","دوران","دفع","سحب","تشويش","زوم متقاطع","دوران + زوم","تسريب ضوء","احتراق فيلم","دائري","مصراع","مكعب","مرن","رقمي","منشور","تأرجح","ارتداد") else listOf("None","Fade","Slide","Zoom","Wipe","Blur","Flash","Spin","Push","Pull","Glitch","Cross Zoom","Rotate Zoom","Light Leak","Film Burn","Radial","Shutter","Cube","Elastic","Digital","Prism","Swing","Bounce")
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(if (ar) "الانتقالات" else "Transitions") },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState())) {
+                Text(if (ar) "اختر الانتقال وشاهده مباشرة في المعاينة." else "Choose a transition and preview it immediately.", color = Color.Gray, fontSize = 10.sp)
+                labels.forEachIndexed { i, label ->
+                    FilterChip(
+                        selected = s.transition == vals[i],
+                        onClick = { onChange(s.copy(transition = vals[i])) },
+                        label = { Text(label) },
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp)
+                    )
+                }
+                Text(if (ar) "المدة " + (s.transitionDuration * 1000).toInt() + " مللي ثانية" else "Duration " + (s.transitionDuration * 1000).toInt() + " ms")
+                Slider(value = s.transitionDuration, onValueChange = { onChange(s.copy(transitionDuration = it)) }, valueRange = 0.2f..1.2f)
+                Text(if (ar) "الشدة " + (s.motionIntensity * 100).toInt() + "%" else "Intensity " + (s.motionIntensity * 100).toInt() + "%")
+                Slider(value = s.motionIntensity, onValueChange = { onChange(s.copy(motionIntensity = it)) }, valueRange = 0.35f..1.8f)
             }
-        }
-    },confirmButton={TextButton(onClick={onChange(s.copy(transition=selected.value,transitionDuration=duration,motionIntensity=intensity));onDismiss()}){Text(if(language==AppLanguage.ARABIC)"تطبيق"else"Apply")}},dismissButton={TextButton(onClick=onDismiss){Text(if(language==AppLanguage.ARABIC)"إلغاء"else"Cancel")}})
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(if (ar) "تم" else "Done") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(if (ar) "إغلاق" else "Close") } }
+    )
 }
 
 @Composable private fun StickerDialog(s:EditorSettings,language:AppLanguage,onChange:(EditorSettings)->Unit,onDismiss:()->Unit){
