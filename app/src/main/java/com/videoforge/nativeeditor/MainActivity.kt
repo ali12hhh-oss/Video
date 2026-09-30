@@ -749,6 +749,139 @@ private fun LegacySafeEditorPreview(
                     modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(10.dp))
                 )
             } ?: Icon(Icons.Default.Image, null, tint = Color(0xFF6E7F99), modifier = Modifier.size(54.dp))
+            if (textEditing) {
+                val ar = LocalLayoutDirection.current == LayoutDirection.Rtl
+                val editableLayer = settings.textLayers.firstOrNull()
+                    ?: TextLayer(
+                        text = settings.text.ifBlank { "" },
+                        size = settings.textSize,
+                        color = settings.textColor,
+                        font = settings.textFont
+                    )
+                var draft by remember(editableLayer.id, textEditing) {
+                    mutableStateOf(editableLayer.text)
+                }
+                LaunchedEffect(editableLayer.id, editableLayer.text, textEditing) {
+                    if (draft != editableLayer.text) draft = editableLayer.text
+                }
+                Surface(
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .fillMaxWidth(0.90f)
+                        .padding(10.dp),
+                    color = Color(0xEE0B111C),
+                    shape = RoundedCornerShape(16.dp),
+                    border = BorderStroke(1.dp, Color(0xFF7C5CFF))
+                ) {
+                    Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                if (ar) "كتابة على الفيديو" else "Write on video",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 12.sp,
+                                modifier = Modifier.weight(1f)
+                            )
+                            IconButton(onClick = onTextEditingDone, modifier = Modifier.size(30.dp)) {
+                                Icon(Icons.Default.Close, null, modifier = Modifier.size(17.dp))
+                            }
+                        }
+                        Box(
+                            Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 72.dp, max = 150.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color(0xFF111A28))
+                                .border(1.dp, Color(0xFF33445F), RoundedCornerShape(12.dp))
+                                .padding(6.dp)
+                        ) {
+                            OutlinedTextField(
+                                value = draft,
+                                onValueChange = { value ->
+                                    draft = value
+                                    val nextLayers = if (settings.textLayers.isEmpty()) {
+                                        listOf(editableLayer.copy(
+                                            id = System.nanoTime().toString(),
+                                            text = value,
+                                            visible = true
+                                        ))
+                                    } else {
+                                        settings.textLayers.map { layer ->
+                                            if (layer.id == editableLayer.id) layer.copy(text = value, visible = true) else layer
+                                        }
+                                    }
+                                    val first = nextLayers.firstOrNull()
+                                    onSettingsChange(
+                                        settings.copy(
+                                            text = first?.text.orEmpty(),
+                                            textSize = first?.size ?: settings.textSize,
+                                            textColor = first?.color ?: settings.textColor,
+                                            textFont = first?.font ?: settings.textFont,
+                                            textVisible = nextLayers.any { it.visible && it.text.isNotBlank() },
+                                            textLayers = nextLayers
+                                        )
+                                    )
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                minLines = 2,
+                                maxLines = 5,
+                                textStyle = androidx.compose.ui.text.TextStyle(
+                                    color = Color.White,
+                                    fontSize = 18.sp,
+                                    textAlign = if (ar) TextAlign.Right else TextAlign.Left
+                                ),
+                                placeholder = {
+                                    Text(
+                                        if (ar) "اكتب النص هنا..." else "Type your text here...",
+                                        color = Color(0xFF738198)
+                                    )
+                                },
+                                label = { Text(if (ar) "النص" else "Text") }
+                            )
+                        }
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            AssistChip(
+                                onClick = {
+                                    val next = if (settings.textLayers.isEmpty()) {
+                                        listOf(editableLayer.copy(id = System.nanoTime().toString(), text = draft, visible = true))
+                                    } else settings.textLayers.map {
+                                        if (it.id == editableLayer.id) it.copy(text = draft, visible = true) else it
+                                    }
+                                    val first = next.firstOrNull()
+                                    onSettingsChange(settings.copy(
+                                        textLayers = next,
+                                        text = first?.text.orEmpty(),
+                                        textVisible = next.any { it.visible && it.text.isNotBlank() }
+                                    ))
+                                },
+                                label = { Text(if (ar) "تطبيق" else "Apply", fontSize = 9.sp) },
+                                leadingIcon = { Icon(Icons.Default.Check, null, Modifier.size(15.dp)) }
+                            )
+                            AssistChip(
+                                onClick = {
+                                    if (draft.isNotBlank()) {
+                                        val next = if (settings.textLayers.isEmpty()) {
+                                            listOf(editableLayer.copy(id = System.nanoTime().toString(), text = "", visible = true))
+                                        } else settings.textLayers.map {
+                                            if (it.id == editableLayer.id) it.copy(text = "", visible = false) else it
+                                        }
+                                        onSettingsChange(settings.copy(
+                                            textLayers = next,
+                                            text = next.firstOrNull()?.text.orEmpty(),
+                                            textVisible = next.any { it.visible && it.text.isNotBlank() }
+                                        ))
+                                    }
+                                    draft = ""
+                                },
+                                label = { Text(if (ar) "مسح" else "Clear", fontSize = 9.sp) },
+                                leadingIcon = { Icon(Icons.Default.Backspace, null, Modifier.size(15.dp)) }
+                            )
+                        }
+                    }
+                }
+            }
             if (showWatermark) {
                 Image(
                     painter = painterResource(R.drawable.videoforge_logo),
@@ -3132,7 +3265,9 @@ private fun EditorScreen(
                 },
                 onPlaybackStateChanged = { previewPlaying = it },
                 onPlaybackError = { previewError = it },
-                playbackToggleToken = previewToggleToken
+                playbackToggleToken = previewToggleToken,
+                textEditing = activeEditorTool == "text",
+                onTextEditingDone = { activeEditorTool = null }
                 )
             }
 
@@ -3586,7 +3721,9 @@ private fun EditorPreview(
     onPlaybackStateChanged: (Boolean) -> Unit = {},
     onPlaybackError: (String) -> Unit = {},
     playbackToggleToken: Int = 0,
-    onClipChange: (Clip) -> Unit = {}
+    onClipChange: (Clip) -> Unit = {},
+    textEditing: Boolean = false,
+    onTextEditingDone: () -> Unit = {}
 ) {
     val context = LocalContext.current
     // Use the same Media3 live preview pipeline on API 26+ that powers the export effect model.
