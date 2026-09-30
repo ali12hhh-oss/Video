@@ -227,22 +227,23 @@ class ExportEngine(private val context: Context, private val resolver: ContentRe
                         .adjustHue((editor.hue + editor.temperature * 0.12f + editor.tint * 0.08f).coerceIn(-180f, 180f))
                         .build()
                 }
+                val filterStrength = editor.filterIntensity.coerceIn(0f, 1f)
                 when (editor.filter) {
-                    "mono" -> videoEffects += RgbFilter.createGrayscaleFilter()
-                    "invert" -> videoEffects += RgbFilter.createInvertedFilter()
-                    "sepia" -> videoEffects += HslAdjustment.Builder().adjustHue(28f).adjustSaturation(-18f).build()
-                    "warm" -> videoEffects += HslAdjustment.Builder().adjustHue(18f).adjustSaturation(10f).build()
-                    "cool" -> videoEffects += HslAdjustment.Builder().adjustHue(-18f).adjustSaturation(6f).build()
-                    "vivid" -> videoEffects += HslAdjustment.Builder().adjustSaturation(28f).build()
-                    "dream" -> { videoEffects += Brightness(0.08f); videoEffects += HslAdjustment.Builder().adjustSaturation(-6f).adjustHue(6f).build(); videoEffects += GaussianBlur(0.45f) }
-                    "noir" -> { videoEffects += RgbFilter.createGrayscaleFilter(); videoEffects += Contrast(0.22f) }
-                    "faded" -> { videoEffects += Brightness(0.03f); videoEffects += Contrast(-0.12f); videoEffects += HslAdjustment.Builder().adjustSaturation(-18f).build() }
-                    "tealOrange" -> { videoEffects += HslAdjustment.Builder().adjustHue(8f).adjustSaturation(18f).build(); videoEffects += Contrast(0.08f) }
-                    "vintage" -> { videoEffects += HslAdjustment.Builder().adjustHue(28f).adjustSaturation(-12f).build() }
-                    "sunset" -> { videoEffects += HslAdjustment.Builder().adjustHue(22f).adjustSaturation(20f).build(); videoEffects += Brightness(0.04f) }
-                    "ice" -> { videoEffects += HslAdjustment.Builder().adjustHue(-24f).adjustSaturation(10f).build(); videoEffects += Brightness(0.04f) }
-                    "dramatic" -> { videoEffects += Contrast(0.28f); videoEffects += HslAdjustment.Builder().adjustSaturation(12f).build() }
-                    "soft" -> { videoEffects += Contrast(-0.08f); videoEffects += GaussianBlur(0.3f) }
+                    "mono" -> videoEffects += HslAdjustment.Builder().adjustSaturation(-100f * filterStrength).build()
+                    "invert" -> if (filterStrength > 0.01f) videoEffects += RgbFilter.createInvertedFilter()
+                    "sepia" -> videoEffects += HslAdjustment.Builder().adjustHue(28f * filterStrength).adjustSaturation(-18f * filterStrength).build()
+                    "warm" -> videoEffects += HslAdjustment.Builder().adjustHue(18f * filterStrength).adjustSaturation(10f * filterStrength).build()
+                    "cool" -> videoEffects += HslAdjustment.Builder().adjustHue(-18f * filterStrength).adjustSaturation(6f * filterStrength).build()
+                    "vivid" -> videoEffects += HslAdjustment.Builder().adjustSaturation(28f * filterStrength).build()
+                    "dream" -> { videoEffects += Brightness(0.08f * filterStrength); videoEffects += HslAdjustment.Builder().adjustSaturation(-6f * filterStrength).adjustHue(6f * filterStrength).build(); videoEffects += GaussianBlur(0.45f * filterStrength) }
+                    "noir" -> { videoEffects += HslAdjustment.Builder().adjustSaturation(-100f * filterStrength).build(); videoEffects += Contrast(0.22f * filterStrength) }
+                    "faded" -> { videoEffects += Brightness(0.03f * filterStrength); videoEffects += Contrast(-0.12f * filterStrength); videoEffects += HslAdjustment.Builder().adjustSaturation(-18f * filterStrength).build() }
+                    "tealOrange" -> { videoEffects += HslAdjustment.Builder().adjustHue(8f * filterStrength).adjustSaturation(18f * filterStrength).build(); videoEffects += Contrast(0.08f * filterStrength) }
+                    "vintage" -> { videoEffects += HslAdjustment.Builder().adjustHue(28f * filterStrength).adjustSaturation(-12f * filterStrength).build() }
+                    "sunset" -> { videoEffects += HslAdjustment.Builder().adjustHue(22f * filterStrength).adjustSaturation(20f * filterStrength).build(); videoEffects += Brightness(0.04f * filterStrength) }
+                    "ice" -> { videoEffects += HslAdjustment.Builder().adjustHue(-24f * filterStrength).adjustSaturation(10f * filterStrength).build(); videoEffects += Brightness(0.04f * filterStrength) }
+                    "dramatic" -> { videoEffects += Contrast(0.28f * filterStrength); videoEffects += HslAdjustment.Builder().adjustSaturation(12f * filterStrength).build() }
+                    "soft" -> { videoEffects += Contrast(-0.08f * filterStrength); videoEffects += GaussianBlur(0.3f * filterStrength) }
                 }
                 if (editor.rotation % 360 != 0 || kotlin.math.abs(editor.cropZoom - 1f) > 0.001f) {
                     videoEffects += ScaleAndRotateTransformation.Builder()
@@ -289,7 +290,7 @@ class ExportEngine(private val context: Context, private val resolver: ContentRe
                 // Professional motion transitions are rendered per clip. Media3 Compositions do
                 // not currently support true video cross-fades, so these are implemented as
                 // timestamped GPU transforms (zoom/slide/spin/blur/flash) at clip boundaries.
-                addMotionTransitionEffects(videoEffects, editor.transition, clipDurationUs(clip), editor.motionIntensity)
+                addMotionTransitionEffects(videoEffects, editor.transition, clipDurationUs(clip), editor.motionIntensity, editor.transitionDuration)
 
                 val overlays = buildOverlayEffect(editor, includeWatermark)
                 if (overlays != null) videoEffects += overlays
@@ -555,10 +556,12 @@ class ExportEngine(private val context: Context, private val resolver: ContentRe
         effects: MutableList<androidx.media3.common.Effect>,
         transition: String,
         durationUs: Long,
-        intensity: Float
+        intensity: Float,
+        requestedDurationSeconds: Float = 0.4f
     ) {
         if (transition == "none" || durationUs <= 0L) return
-        val window = minOf(700_000L, durationUs / 3L).coerceAtLeast(120_000L)
+        val requestedWindow = (requestedDurationSeconds.coerceIn(0.2f, 1.2f) * 1_000_000f).toLong()
+        val window = minOf(requestedWindow, (durationUs / 2L).coerceAtLeast(120_000L)).coerceAtLeast(120_000L)
         val strength = intensity.coerceIn(0.35f, 1.8f)
 
         fun animated(startUs: Long, endUs: Long, builder: (Float) -> android.graphics.Matrix) {
