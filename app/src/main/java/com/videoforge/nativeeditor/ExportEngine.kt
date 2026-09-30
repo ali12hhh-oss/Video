@@ -290,7 +290,13 @@ class ExportEngine(private val context: Context, private val resolver: ContentRe
                 // Professional motion transitions are rendered per clip. Media3 Compositions do
                 // not currently support true video cross-fades, so these are implemented as
                 // timestamped GPU transforms (zoom/slide/spin/blur/flash) at clip boundaries.
-                addMotionTransitionEffects(videoEffects, editor.transition, clipDurationUs(clip), editor.motionIntensity, editor.transitionDuration)
+                addMotionTransitionEffects(
+                    videoEffects,
+                    clip.transition.takeIf { it != "none" } ?: editor.transition,
+                    clipDurationUs(clip),
+                    editor.motionIntensity,
+                    if (clip.transition != "none") clip.transitionDurationMs / 1000f else editor.transitionDuration
+                )
 
                 val overlays = buildOverlayEffect(editor, includeWatermark)
                 if (overlays != null) videoEffects += overlays
