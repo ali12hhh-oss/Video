@@ -3983,74 +3983,134 @@ private fun EditorPreview(
             if (settings.overlayOpacity > 0f) Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = settings.overlayOpacity)))
             if (textEditing) {
                 val ar = LocalLayoutDirection.current == LayoutDirection.Rtl
-                val editableLayer = settings.textLayers.firstOrNull()
-                    ?: TextLayer(text = settings.text, size = settings.textSize, color = settings.textColor, font = settings.textFont)
+                val fallbackLayer = TextLayer(
+                    id = "draft",
+                    text = settings.text,
+                    size = settings.textSize,
+                    color = settings.textColor,
+                    font = settings.textFont,
+                    startMs = (playheadMs - clipOffsetMs).coerceAtLeast(0L),
+                    endMs = (playheadMs - clipOffsetMs).coerceAtLeast(0L) + 5000L
+                )
+                var selectedTextLayerId by remember(textEditing) { mutableStateOf(settings.textLayers.firstOrNull()?.id) }
+                val editableLayer = settings.textLayers.firstOrNull { it.id == selectedTextLayerId }
+                    ?: settings.textLayers.firstOrNull()
+                    ?: fallbackLayer
+                LaunchedEffect(settings.textLayers) {
+                    if (selectedTextLayerId == null || settings.textLayers.none { it.id == selectedTextLayerId }) {
+                        selectedTextLayerId = settings.textLayers.firstOrNull()?.id
+                    }
+                }
                 var draft by remember(editableLayer.id, textEditing) { mutableStateOf(editableLayer.text) }
                 LaunchedEffect(editableLayer.id, editableLayer.text, textEditing) {
                     if (draft != editableLayer.text) draft = editableLayer.text
                 }
+                fun commitLayer(transform: (TextLayer) -> TextLayer) {
+                    val next = if (settings.textLayers.isEmpty()) {
+                        listOf(transform(editableLayer))
+                    } else settings.textLayers.map { layer ->
+                        if (layer.id == editableLayer.id) transform(layer) else layer
+                    }
+                    val first = next.firstOrNull()
+                    onSettingsChange(settings.copy(
+                        text = first?.text.orEmpty(),
+                        textSize = first?.size ?: settings.textSize,
+                        textColor = first?.color ?: settings.textColor,
+                        textFont = first?.font ?: settings.textFont,
+                        textVisible = next.any { it.visible && it.text.isNotBlank() },
+                        textLayers = next
+                    ))
+                }
                 Surface(
-                    modifier = Modifier.align(Alignment.Center).fillMaxWidth(0.90f).padding(10.dp),
-                    color = Color(0xEE0B111C),
+                    modifier = Modifier.align(Alignment.Center).fillMaxWidth(0.94f).padding(8.dp),
+                    color = Color(0xF20B111C),
                     shape = RoundedCornerShape(16.dp)
                 ) {
-                    Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Column(Modifier.padding(10.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(if (ar) "كتابة على الفيديو" else "Write on video", fontWeight = FontWeight.Bold, fontSize = 12.sp, modifier = Modifier.weight(1f))
+                            Text(if (ar) "كتابة وتنسيق النص" else "Write & style text", fontWeight = FontWeight.Bold, fontSize = 12.sp, modifier = Modifier.weight(1f))
                             IconButton(onClick = onTextEditingDone, modifier = Modifier.size(30.dp)) {
                                 Icon(Icons.Default.Close, null, modifier = Modifier.size(17.dp))
+                            }
+                        }
+                        if (settings.textLayers.size > 1) {
+                            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                                settings.textLayers.forEachIndexed { index, layer ->
+                                    FilterChip(
+                                        selected = layer.id == editableLayer.id,
+                                        onClick = { selectedTextLayerId = layer.id },
+                                        label = { Text(if (layer.text.isBlank()) "Text " + (index + 1) else layer.text.take(12), fontSize = 9.sp) }
+                                    )
+                                }
                             }
                         }
                         OutlinedTextField(
                             value = draft,
                             onValueChange = { value ->
                                 draft = value
-                                val nextLayers = if (settings.textLayers.isEmpty()) {
-                                    listOf(editableLayer.copy(id = System.nanoTime().toString(), text = value, visible = true))
-                                } else settings.textLayers.map { layer ->
-                                    if (layer.id == editableLayer.id) layer.copy(text = value, visible = true) else layer
-                                }
-                                val first = nextLayers.firstOrNull()
-                                onSettingsChange(settings.copy(
-                                    text = first?.text.orEmpty(),
-                                    textSize = first?.size ?: settings.textSize,
-                                    textColor = first?.color ?: settings.textColor,
-                                    textFont = first?.font ?: settings.textFont,
-                                    textVisible = nextLayers.any { it.visible && it.text.isNotBlank() },
-                                    textLayers = nextLayers
-                                ))
+                                commitLayer { it.copy(text = value, visible = value.isNotBlank()) }
                             },
                             modifier = Modifier.fillMaxWidth(),
                             minLines = 2,
-                            maxLines = 5,
-                            textStyle = androidx.compose.ui.text.TextStyle(
-                                color = Color.White,
-                                fontSize = 18.sp,
-                                textAlign = if (ar) TextAlign.Right else TextAlign.Left
-                            ),
+                            maxLines = 4,
+                            textStyle = androidx.compose.ui.text.TextStyle(color = Color.White, fontSize = 18.sp, textAlign = if (ar) TextAlign.Right else TextAlign.Left),
                             placeholder = { Text(if (ar) "اكتب النص هنا..." else "Type your text here...", color = Color(0xFF738198)) },
                             label = { Text(if (ar) "النص" else "Text") }
                         )
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            AssistChip(
-                                onClick = onTextEditingDone,
-                                label = { Text(if (ar) "تم" else "Done", fontSize = 9.sp) },
-                                leadingIcon = { Icon(Icons.Default.Check, null, Modifier.size(15.dp)) }
-                            )
+                        Text(if (ar) "الخط" else "Font", fontWeight = FontWeight.SemiBold, fontSize = 10.sp)
+                        val fonts = listOf("noto_sans_arabic" to "Noto", "serif" to "Serif", "sans" to "Sans", "mono" to "Mono")
+                        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                            fonts.forEach { (id, label) ->
+                                FilterChip(
+                                    selected = editableLayer.font == id,
+                                    onClick = { commitLayer { it.copy(font = id) } },
+                                    label = { Text(label, fontFamily = fontFamilyFor(id, editableLayer.bold), fontSize = 10.sp) }
+                                )
+                            }
+                        }
+                        Text(if (ar) "حجم الخط " + editableLayer.size.toInt() else "Font size " + editableLayer.size.toInt(), fontSize = 10.sp)
+                        Slider(value = editableLayer.size, onValueChange = { value -> commitLayer { it.copy(size = value.coerceIn(10f, 96f)) } }, valueRange = 10f..96f)
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                            val textColors = listOf(0xFFFFFFFFL, 0xFFFFD54FL, 0xFF80D8FFL, 0xFFFF8A80L, 0xFFB388FFL, 0xFF69F0AEL)
+                            textColors.forEach { argb ->
+                                Box(
+                                    Modifier.size(28.dp).clip(RoundedCornerShape(14.dp)).background(Color(argb.toInt()))
+                                        .border(if (editableLayer.color == argb) 2.dp else 0.dp, Color.White, RoundedCornerShape(14.dp))
+                                        .clickable { commitLayer { it.copy(color = argb) } }
+                                )
+                            }
+                            FilterChip(selected = editableLayer.bold, onClick = { commitLayer { it.copy(bold = !it.bold) } }, label = { Text(if (ar) "عريض" else "Bold", fontSize = 9.sp) })
+                        }
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                            FilterChip(selected = editableLayer.backgroundAlpha > 0f, onClick = { commitLayer { it.copy(backgroundAlpha = if (it.backgroundAlpha > 0f) 0f else 0.72f) } }, label = { Text(if (ar) "خلفية" else "Background", fontSize = 9.sp) })
+                            FilterChip(selected = editableLayer.shadowEnabled, onClick = { commitLayer { it.copy(shadowEnabled = !it.shadowEnabled) } }, label = { Text(if (ar) "ظل" else "Shadow", fontSize = 9.sp) })
+                            FilterChip(selected = editableLayer.strokeEnabled, onClick = { commitLayer { it.copy(strokeEnabled = !it.strokeEnabled, strokeWidth = if (it.strokeEnabled) 0f else 2f) } }, label = { Text(if (ar) "حدود" else "Outline", fontSize = 9.sp) })
+                        }
+                        val layerStart = editableLayer.startMs.coerceAtLeast(0L)
+                        val clipDuration = clip?.let { clipTimelineDuration(it) } ?: 5000L
+                        val maxEnd = clipDuration.coerceAtLeast(layerStart + 300L)
+                        Text(if (ar) "مدة النص: " + ((editableLayer.endMs - layerStart).coerceAtLeast(300L) / 1000f) + " ث" else "Text duration: " + ((editableLayer.endMs - layerStart).coerceAtLeast(300L) / 1000f) + " s", fontSize = 10.sp)
+                        Slider(
+                            value = editableLayer.endMs.coerceIn(layerStart + 300L, maxEnd).toFloat(),
+                            onValueChange = { value -> commitLayer { it.copy(startMs = layerStart, endMs = value.toLong().coerceIn(layerStart + 300L, maxEnd)) } },
+                            valueRange = (layerStart + 300L).toFloat()..maxEnd.toFloat()
+                        )
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                             AssistChip(
                                 onClick = {
+                                    val now = (playheadMs - clipOffsetMs).coerceAtLeast(0L)
+                                    val end = (now + 5000L).coerceAtMost(clip?.let { clipTimelineDuration(it) } ?: (now + 5000L))
+                                    val newLayer = TextLayer(id = System.nanoTime().toString(), name = "Text " + (settings.textLayers.size + 1), startMs = now, endMs = end.coerceAtLeast(now + 300L), visible = true)
+                                    onSettingsChange(settings.copy(textLayers = settings.textLayers + newLayer))
+                                    selectedTextLayerId = newLayer.id
                                     draft = ""
-                                    val next = if (settings.textLayers.isEmpty()) {
-                                        listOf(editableLayer.copy(id = System.nanoTime().toString(), text = "", visible = false))
-                                    } else settings.textLayers.map { layer ->
-                                        if (layer.id == editableLayer.id) layer.copy(text = "", visible = false) else layer
-                                    }
-                                    onSettingsChange(settings.copy(
-                                        textLayers = next,
-                                        text = next.firstOrNull()?.text.orEmpty(),
-                                        textVisible = next.any { it.visible && it.text.isNotBlank() }
-                                    ))
                                 },
+                                label = { Text(if (ar) "نص جديد" else "New text", fontSize = 9.sp) },
+                                leadingIcon = { Icon(Icons.Default.Add, null, Modifier.size(15.dp)) }
+                            )
+                            AssistChip(onClick = onTextEditingDone, label = { Text(if (ar) "تم" else "Done", fontSize = 9.sp) }, leadingIcon = { Icon(Icons.Default.Check, null, Modifier.size(15.dp)) })
+                            AssistChip(
+                                onClick = { commitLayer { it.copy(text = "", visible = false) }; draft = "" },
                                 label = { Text(if (ar) "مسح" else "Clear", fontSize = 9.sp) },
                                 leadingIcon = { Icon(Icons.Default.Backspace, null, Modifier.size(15.dp)) }
                             )
