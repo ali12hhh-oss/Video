@@ -2758,6 +2758,7 @@ private fun EditorScreen(
     // provider URI is copied into app-private storage before it enters the editor.
     // This avoids transient/permission-bound content URIs reaching the decoder,
     // which is especially important on Android 8.x devices.
+    val importScope = rememberCoroutineScope()
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) {
             CrashDiagnostics.mark(context, "NEW_MEDIA_SELECTED")
