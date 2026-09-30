@@ -339,6 +339,7 @@ private fun VideoForgeApp() {
     val context = LocalContext.current
     var language by remember { mutableStateOf(LanguageManager.getLanguage(context)) }
     var showEditor by remember { mutableStateOf(false) }
+    var isImportingMedia by remember { mutableStateOf(false) }
     var clips by remember { mutableStateOf(listOf<Clip>()) }
     var projectId by remember { mutableStateOf(ProjectRepository.newId()) }
     var projectName by remember { mutableStateOf(context.getString(R.string.new_project)) }
@@ -374,6 +375,7 @@ private fun VideoForgeApp() {
             }.distinct().take(20)
             if (sourceUris.isNotEmpty()) {
                 CrashDiagnostics.mark(context, "MEDIA_URI_RECEIVED:" + sourceUris.size)
+                isImportingMedia = true
                 importScope.launch(kotlinx.coroutines.Dispatchers.IO) {
                     val importedClips = mutableListOf<Clip>()
                     var startMs = 0L
@@ -414,8 +416,12 @@ private fun VideoForgeApp() {
                             ProjectRepository.save(context, projectId, importedClips, projectName)
                             CrashDiagnostics.mark(context, "PROJECT_SAVED_BEFORE_EDITOR")
                             showEditor = true
+                            isImportingMedia = false
                             CrashDiagnostics.mark(context, "SHOW_EDITOR_SET_TRUE")
                         }
+                    }
+                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                        if (isImportingMedia) isImportingMedia = false
                     }
                 }
             }
@@ -581,6 +587,33 @@ private fun VideoForgeApp() {
             language = language,
             onDismiss = { showHelp = false }
         )
+    }
+
+    if (isImportingMedia && !showEditor) {
+        Box(
+            Modifier.fillMaxSize().background(Color(0xCC020914)),
+            contentAlignment = Alignment.Center
+        ) {
+            Surface(
+                color = Color(0xFF0B1626),
+                shape = RoundedCornerShape(16.dp),
+                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF315C9A))
+            ) {
+                Column(
+                    Modifier.padding(horizontal = 28.dp, vertical = 24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(38.dp),
+                        strokeWidth = 3.dp,
+                        color = Color(0xFF7C4DFF)
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    Text("جاري تجهيز الوسائط…", color = Color.White, fontWeight = FontWeight.Bold)
+                    Text("سيتم فتح المحرر تلقائيًا", color = Color(0xFF91A4BF), fontSize = 10.sp)
+                }
+            }
+        }
     }
 
     if (showTemplates) {
