@@ -660,9 +660,17 @@ private fun BrandSplashScreen() {
 @Composable
 private fun LegacySafeEditorPreview(
     clip: Clip?,
+    playheadMs: Long,
+    clipOffsetMs: Long,
     showWatermark: Boolean,
-    language: AppLanguage?
+    onPlaybackPosition: (Long) -> Unit,
+    onPlaybackStateChanged: (Boolean) -> Unit,
+    onPlaybackError: (String) -> Unit,
+    playbackToggleToken: Int
 ) {
+    val context = LocalContext.current
+    val isImage = clip?.let { isImageUri(context, it.uri) } == true
+
     Box(
         Modifier
             .fillMaxSize()
@@ -673,34 +681,181 @@ private fun LegacySafeEditorPreview(
     ) {
         if (clip == null) {
             Icon(Icons.Default.VideoLibrary, null, tint = Color.Gray, modifier = Modifier.size(54.dp))
+        } else if (isImage) {
+            var bitmap by remember(clip.uri) { mutableStateOf<android.graphics.Bitmap?>(null) }
+            var imagePlaying by remember(clip.uri) { mutableStateOf(false) }
+            LaunchedEffect(clip.uri) {
+                bitmap = withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    runCatching {
+                        context.contentResolver.openInputStream(clip.uri)?.use { BitmapFactory.decodeStream(it) }
+                    }.getOrNull()
+                }
+            }
+            LaunchedEffect(playbackToggleToken, clip.uri) {
+                if (playbackToggleToken > 0) {
+                    imagePlaying = !imagePlaying
+                }
+            }
+            LaunchedEffect(imagePlaying, clip.uri, playheadMs) {
+                if (imagePlaying) {
+                    while (isActive) {
+                        val local = (playheadMs - clipOffsetMs).coerceAtLeast(0L)
+                        val duration = clipTimelineDuration(clip)
+                        if (local >= duration) {
+                            imagePlaying = false
+                            onPlaybackStateChanged(false)
+                            break
+                        }
+                        onPlaybackStateChanged(true)
+                        onPlaybackPosition((clipOffsetMs + local + 80L).coerceAtMost(clipOffsetMs + duration))
+                        delay(80L)
+                    }
+                }
+            }
+            bitmap?.let {
+                Image(
+                    bitmap = it.asImageBitmap(),
+                    contentDescription = null,
+                    contentScale = androidx.compose.ui.layout.ContentScale.Fit,
+                    modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(10.dp))
+                )
+            } ?: Icon(Icons.Default.Image, null, tint = Color(0xFF6E7F99), modifier = Modifier.size(54.dp))
+            if (showWatermark) {
+                Image(
+                    painter = painterResource(R.drawable.videoforge_logo),
+                    contentDescription = "VideoForge watermark",
+                    contentScale = androidx.compose.ui.layout.ContentScale.Fit,
+                    modifier = Modifier.align(Alignment.TopEnd).padding(top = 10.dp, end = 10.dp).width(88.dp).alpha(0.82f)
+                )
+            }
+            FilledIconButton(
+                onClick = {
+                    imagePlaying = !imagePlaying
+                    onPlaybackStateChanged(imagePlaying)
+                },
+                modifier = Modifier.align(Alignment.Center).size(54.dp)
+            ) {
+                Icon(if (imagePlaying) Icons.Default.Pause else Icons.Default.PlayArrow, null, modifier = Modifier.size(28.dp))
+            }
         } else {
-            ProjectThumbnail(
-                uri = clip.uri,
-                modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(10.dp))
+            val videoView = remember(clip.uri) { android.widget.VideoView(context) }
+            var prepared by remember(clip.uri) { mutableStateOf(false) }
+            var lastToggleToken by remember(clip.uri) { mutableIntStateOf(playbackToggleToken) }
+
+            DisposableEffect(videoView, clip.uri) {
+                prepared = false
+                videoView.setVideoURI(clip.uri)
+                videoView.setOnPreparedListener { mediaPlayer ->
+                    prepared = true
+                    mediaPlayer.isLooping = false
+                    val start = clip.trimStartMs.coerceAtLeast(0L)
+                    if (start > 0L) videoView.seekTo(start.toInt())
+                    onPlaybackStateChanged(false)
+                }
+                videoView.setOnCompletionListener {
+                    onPlaybackStateChanged(false)
+                    val end = if (clip.trimEndMs == Long.MAX_VALUE) clip.durationMs else clip.trimEndMs
+                    videoView.seekTo(clip.trimStartMs.coerceAtLeast(0L).toInt())
+                    onPlaybackPosition((clipOffsetMs + clipTimelineDuration(clip)).coerceAtLeast(0L))
+                }
+                videoView.setOnErrorListener { _, what, extra ->
+                    onPlaybackStateChanged(false)
+                    onPlaybackError("Legacy video playback error: $what/$extra")
+                    true
+                }
+                onDispose {
+                    runCatching { videoView.stopPlayback() }
+                    videoView.setOnPreparedListener(null)
+                    videoView.setOnCompletionListener(null)
+                    videoView.setOnErrorListener(null)
+                }
+            }
+
+            LaunchedEffect(videoView, playbackToggleToken) {
+                if (playbackToggleToken != lastToggleToken) {
+                    if (videoView.isPlaying) {
+                        videoView.pause()
+                        onPlaybackStateChanged(false)
+                    } else {
+                        runCatching { videoView.start() }.onFailure {
+                            onPlaybackError(it.message ?: "Unable to start video")
+                            onPlaybackStateChanged(false)
+                        }
+                    }
+                    lastToggleToken = playbackToggleToken
+                }
+            }
+
+            LaunchedEffect(videoView, clip.uri, playheadMs, clip.trimStartMs, clip.trimEndMs) {
+                val target = (clip.trimStartMs + (playheadMs - clipOffsetMs).coerceAtLeast(0L))
+                    .coerceAtMost((if (clip.trimEndMs == Long.MAX_VALUE) clip.durationMs else clip.trimEndMs).coerceAtLeast(clip.trimStartMs))
+                if (prepared && kotlin.math.abs(videoView.currentPosition.toLong() - target) > 350L) {
+                    runCatching { videoView.seekTo(target.toInt()) }
+                }
+            }
+
+            LaunchedEffect(videoView, clip.uri, clip.trimStartMs, clip.trimEndMs) {
+                while (isActive) {
+                    if (videoView.isPlaying) {
+                        val sourcePosition = videoView.currentPosition.toLong()
+                        val end = if (clip.trimEndMs == Long.MAX_VALUE) clip.durationMs else clip.trimEndMs
+                        if (sourcePosition >= end) {
+                            videoView.pause()
+                            videoView.seekTo(clip.trimStartMs.toInt())
+                            onPlaybackStateChanged(false)
+                            onPlaybackPosition((clipOffsetMs + clipTimelineDuration(clip)).coerceAtLeast(0L))
+                        } else {
+                            onPlaybackPosition((clipOffsetMs + (sourcePosition - clip.trimStartMs).coerceAtLeast(0L)).coerceAtLeast(0L))
+                        }
+                    }
+                    delay(80L)
+                }
+            }
+
+            AndroidView(
+                factory = { videoView },
+                update = { view ->
+                    view.setMediaController(null)
+                    view.setOnClickListener {
+                        if (view.isPlaying) {
+                            view.pause()
+                            onPlaybackStateChanged(false)
+                        } else {
+                            runCatching { view.start() }.onFailure {
+                                onPlaybackError(it.message ?: "Unable to start video")
+                            }
+                        }
+                    }
+                },
+                modifier = Modifier.fillMaxSize()
             )
             if (showWatermark) {
                 Image(
                     painter = painterResource(R.drawable.videoforge_logo),
                     contentDescription = "VideoForge watermark",
                     contentScale = androidx.compose.ui.layout.ContentScale.Fit,
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(top = 10.dp, end = 10.dp)
-                        .width(88.dp)
-                        .alpha(0.82f)
+                    modifier = Modifier.align(Alignment.TopEnd).padding(top = 10.dp, end = 10.dp).width(88.dp).alpha(0.82f)
                 )
             }
-            Surface(
-                modifier = Modifier.align(Alignment.BottomCenter).padding(10.dp),
-                color = Color(0xCC0B1019),
-                shape = RoundedCornerShape(8.dp)
+            if (!prepared) {
+                Box(Modifier.align(Alignment.Center).size(54.dp), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(modifier = Modifier.size(34.dp), strokeWidth = 3.dp)
+                }
+            }
+            FilledIconButton(
+                onClick = {
+                    if (videoView.isPlaying) {
+                        videoView.pause()
+                        onPlaybackStateChanged(false)
+                    } else {
+                        runCatching { videoView.start() }.onFailure {
+                            onPlaybackError(it.message ?: "Unable to start video")
+                        }
+                    }
+                },
+                modifier = Modifier.align(Alignment.Center).size(54.dp)
             ) {
-                Text(
-                    if (language == AppLanguage.ARABIC) "المعاينة الآمنة مفعلة لهذا الجهاز" else "Safe preview mode is active on this device",
-                    color = Color.White,
-                    fontSize = 9.sp,
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
-                )
+                Icon(if (videoView.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow, null, modifier = Modifier.size(28.dp))
             }
         }
     }
@@ -3389,8 +3544,13 @@ private fun EditorPreview(
     if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.O_MR1) {
         LegacySafeEditorPreview(
             clip = clip,
+            playheadMs = playheadMs,
+            clipOffsetMs = clipOffsetMs,
             showWatermark = showWatermark,
-            language = null
+            onPlaybackPosition = onPlaybackPosition,
+            onPlaybackStateChanged = onPlaybackStateChanged,
+            onPlaybackError = onPlaybackError,
+            playbackToggleToken = playbackToggleToken
         )
         return
     }
