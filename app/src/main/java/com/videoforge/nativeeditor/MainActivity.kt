@@ -194,7 +194,6 @@ private fun hasVideoPermission(context: android.content.Context): Boolean {
 }
 
 private fun mediaDurationMs(context: android.content.Context, uri: Uri): Long {
-    if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.O_MR1) return 0L
     return runCatching {
         val retriever = MediaMetadataRetriever()
         try {
@@ -285,7 +284,6 @@ private fun formatProjectDate(seconds: Long): String {
 }
 
 private fun loadVideoThumbnail(context: android.content.Context, uri: Uri): android.graphics.Bitmap? {
-    if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.O_MR1) return null
     return try {
         if (Build.VERSION.SDK_INT >= 29) {
             context.contentResolver.loadThumbnail(uri, Size(480, 270), null)
@@ -375,53 +373,51 @@ private fun VideoForgeApp() {
             }.distinct().take(20)
             if (sourceUris.isNotEmpty()) {
                 CrashDiagnostics.mark(context, "MEDIA_URI_RECEIVED:" + sourceUris.size)
-                isImportingMedia = true
+                val initialClips = mutableListOf<Clip>()
+                var startMs = 0L
+                sourceUris.forEachIndexed { i, sourceUri ->
+                    val image = runCatching { context.contentResolver.getType(sourceUri)?.startsWith("image/") == true }.getOrDefault(false) || isImageUri(context, sourceUri)
+                    runCatching { persistUriAccess(context, sourceUri) }
+                    val duration = if (image) DEFAULT_IMAGE_CLIP_DURATION_MS else safeMediaDurationMs(context, sourceUri)
+                    val clip = Clip(
+                        uri = sourceUri,
+                        name = context.getString(R.string.clip_number, i + 1),
+                        durationMs = duration,
+                        trimStartMs = 0L,
+                        trimEndMs = if (image) DEFAULT_IMAGE_CLIP_DURATION_MS else duration,
+                        timelineStartMs = startMs,
+                        trackIndex = 0
+                    )
+                    startMs += clipTimelineDuration(clip)
+                    initialClips += clip
+                }
+                projectId = ProjectRepository.newId()
+                clips = initialClips
+                projectName = initialClips.first().name
+                ProjectRepository.save(context, projectId, initialClips, projectName)
+                showEditor = true
+                isImportingMedia = false
+                CrashDiagnostics.mark(context, "SHOW_EDITOR_SET_TRUE")
+
+                // Keep editing responsive: migrate each source into private storage in the background.
                 importScope.launch(kotlinx.coroutines.Dispatchers.IO) {
-                    val importedClips = mutableListOf<Clip>()
-                    var startMs = 0L
-                    sourceUris.forEachIndexed { i, sourceUri ->
-                        val sourceType = runCatching { context.contentResolver.getType(sourceUri) }.getOrNull()
-                        val image = sourceType?.startsWith("image/") == true || isImageUri(context, sourceUri)
+                    initialClips.forEachIndexed { i, initial ->
                         CrashDiagnostics.mark(context, "COPY_MEDIA_START:" + i)
-                        val safeUri = copyMediaUriToAppStorage(context, sourceUri, i)
+                        val safeUri = copyMediaUriToAppStorage(context, initial.uri, i)
                         CrashDiagnostics.mark(context, "COPY_MEDIA_DONE:" + i + ":" + (safeUri != null))
                         if (safeUri != null) {
-                            val duration = if (image) {
-                                DEFAULT_IMAGE_CLIP_DURATION_MS
-                            } else if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.O_MR1) {
-                                FALLBACK_VIDEO_CLIP_DURATION_MS
-                            } else {
-                                safeMediaDurationMs(context, safeUri)
+                            val image = isImageUri(context, safeUri)
+                            val measured = if (image) DEFAULT_IMAGE_CLIP_DURATION_MS else safeMediaDurationMs(context, safeUri)
+                            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                val existing = clips.getOrNull(i)
+                                if (existing != null && existing.uri == initial.uri) {
+                                    val updated = existing.copy(uri = safeUri, durationMs = measured, trimEndMs = if (image) DEFAULT_IMAGE_CLIP_DURATION_MS else measured)
+                                    val next = clips.mapIndexed { index, item -> if (index == i) updated else item }
+                                    clips = next
+                                    ProjectRepository.save(context, projectId, next, projectName)
+                                }
                             }
-                            CrashDiagnostics.mark(context, "MEDIA_READY:" + i + ":image=" + image + ":duration=" + duration)
-                            val clip = Clip(
-                                uri = safeUri,
-                                name = context.getString(R.string.clip_number, i + 1),
-                                durationMs = duration,
-                                trimStartMs = 0L,
-                                trimEndMs = if (image) DEFAULT_IMAGE_CLIP_DURATION_MS else duration,
-                                timelineStartMs = startMs,
-                                trackIndex = 0
-                            )
-                            startMs += clipTimelineDuration(clip)
-                            importedClips += clip
                         }
-                    }
-                    if (importedClips.isNotEmpty()) {
-                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
-                            projectId = ProjectRepository.newId()
-                            clips = importedClips
-                            projectName = importedClips.first().name
-                            CrashDiagnostics.mark(context, "PROJECT_SAVE_START")
-                            ProjectRepository.save(context, projectId, importedClips, projectName)
-                            CrashDiagnostics.mark(context, "PROJECT_SAVED_BEFORE_EDITOR")
-                            showEditor = true
-                            isImportingMedia = false
-                            CrashDiagnostics.mark(context, "SHOW_EDITOR_SET_TRUE")
-                        }
-                    }
-                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
-                        if (isImportingMedia) isImportingMedia = false
                     }
                 }
             }
@@ -3570,23 +3566,7 @@ private fun EditorPreview(
     onClipChange: (Clip) -> Unit = {}
 ) {
     val context = LocalContext.current
-    // Android 8.x devices (especially legacy Huawei/HiSilicon builds) have documented
-    // MediaCodec/ExoPlayer crashes during decoder initialization. Keep the editor alive
-    // by using the non-decoding preview on those API levels; newer Android versions keep
-    // the full Media3 preview path below.
-    if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.O_MR1) {
-        LegacySafeEditorPreview(
-            clip = clip,
-            playheadMs = playheadMs,
-            clipOffsetMs = clipOffsetMs,
-            showWatermark = showWatermark,
-            onPlaybackPosition = onPlaybackPosition,
-            onPlaybackStateChanged = onPlaybackStateChanged,
-            onPlaybackError = onPlaybackError,
-            playbackToggleToken = playbackToggleToken
-        )
-        return
-    }
+    // Use the same Media3 live preview pipeline on API 26+ that powers the export effect model.
     val ratio = when (settings.aspect) { "9:16" -> 9f/16f; "1:1" -> 1f; "4:5" -> 4f/5f; "2:3" -> 2f/3f; "3:4" -> 3f/4f; "3:2" -> 3f/2f; "21:9" -> 21f/9f; else -> 16f/9f }
     BoxWithConstraints(
         Modifier
@@ -3733,7 +3713,7 @@ private fun EditorPreview(
                 }
                 return v.coerceIn(0f, 1f)
             }
-            LaunchedEffect(settings.speed, settings.speedKeyframes, clip.speedKeyframes, settings.volume, settings.muted, clip.audioVolume, clip.audioMuted, clip.audioFadeIn, clip.audioFadeOut, clip.audioKeyframes, settings.fadeIn, settings.fadeOut, settings.musicUri, settings.musicVolume, settings.musicStartMs, settings.musicDurationMs, settings.musicTimelineStartMs, settings.musicFadeIn, settings.musicFadeOut, settings.musicDucking, settings.musicDuckVolume, settings.musicDuckAttack, settings.musicDuckRelease, settings.musicKeyframes, playheadMs) {
+            LaunchedEffect(player, settings.brightness, settings.contrast, settings.saturation, settings.hue, settings.temperature, settings.tint, settings.blurRadius, settings.mosaicEnabled, settings.mosaicBlockSize, settings.mosaicX, settings.mosaicY, settings.mosaicWidth, settings.mosaicHeight, settings.filter, settings.rotation, settings.cropZoom, settings.cropX, settings.cropY, settings.flipHorizontal, settings.flipVertical, clip.videoKeyframes, settings.videoKeyframes) {
                 val local = (playheadMs - clipOffsetMs).coerceAtLeast(0L)
                 val speedNow = run {
                     val ks = clip.speedKeyframes.ifEmpty { settings.speedKeyframes }.sortedBy { it.timeMs }
@@ -3802,7 +3782,6 @@ private fun EditorPreview(
                     }
                 }
                 player.setVideoEffects(effects)
-            }
             LaunchedEffect(playheadMs, clip.trimStartMs, clip.trimEndMs, settings.musicUri, settings.musicStartMs, settings.musicDurationMs, settings.musicTimelineStartMs) {
                 val local = (playheadMs - clipOffsetMs).coerceAtLeast(0L)
                 val sourcePosition = (clip.trimStartMs + local).coerceIn(clip.trimStartMs, (if (clip.trimEndMs == Long.MAX_VALUE) clip.durationMs else clip.trimEndMs).coerceAtLeast(clip.trimStartMs))
