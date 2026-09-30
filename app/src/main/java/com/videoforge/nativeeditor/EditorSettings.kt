@@ -178,6 +178,7 @@ data class EditorSettings(
     val markers: List<TimelineMarker> = emptyList(),
     val audioKeyframes: List<AudioKeyframe> = emptyList(),
     val filter: String = "none",
+    val filterIntensity: Float = 1f,
     val brightness: Float = 0f,
     val contrast: Float = 1f,
     val saturation: Float = 1f,
@@ -371,6 +372,7 @@ object EditorSettingsRepository {
                     }
                 }.sortedBy { it.timeMs },
                 filter = j.optString("filter", "none"),
+                filterIntensity = j.optDouble("filterIntensity", 1.0).toFloat().coerceIn(0f, 1f),
                 brightness = j.optDouble("brightness", 0.0).toFloat(),
                 contrast = j.optDouble("contrast", 1.0).toFloat(),
                 saturation = j.optDouble("saturation", 1.0).toFloat(),
@@ -484,7 +486,7 @@ object EditorSettingsRepository {
             .put("musicKeyframes", JSONArray().apply { s.musicKeyframes.sortedBy { it.timeMs }.forEach { k -> put(JSONObject().put("timeMs", k.timeMs).put("volume", k.volume)) } })
             .put("audioTracks", JSONArray().apply { s.audioTracks.forEach { t -> put(JSONObject().put("id",t.id).put("uri",t.uri).put("name",t.name).put("timelineStartMs",t.timelineStartMs).put("sourceStartMs",t.sourceStartMs).put("sourceDurationMs",t.sourceDurationMs).put("durationMs",t.durationMs).put("volume",t.volume).put("muted",t.muted).put("fadeIn",t.fadeIn).put("fadeOut",t.fadeOut).put("trackIndex",t.trackIndex)) } })
             .put("audioKeyframes", JSONArray().apply { s.audioKeyframes.sortedBy { it.timeMs }.forEach { k -> put(JSONObject().put("timeMs", k.timeMs).put("volume", k.volume)) } })
-            .put("filter", s.filter).put("brightness", s.brightness).put("contrast", s.contrast)
+            .put("filter", s.filter).put("filterIntensity", s.filterIntensity).put("brightness", s.brightness).put("contrast", s.contrast)
             .put("saturation", s.saturation).put("hue", s.hue).put("temperature", s.temperature).put("tint", s.tint).put("blurRadius", s.blurRadius)
             .put("mosaicEnabled", s.mosaicEnabled).put("mosaicBlockSize", s.mosaicBlockSize).put("mosaicX", s.mosaicX).put("mosaicY", s.mosaicY).put("mosaicWidth", s.mosaicWidth).put("mosaicHeight", s.mosaicHeight).put("aspect", s.aspect)
             .put("cropZoom", s.cropZoom).put("cropX", s.cropX).put("cropY", s.cropY)
