@@ -718,7 +718,7 @@ private fun LegacySafeEditorPreview(
             var bitmap by remember(clip.uri) { mutableStateOf<android.graphics.Bitmap?>(null) }
             var imagePlaying by remember(clip.uri) { mutableStateOf(false) }
             LaunchedEffect(clip.uri) {
-                bitmap = withContext(kotlinx.coroutines.Dispatchers.IO) {
+                bitmap = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
                     runCatching {
                         context.contentResolver.openInputStream(clip.uri)?.use { BitmapFactory.decodeStream(it) }
                     }.getOrNull()
