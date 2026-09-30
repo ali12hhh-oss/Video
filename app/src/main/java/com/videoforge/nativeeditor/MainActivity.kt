@@ -2754,35 +2754,44 @@ private fun EditorScreen(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    // New Project intentionally starts with one safe media selection. Additional
-    // video/image clips are added later through the media tool, which also enables
-    // independent tracks and gaps without forcing a multi-select result through the
-    // initial editor state.
+    // New Project intentionally starts with one safe media selection. The selected
+    // provider URI is copied into app-private storage before it enters the editor.
+    // This avoids transient/permission-bound content URIs reaching the decoder,
+    // which is especially important on Android 8.x devices.
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) {
-            val imported = runCatching {
-                persistUriAccess(context, uri)
-                val image = isImageUri(context, uri)
-                val capacity = defaultClipDurationMs(context, uri).coerceAtLeast(1L)
-                val initialDuration = if (image) DEFAULT_IMAGE_CLIP_DURATION_MS else capacity
-                Clip(
-                    uri = uri,
-                    name = context.getString(R.string.clip_number, clips.size + 1),
-                    durationMs = capacity,
-                    trimStartMs = 0L,
-                    trimEndMs = initialDuration.coerceAtMost(capacity),
-                    timelineStartMs = timelineTotalDuration(clips).coerceAtLeast(0L),
-                    trackIndex = 0
-                )
-            }.getOrNull()
-
-            if (imported != null) {
-                commitClips(clips + imported)
-                current = imported
-                playheadMs = timelinePositionOf(clips + imported, imported)
-                status = if (language == AppLanguage.ARABIC) "تمت إضافة الوسائط" else "Media added"
-            } else {
-                status = if (language == AppLanguage.ARABIC) "تعذر قراءة الوسائط المحددة" else "Unable to read the selected media"
+            CrashDiagnostics.mark(context, "NEW_MEDIA_SELECTED")
+            status = if (language == AppLanguage.ARABIC) "جاري تجهيز الوسائط…" else "Preparing media…"
+            importScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                val safeUri = MediaStorage.copyToAppStorage(context, uri, clips.size)
+                val imported = safeUri?.let { stored ->
+                    runCatching {
+                        val image = isImageUri(context, stored)
+                        val capacity = defaultClipDurationMs(context, stored).coerceAtLeast(1L)
+                        val initialDuration = if (image) DEFAULT_IMAGE_CLIP_DURATION_MS else capacity
+                        Clip(
+                            uri = stored,
+                            name = context.getString(R.string.clip_number, clips.size + 1),
+                            durationMs = capacity,
+                            trimStartMs = 0L,
+                            trimEndMs = initialDuration.coerceAtMost(capacity),
+                            timelineStartMs = timelineTotalDuration(clips).coerceAtLeast(0L),
+                            trackIndex = 0
+                        )
+                    }.getOrNull()
+                }
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    if (imported != null) {
+                        commitClips(clips + imported)
+                        current = imported
+                        playheadMs = timelinePositionOf(clips + imported, imported)
+                        CrashDiagnostics.mark(context, "NEW_MEDIA_READY")
+                        status = if (language == AppLanguage.ARABIC) "تمت إضافة الوسائط" else "Media added"
+                    } else {
+                        CrashDiagnostics.mark(context, "NEW_MEDIA_IMPORT_FAILED")
+                        status = if (language == AppLanguage.ARABIC) "تعذر تجهيز الوسائط المحددة" else "Unable to prepare the selected media"
+                    }
+                }
             }
         }
     }
