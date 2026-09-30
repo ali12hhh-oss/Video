@@ -4871,9 +4871,7 @@ private fun FilterDialog(
     var thumbnail by remember(clip?.uri) { mutableStateOf<android.graphics.Bitmap?>(null) }
     LaunchedEffect(clip?.uri) {
         thumbnail = clip?.let { uriClip ->
-            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                loadVideoThumbnail(context, uriClip.uri)
-            }
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { loadVideoThumbnail(context, uriClip.uri) }
         }
     }
 
@@ -4883,71 +4881,60 @@ private fun FilterDialog(
         text={
             Column(Modifier.verticalScroll(rememberScrollState())) {
                 Text(
-                    if(language==AppLanguage.ARABIC) "اختر من المعاينات، وليس من أسماء فقط." else "Choose from visual previews.",
+                    if(language==AppLanguage.ARABIC) "اختر المعاينة، ثم اضبط الشدة مباشرة."
+                    else "Choose a visual preset, then tune its intensity.",
                     color=Color.Gray,fontSize=11.sp
                 )
                 Spacer(Modifier.height(8.dp))
-                LazyRow(
-                    horizontalArrangement=Arrangement.spacedBy(8.dp),
-                    contentPadding=PaddingValues(vertical=4.dp)
-                ) {
+                LazyRow(horizontalArrangement=Arrangement.spacedBy(8.dp),contentPadding=PaddingValues(vertical=4.dp)) {
                     items(vals) { value ->
                         val index=vals.indexOf(value)
                         val selected=s.filter==value
                         Column(
                             Modifier.width(86.dp).clickable {
-                                onChange(s.copy(filter=value, filterIntensity = if (value == "none") 0f else s.filterIntensity.coerceIn(0f, 1f)))
+                                onChange(s.copy(filter=value, filterIntensity=if(value=="none") 0f else s.filterIntensity.coerceIn(0f,1f)))
                             },
                             horizontalAlignment=Alignment.CenterHorizontally
                         ) {
                             Box(
                                 Modifier.size(82.dp,54.dp)
                                     .clip(RoundedCornerShape(9.dp))
-                                    .border(if(selected) 2.dp else 1.dp, if(selected) Color(0xFF9B7BFF) else Color(0xFF30394A), RoundedCornerShape(9.dp))
-                                    .background(
-                                        Brush.linearGradient(
-                                            listOf(
-                                                when(value) {
-                                                    "warm","sunset","sepia" -> Color(0xFFB76B3B)
-                                                    "cool","ice" -> Color(0xFF3977B8)
-                                                    "mono","noir" -> Color(0xFF707070)
-                                                    "vivid","tealOrange" -> Color(0xFF167F72)
-                                                    "dream","soft" -> Color(0xFF9B76B8)
-                                                    "invert" -> Color(0xFF6A3B73)
-                                                    else -> Color(0xFF39475A)
-                                                },
-                                                Color(0xFF111827)
-                                            )
-                                        )
-                                    ),
+                                    .border(if(selected) 2.dp else 1.dp,if(selected) Color(0xFF9B7BFF) else Color(0xFF30394A),RoundedCornerShape(9.dp))
+                                    .background(Brush.linearGradient(listOf(
+                                        when(value) {
+                                            "warm","sunset","sepia" -> Color(0xFFB76B3B)
+                                            "cool","ice" -> Color(0xFF3977B8)
+                                            "mono","noir" -> Color(0xFF707070)
+                                            "vivid","tealOrange" -> Color(0xFF167F72)
+                                            "dream","soft" -> Color(0xFF9B76B8)
+                                            "invert" -> Color(0xFF6A3B73)
+                                            else -> Color(0xFF39475A)
+                                        },Color(0xFF111827)
+                                    ))),
                                 contentAlignment=Alignment.Center
                             ) {
-                                if(thumbnail!=null) {
-                                    Image(
-                                        bitmap=thumbnail!!.asImageBitmap(),
-                                        contentDescription=null,
-                                        contentScale=androidx.compose.ui.layout.ContentScale.Crop,
-                                        colorFilter=filterPreviewColorFilter(value),
-                                        modifier=Modifier.fillMaxSize()
-                                    )
-                                }
+                                if(thumbnail!=null) Image(
+                                    bitmap=thumbnail!!.asImageBitmap(),
+                                    contentDescription=null,
+                                    contentScale=androidx.compose.ui.layout.ContentScale.Crop,
+                                    colorFilter=filterPreviewColorFilter(value),
+                                    modifier=Modifier.fillMaxSize()
+                                )
                                 if(value=="none") Icon(Icons.Default.FilterNone,null,tint=Color.White,modifier=Modifier.size(22.dp))
                             }
                             Text(labels[index],fontSize=9.sp,color=Color.White,maxLines=1,modifier=Modifier.padding(top=4.dp))
                         }
                     }
                 }
-            }
-        },
                 Spacer(Modifier.height(10.dp))
-                Text(if (language == AppLanguage.ARABIC) "شدة الفلتر: " + (s.filterIntensity * 100).toInt() + "%" else "Filter intensity: " + (s.filterIntensity * 100).toInt() + "%")
-                Slider(value = s.filterIntensity, onValueChange = { onChange(s.copy(filterIntensity = it)) }, valueRange = 0f..1f)
-                OutlinedButton(onClick = { onChange(s.copy(filter = "none", filterIntensity = 0f)) }, modifier = Modifier.fillMaxWidth()) {
-                    Text(if (language == AppLanguage.ARABIC) "إزالة الفلتر" else "Remove filter")
+                Text(if(language==AppLanguage.ARABIC)"شدة الفلتر: " + (s.filterIntensity*100).toInt() + "%" else "Filter intensity: " + (s.filterIntensity*100).toInt() + "%")
+                Slider(value=s.filterIntensity,onValueChange={onChange(s.copy(filterIntensity=it))},valueRange=0f..1f)
+                OutlinedButton(onClick={onChange(s.copy(filter="none",filterIntensity=0f))},modifier=Modifier.fillMaxWidth()){
+                    Text(if(language==AppLanguage.ARABIC)"إزالة الفلتر" else "Remove filter")
                 }
             }
         },
-        confirmButton = { TextButton(onClick = onDismiss) { Text(if (language == AppLanguage.ARABIC) "تم" else "Done") } }
+        confirmButton={TextButton(onClick=onDismiss){Text(if(language==AppLanguage.ARABIC)"تم" else "Done")}}
     )
 }
 @Composable
