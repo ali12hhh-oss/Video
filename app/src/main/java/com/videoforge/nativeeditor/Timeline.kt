@@ -162,6 +162,7 @@ private fun TimelineTrackLane(
             Icon(Icons.Default.Videocam, contentDescription=null, tint=tint, modifier=Modifier.size(15.dp))
             Text(if(trackIndex==0) "V1" else "V" + (trackIndex+1), color=Color(0xFF9EB0CA), fontSize=7.sp, fontWeight=FontWeight.Bold, modifier=Modifier.padding(start=3.dp))
         }
+        Box(Modifier.fillMaxSize().padding(start = 40.dp)) {
         laneClips.sortedBy { clipStartMs(it) }.forEach { clip ->
             val start = clipStartMs(clip)
             val duration = timelineClipDurationForUi(clip).coerceAtLeast(MIN_CLIP_DURATION_MS)
@@ -206,6 +207,7 @@ private fun TimelineTrackLane(
                     }
                 }
             }
+        }
         }
     }
 }
@@ -400,7 +402,10 @@ fun Timeline(
 
                     // Four clean NLE lanes: video, images/PIP, text, audio.
                     Column(
-                        Modifier.fillMaxWidth().padding(top = 25.dp),
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(top = 25.dp)
+                            .verticalScroll(rememberScrollState()),
                         verticalArrangement = Arrangement.spacedBy(5.dp)
                     ) {
                         visualTracks.forEach { (trackIndex,laneClips) ->
