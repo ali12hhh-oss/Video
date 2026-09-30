@@ -2574,6 +2574,11 @@ private fun EditorScreen(
         mutableStateOf(EditorSettingsRepository.load(context, projectId))
     }
     CrashDiagnostics.mark(context, "EDITOR_SETTINGS_LOADED")
+    LaunchedEffect(clips) {
+        val currentName = current?.name
+        val synced = if (currentName != null) clips.firstOrNull { it.name == currentName } else null
+        if (synced != null) current = synced else if (current == null) current = clips.firstOrNull()
+    }
     var showTrim by remember { mutableStateOf(false) }
     var showExport by remember { mutableStateOf(false) }
     var showKeyframes by remember { mutableStateOf(false) }
@@ -3713,7 +3718,7 @@ private fun EditorPreview(
                 }
                 return v.coerceIn(0f, 1f)
             }
-            LaunchedEffect(player, settings.brightness, settings.contrast, settings.saturation, settings.hue, settings.temperature, settings.tint, settings.blurRadius, settings.mosaicEnabled, settings.mosaicBlockSize, settings.mosaicX, settings.mosaicY, settings.mosaicWidth, settings.mosaicHeight, settings.filter, settings.rotation, settings.cropZoom, settings.cropX, settings.cropY, settings.flipHorizontal, settings.flipVertical, clip.videoKeyframes, settings.videoKeyframes) {
+            LaunchedEffect(player, settings.brightness, settings.contrast, settings.saturation, settings.hue, settings.temperature, settings.tint, settings.blurRadius, settings.mosaicEnabled, settings.mosaicBlockSize, settings.mosaicX, settings.mosaicY, settings.mosaicWidth, settings.mosaicHeight, settings.filter, settings.filterIntensity, settings.rotation, settings.cropZoom, settings.cropX, settings.cropY, settings.flipHorizontal, settings.flipVertical, clip.videoKeyframes, settings.videoKeyframes) {
                 val effects = mutableListOf<Effect>()
                 if (settings.brightness != 0f) effects += Brightness(settings.brightness.coerceIn(-1f, 1f))
                 if (settings.blurRadius > 0.01f) effects += GaussianBlur(settings.blurRadius.coerceIn(0.1f, 20f))
@@ -3726,22 +3731,23 @@ private fun EditorPreview(
                 )
                 if (settings.contrast != 1f) effects += Contrast(((settings.contrast - 1f) * 0.5f).coerceIn(-1f, 1f))
                 if (settings.saturation != 1f || settings.hue != 0f || settings.temperature != 0f || settings.tint != 0f) effects += HslAdjustment.Builder().adjustSaturation(((settings.saturation - 1f) * 100f + settings.temperature * 0.10f).coerceIn(-100f, 100f)).adjustHue((settings.hue + settings.temperature * 0.12f + settings.tint * 0.08f).coerceIn(-180f, 180f)).build()
+                val filterStrength = settings.filterIntensity.coerceIn(0f, 1f)
                 when (settings.filter) {
-                    "mono" -> effects += RgbFilter.createGrayscaleFilter()
-                    "invert" -> effects += RgbFilter.createInvertedFilter()
-                    "sepia" -> effects += HslAdjustment.Builder().adjustHue(28f).adjustSaturation(-18f).build()
-                    "warm" -> effects += HslAdjustment.Builder().adjustHue(18f).adjustSaturation(10f).build()
-                    "cool" -> effects += HslAdjustment.Builder().adjustHue(-18f).adjustSaturation(6f).build()
-                    "vivid" -> effects += HslAdjustment.Builder().adjustSaturation(28f).build()
-                    "dream" -> { effects += Brightness(0.08f); effects += HslAdjustment.Builder().adjustSaturation(-6f).adjustHue(6f).build(); effects += GaussianBlur(0.45f) }
-                    "noir" -> { effects += RgbFilter.createGrayscaleFilter(); effects += Contrast(0.22f) }
-                    "faded" -> { effects += Brightness(0.03f); effects += Contrast(-0.12f); effects += HslAdjustment.Builder().adjustSaturation(-18f).build() }
-                    "tealOrange" -> { effects += HslAdjustment.Builder().adjustHue(8f).adjustSaturation(18f).build(); effects += Contrast(0.08f) }
-                    "vintage" -> { effects += HslAdjustment.Builder().adjustHue(28f).adjustSaturation(-12f).build() }
-                    "sunset" -> { effects += HslAdjustment.Builder().adjustHue(22f).adjustSaturation(20f).build(); effects += Brightness(0.04f) }
-                    "ice" -> { effects += HslAdjustment.Builder().adjustHue(-24f).adjustSaturation(10f).build(); effects += Brightness(0.04f) }
-                    "dramatic" -> { effects += Contrast(0.28f); effects += HslAdjustment.Builder().adjustSaturation(12f).build() }
-                    "soft" -> { effects += Contrast(-0.08f); effects += GaussianBlur(0.3f) }
+                    "mono" -> effects += HslAdjustment.Builder().adjustSaturation(-100f * filterStrength).build()
+                    "invert" -> if (filterStrength > 0.01f) effects += RgbFilter.createInvertedFilter()
+                    "sepia" -> effects += HslAdjustment.Builder().adjustHue(28f * filterStrength).adjustSaturation(-18f * filterStrength).build()
+                    "warm" -> effects += HslAdjustment.Builder().adjustHue(18f * filterStrength).adjustSaturation(10f * filterStrength).build()
+                    "cool" -> effects += HslAdjustment.Builder().adjustHue(-18f * filterStrength).adjustSaturation(6f * filterStrength).build()
+                    "vivid" -> effects += HslAdjustment.Builder().adjustSaturation(28f * filterStrength).build()
+                    "dream" -> { effects += Brightness(0.08f * filterStrength); effects += HslAdjustment.Builder().adjustSaturation(-6f * filterStrength).adjustHue(6f * filterStrength).build(); effects += GaussianBlur(0.45f * filterStrength) }
+                    "noir" -> { effects += HslAdjustment.Builder().adjustSaturation(-100f * filterStrength).build(); effects += Contrast(0.22f * filterStrength) }
+                    "faded" -> { effects += Brightness(0.03f * filterStrength); effects += Contrast(-0.12f * filterStrength); effects += HslAdjustment.Builder().adjustSaturation(-18f * filterStrength).build() }
+                    "tealOrange" -> { effects += HslAdjustment.Builder().adjustHue(8f * filterStrength).adjustSaturation(18f * filterStrength).build(); effects += Contrast(0.08f * filterStrength) }
+                    "vintage" -> { effects += HslAdjustment.Builder().adjustHue(28f * filterStrength).adjustSaturation(-12f * filterStrength).build() }
+                    "sunset" -> { effects += HslAdjustment.Builder().adjustHue(22f * filterStrength).adjustSaturation(20f * filterStrength).build(); effects += Brightness(0.04f * filterStrength) }
+                    "ice" -> { effects += HslAdjustment.Builder().adjustHue(-24f * filterStrength).adjustSaturation(10f * filterStrength).build(); effects += Brightness(0.04f * filterStrength) }
+                    "dramatic" -> { effects += Contrast(0.28f * filterStrength); effects += HslAdjustment.Builder().adjustSaturation(12f * filterStrength).build() }
+                    "soft" -> { effects += Contrast(-0.08f * filterStrength); effects += GaussianBlur(0.3f * filterStrength) }
                 }
                 if (settings.rotation % 360 != 0 || kotlin.math.abs(settings.cropZoom - 1f) > 0.001f) effects += ScaleAndRotateTransformation.Builder().setScale(settings.cropZoom.coerceIn(1f, 6f), settings.cropZoom.coerceIn(1f, 6f)).setRotationDegrees(((settings.rotation % 360) + 360) % 360f).build()
                 if (settings.flipHorizontal || settings.flipVertical) effects += MatrixTransformation { android.graphics.Matrix().apply { postScale(if (settings.flipHorizontal) -1f else 1f, if (settings.flipVertical) -1f else 1f) } }
@@ -3761,6 +3767,43 @@ private fun EditorPreview(
                         val x = a.x + (b.x - a.x) * f
                         val y = a.y + (b.y - a.y) * f
                         android.graphics.Matrix().apply { postScale(scale, scale); postRotate(rotation); postTranslate(x * 500f, y * 500f) }
+                    }
+                }
+                if (settings.transition != "none") {
+                    val windowUs = (settings.transitionDuration.coerceIn(0.2f, 1.2f) * 1_000_000f).toLong().coerceAtLeast(120_000L)
+                    val strength = settings.motionIntensity.coerceIn(0.35f, 1.8f)
+                    when (settings.transition) {
+                        "blur" -> effects += androidx.media3.effect.TimestampWrapper(GaussianBlur((6f * strength).coerceIn(1f, 10f)), 0L, windowUs)
+                        "flash" -> effects += androidx.media3.effect.TimestampWrapper(Brightness(0.28f * strength), 0L, minOf(180_000L, windowUs))
+                        "glitch", "digital" -> {
+                            effects += androidx.media3.effect.TimestampWrapper(RgbFilter.createInvertedFilter(), 0L, minOf(90_000L, windowUs))
+                            effects += androidx.media3.effect.TimestampWrapper(Contrast(0.35f), 0L, minOf(180_000L, windowUs))
+                        }
+                        else -> effects += androidx.media3.effect.TimestampWrapper(
+                            MatrixTransformation { timeUs ->
+                                val t = (timeUs.toFloat() / windowUs.toFloat()).coerceIn(0f, 1f)
+                                val m = android.graphics.Matrix()
+                                when (settings.transition) {
+                                    "zoom", "crossZoom", "rotateZoom" -> {
+                                        m.postScale(1f + 0.18f * strength * (1f - t), 1f + 0.18f * strength * (1f - t))
+                                        if (settings.transition == "rotateZoom") m.postRotate(10f * strength * (1f - t))
+                                    }
+                                    "slide", "push" -> m.postTranslate(-0.16f * strength * (1f - t), 0f)
+                                    "pull" -> {
+                                        val scale = 1.18f - 0.18f * t * strength
+                                        m.postScale(scale.coerceAtLeast(1f), scale.coerceAtLeast(1f))
+                                    }
+                                    "spin" -> m.postRotate(8f * strength * (1f - t))
+                                    "swing" -> m.postRotate(5f * strength * (1f - t))
+                                    "bounce", "elastic", "radial", "shutter", "cube" -> {
+                                        val amount = (1f - t) * strength
+                                        m.postScale(1f + 0.08f * amount, 1f + 0.08f * amount)
+                                    }
+                                    "lightLeak", "filmBurn", "prism" -> m.postScale(1f + 0.03f * (1f - t), 1f + 0.03f * (1f - t))
+                                }
+                                m
+                            }, 0L, windowUs
+                        )
                     }
                 }
                 player.setVideoEffects(effects)
@@ -4853,8 +4896,7 @@ private fun FilterDialog(
                         val selected=s.filter==value
                         Column(
                             Modifier.width(86.dp).clickable {
-                                onChange(s.copy(filter=value))
-                                onDismiss()
+                                onChange(s.copy(filter=value, filterIntensity = if (value == "none") 0f else s.filterIntensity.coerceIn(0f, 1f)))
                             },
                             horizontalAlignment=Alignment.CenterHorizontally
                         ) {
@@ -4897,7 +4939,15 @@ private fun FilterDialog(
                 }
             }
         },
-        confirmButton={}
+                Spacer(Modifier.height(10.dp))
+                Text(if (language == AppLanguage.ARABIC) "شدة الفلتر: " + (s.filterIntensity * 100).toInt() + "%" else "Filter intensity: " + (s.filterIntensity * 100).toInt() + "%")
+                Slider(value = s.filterIntensity, onValueChange = { onChange(s.copy(filterIntensity = it)) }, valueRange = 0f..1f)
+                OutlinedButton(onClick = { onChange(s.copy(filter = "none", filterIntensity = 0f)) }, modifier = Modifier.fillMaxWidth()) {
+                    Text(if (language == AppLanguage.ARABIC) "إزالة الفلتر" else "Remove filter")
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(if (language == AppLanguage.ARABIC) "تم" else "Done") } }
     )
 }
 @Composable
