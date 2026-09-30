@@ -25,5 +25,8 @@ data class Clip(
     /** Absolute project position of the clip, independent of its source trim. */
     val timelineStartMs: Long = 0L,
     /** Visual track/layer. 0 is the primary track; higher tracks render above it. */
-    val trackIndex: Int = 0
+    val trackIndex: Int = 0,
+    /** Transition applied at the start of this clip, between it and the previous adjacent clip. */
+    val transition: String = "none",
+    val transitionDurationMs: Long = 400L
 )
