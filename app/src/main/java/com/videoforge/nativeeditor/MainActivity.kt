@@ -3714,24 +3714,6 @@ private fun EditorPreview(
                 return v.coerceIn(0f, 1f)
             }
             LaunchedEffect(player, settings.brightness, settings.contrast, settings.saturation, settings.hue, settings.temperature, settings.tint, settings.blurRadius, settings.mosaicEnabled, settings.mosaicBlockSize, settings.mosaicX, settings.mosaicY, settings.mosaicWidth, settings.mosaicHeight, settings.filter, settings.rotation, settings.cropZoom, settings.cropX, settings.cropY, settings.flipHorizontal, settings.flipVertical, clip.videoKeyframes, settings.videoKeyframes) {
-                val local = (playheadMs - clipOffsetMs).coerceAtLeast(0L)
-                val speedNow = run {
-                    val ks = clip.speedKeyframes.ifEmpty { settings.speedKeyframes }.sortedBy { it.timeMs }
-                    if (ks.isEmpty()) settings.speed.coerceIn(0.25f, 4f) else {
-                        val a = ks.lastOrNull { it.timeMs <= local } ?: ks.first()
-                        val b = ks.firstOrNull { it.timeMs >= local } ?: ks.last()
-                        val span = (b.timeMs - a.timeMs).coerceAtLeast(1L)
-                        val f0 = ((local - a.timeMs).toFloat() / span).coerceIn(0f, 1f)
-                        val f = easedProgress(f0, b.easing)
-                        (a.speed + (b.speed - a.speed) * f).coerceIn(0.25f, 4f)
-                    }
-                }
-                player.setPlaybackSpeed(speedNow)
-                player.volume = clipPreviewVolume(local)
-                musicPlayer.volume = musicPreviewVolume(playheadMs)
-                if (settings.musicUri.isBlank()) musicPlayer.pause()
-                else if (playheadMs < settings.musicTimelineStartMs) musicPlayer.pause()
-                else if (settings.musicStartMs > 0L && musicPlayer.currentPosition < settings.musicStartMs) musicPlayer.seekTo(settings.musicStartMs)
                 val effects = mutableListOf<Effect>()
                 if (settings.brightness != 0f) effects += Brightness(settings.brightness.coerceIn(-1f, 1f))
                 if (settings.blurRadius > 0.01f) effects += GaussianBlur(settings.blurRadius.coerceIn(0.1f, 20f))
@@ -3782,6 +3764,7 @@ private fun EditorPreview(
                     }
                 }
                 player.setVideoEffects(effects)
+            }
             LaunchedEffect(playheadMs, clip.trimStartMs, clip.trimEndMs, settings.musicUri, settings.musicStartMs, settings.musicDurationMs, settings.musicTimelineStartMs) {
                 val local = (playheadMs - clipOffsetMs).coerceAtLeast(0L)
                 val sourcePosition = (clip.trimStartMs + local).coerceIn(clip.trimStartMs, (if (clip.trimEndMs == Long.MAX_VALUE) clip.durationMs else clip.trimEndMs).coerceAtLeast(clip.trimStartMs))
