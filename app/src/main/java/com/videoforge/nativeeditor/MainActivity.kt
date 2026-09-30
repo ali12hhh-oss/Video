@@ -3464,7 +3464,25 @@ private fun EditorScreen(
             "filters" -> FilterDialog(settings, current, language, { updateSettings(it) }, { tool = null })
             "adjust" -> AdjustDialog(settings, language, { updateSettings(it) }, { tool = null })
             "canvas" -> CanvasDialog(settings, language, { updateSettings(it) }, { tool = null })
-            "transition" -> TransitionDialog(settings, language, { updateSettings(it) }, { tool = null })
+            "transition" -> TransitionDialog(
+                settings.copy(
+                    transition = current?.transition?.takeIf { it != "none" } ?: settings.transition,
+                    transitionDuration = (current?.transitionDurationMs?.div(1000f) ?: settings.transitionDuration)
+                ),
+                language,
+                { next ->
+                    val selectedClip = current
+                    if (selectedClip != null) {
+                        val updated = selectedClip.copy(
+                            transition = next.transition,
+                            transitionDurationMs = (next.transitionDuration * 1000f).toLong().coerceIn(200L, 1200L)
+                        )
+                        commitClips(clips.map { if (it == selectedClip) updated else it })
+                        current = updated
+                    } else updateSettings(next)
+                },
+                { tool = null }
+            )
             "sticker" -> StickerDialog(settings, language, { updateSettings(it) }, { tool = null })
             "overlay" -> OverlayDialog(settings, language, { updateSettings(it) }, { overlayImageLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }, { aiCutoutLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }, { tool = null })
             "rotate" -> RotateDialog(settings, language, { updateSettings(it) }, { tool = null })
@@ -3718,7 +3736,9 @@ private fun EditorPreview(
                 }
                 return v.coerceIn(0f, 1f)
             }
-            LaunchedEffect(player, settings.brightness, settings.contrast, settings.saturation, settings.hue, settings.temperature, settings.tint, settings.blurRadius, settings.mosaicEnabled, settings.mosaicBlockSize, settings.mosaicX, settings.mosaicY, settings.mosaicWidth, settings.mosaicHeight, settings.filter, settings.filterIntensity, settings.rotation, settings.cropZoom, settings.cropX, settings.cropY, settings.flipHorizontal, settings.flipVertical, clip.videoKeyframes, settings.videoKeyframes) {
+            val activeTransition = clip.transition.takeIf { it != "none" } ?: settings.transition
+            val activeTransitionDuration = (if (clip.transition != "none") clip.transitionDurationMs / 1000f else settings.transitionDuration).coerceIn(0.2f, 1.2f)
+            LaunchedEffect(player, settings.brightness, settings.contrast, settings.saturation, settings.hue, settings.temperature, settings.tint, settings.blurRadius, settings.mosaicEnabled, settings.mosaicBlockSize, settings.mosaicX, settings.mosaicY, settings.mosaicWidth, settings.mosaicHeight, settings.filter, settings.filterIntensity, settings.rotation, settings.cropZoom, settings.cropX, settings.cropY, settings.flipHorizontal, settings.flipVertical, clip.videoKeyframes, settings.videoKeyframes, activeTransition, activeTransitionDuration) {
                 val effects = mutableListOf<Effect>()
                 if (settings.brightness != 0f) effects += Brightness(settings.brightness.coerceIn(-1f, 1f))
                 if (settings.blurRadius > 0.01f) effects += GaussianBlur(settings.blurRadius.coerceIn(0.1f, 20f))
@@ -3769,10 +3789,10 @@ private fun EditorPreview(
                         android.graphics.Matrix().apply { postScale(scale, scale); postRotate(rotation); postTranslate(x * 500f, y * 500f) }
                     }
                 }
-                if (settings.transition != "none") {
-                    val windowUs = (settings.transitionDuration.coerceIn(0.2f, 1.2f) * 1_000_000f).toLong().coerceAtLeast(120_000L)
+                if (activeTransition != "none") {
+                    val windowUs = (activeTransitionDuration * 1_000_000f).toLong().coerceAtLeast(120_000L)
                     val strength = settings.motionIntensity.coerceIn(0.35f, 1.8f)
-                    when (settings.transition) {
+                    when (activeTransition) {
                         "blur" -> effects += androidx.media3.effect.TimestampWrapper(GaussianBlur((6f * strength).coerceIn(1f, 10f)), 0L, windowUs)
                         "flash" -> effects += androidx.media3.effect.TimestampWrapper(Brightness(0.28f * strength), 0L, minOf(180_000L, windowUs))
                         "glitch", "digital" -> {
@@ -3786,7 +3806,7 @@ private fun EditorPreview(
                                 when (settings.transition) {
                                     "zoom", "crossZoom", "rotateZoom" -> {
                                         m.postScale(1f + 0.18f * strength * (1f - t), 1f + 0.18f * strength * (1f - t))
-                                        if (settings.transition == "rotateZoom") m.postRotate(10f * strength * (1f - t))
+                                        if (activeTransition == "rotateZoom") m.postRotate(10f * strength * (1f - t))
                                     }
                                     "slide", "push" -> m.postTranslate(-0.16f * strength * (1f - t), 0f)
                                     "pull" -> {
